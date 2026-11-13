@@ -1,8 +1,8 @@
 # Mercury visual audit
 
-Round 8 (13 November 2026): the first look at the prototype on the real PC. Round 9 (same day): the same build in a real transparent window. Round 10 (same day): the screen-capture refraction experiment, which settles item 2. Round 11 (same day): the first round of work on the look itself, items 1 and 3, judged with real covers as well as the generated one. Round 12 (same day): items 2 and 4. Round 13 (same day): item 5 and parts of 6 and 9.
+Round 8 (13 November 2026): the first look at the prototype on the real PC. Round 9 (same day): the same build in a real transparent window. Round 10 (same day): the screen-capture refraction experiment, which settles item 2. Round 11 (same day): the first round of work on the look itself, items 1 and 3, judged with real covers as well as the generated one. Round 12 (same day): items 2 and 4. Round 13 (same day): item 5 and parts of 6 and 9. Round 14 (same day): the buttons, item 8.
 
-**Verdict after round 13: it is the same kind of object as the references, clean and readable with every cover on every backdrop, and still not as good as any of them.** It reads as a solid drop of dark glass with a rolled edge, lit from the upper left, with the album's colour along its lower edge, in a ribbon of pigment inside the lower lip and on the floor under it. It holds over a dark desktop, a pale wallpaper and a white window alike, which the references are never asked to do. Nothing is outlined, nothing glows as a plate, nothing shows through, nothing drifts over the words. What the references still have that it does not, worst first: a body that twists and folds like liquid where ours is a tidy shape with a lip (item 7); single smooth buttons where ours are ringed (item 8); broad liquid highlights that wander across the lobes where ours keep to the edge (items 1 and 4); pigment in long threads the whole length of the lower body where ours is a ribbon that fades by the waist (item 5); and a quieter timeline (item 10). The first two are now the largest. The round-8 verdict, for the record: "it does not beat any of the three references yet, and it is not close"; it read as a flat shape traced in neon with a glow plate behind it.
+**Verdict after round 14: it is the same kind of object as the references, clean and readable with every cover on every backdrop, and still not as good as any of them.** It reads as a solid drop of dark glass with a rolled edge, lit from the upper left, with the album's colour along its lower edge, in a ribbon of pigment inside the lower lip and on the floor under it. It holds over a dark desktop, a pale wallpaper and a white window alike, which the references are never asked to do. Nothing is outlined, nothing glows as a plate, nothing shows through, nothing drifts over the words. What the references still have that it does not, worst first: a body that twists and folds like liquid where ours is a tidy shape with a lip (item 7); broad liquid highlights that wander across the lobes where ours keep to the edge (items 1 and 4); pigment in long threads the whole length of the lower body where ours is a ribbon that fades by the waist (item 5); and a quieter timeline (item 10). The first is now by far the largest: everything else is finish, and that one is form. The round-8 verdict, for the record: "it does not beat any of the three references yet, and it is not close"; it read as a flat shape traced in neon with a glow plate behind it.
 
 ## How it was captured
 
@@ -15,7 +15,7 @@ Round 8 (13 November 2026): the first look at the prototype on the real PC. Roun
 
 - Round 11 on: `npx electron tools/capture/mercury-shots.js out=design/captures/raw/round11 real=1` (it starts its own server now). `real=1` adds shots with real covers, listed in `data/real-covers.json`, which is not in git. **The repository is public, so no picture that shows a real cover or a real title is committed**: those shots and their sheet stay in `design/captures/raw/` and are sent to the owner directly. The committed sheet of each round uses the generated cover.
 
-Images: `design/captures/mercury-audit-round8.png` (side by side with all three references), `mercury-audit-round8-zoom.png` (details at 200%, hover, small size), `mercury-window-round9.png` (the real window over dark, light and colourful windows), `mercury-refraction-round10.png` (today's body, the refracting body and the nearly opaque body over the same window, then refraction over stripes, colour and dark), `mercury-still-round11.png` (round 11 beside the three references, with round 8 beneath for comparison), `mercury-still-round12.png` (round 12 beside the references, round 11 beneath), `mercury-still-round13.png` (round 13 beside the references, round 12 beneath).
+Images: `design/captures/mercury-audit-round8.png` (side by side with all three references), `mercury-audit-round8-zoom.png` (details at 200%, hover, small size), `mercury-window-round9.png` (the real window over dark, light and colourful windows), `mercury-refraction-round10.png` (today's body, the refracting body and the nearly opaque body over the same window, then refraction over stripes, colour and dark), `mercury-still-round11.png` (round 11 beside the three references, with round 8 beneath for comparison), `mercury-still-round12.png` (round 12 beside the references, round 11 beneath), `mercury-still-round13.png` (round 13 beside the references, round 12 beneath), `mercury-still-round14.png` (round 14 beside the references, with round 8, where the day started, beneath).
 
 ## What the real window showed (round 9)
 
@@ -87,6 +87,12 @@ Run it with `npx electron tools/widget-proto/main.js refract=live` (add `shots=<
 - GPU load with the larger pigment field: 0.83% idle and 7.9% playing with the card otherwise idle (0.87% and 7.5% in round 12), 57 W. `test=passthrough` passes.
 - Left of item 5: the ribbon fades out by the waist; the references' threads run the whole length. The stream reaches the far end at 50 to 70 units a second, so it is the pigment that thins, not the current that stops. Left of item 6: the label sheet is still drawn at the scene's resolution, and nothing has been done about text at the small size. Left of item 9: the tile is still drawn square on, with no keystone.
 
+## What round 14 changed (item 8)
+
+- **Each button is one smooth bowl** pressed into the surface, with one rounded shoulder and no rim standing round it (`detail()`, the `uBtn` loop). A rim and a dish gave every lamp four faces to draw a ring on, which is where the camera-lens look came from. Inside a bowl nothing is mirrored sharply, so its lower wall takes one soft light from above. The bowl is darker glass, darkest under its upper shoulder, with a breath of the album's colour in its bottom that grows when it is pressed or on a beat, in place of the pink ring.
+- Not done: the two utility dishes (open the app, hide the widget). At a comfortable size, about 12 units, they do not fit between the next button and the lip at the right end. The recommendation is to take them off the surface and put both actions in a right-click menu and the tray menu, with a double click on the body to open the app; that is the owner's call.
+- `test=passthrough` passes; what can be clicked has not moved.
+
 ## The gaps, worst first
 
 Line numbers are `prototypes/mercury/shaders.js` at commit `62869cb` unless another file is named. Items 1 and 3 were worked on in round 11; their line numbers are of historical interest only.
@@ -147,7 +153,9 @@ Against `widget-mercury.png`, measured by eye on the images, the proportions are
 
 Fix in `shape.js`: build the left lobe from a circle and an ellipse instead of a rounded box, replace the tail capsule with a rounded crest, curve the pinch. Replace the fin with a real second layer for the upper lip from the waist to the right end (the plan's two-layer approach), with an S-shaped leading edge that casts a soft shadow on the pod.
 
-### 8. Buttons and the control pod
+### 8. Buttons and the control pod: buttons fixed in round 14, utility dishes open
+
+The original finding follows.
 
 Each button is a stack of five or six concentric rings with a pink ring at the bottom, like a camera lens. The references' buttons are single smooth dark dimples with one soft rim light and a faint coral glow underneath. Glyph shapes are right but they glow. The open-app and hide dishes do appear on hover, but they are about 21 px across at 100% (13 px at the small size) with 8 px glyphs, jammed between the next button and the edge.
 
@@ -190,4 +198,4 @@ At 100% and at 200% (pixels doubled), on dark and on light, the body's silhouett
 
 ## Order of work for step 3
 
-~~1 and 3 first, together~~ (round 11). ~~Then 2 and 4~~ (round 12). ~~Then 5~~, with the urgent parts of 6 and 9 (round 13). Next 8 and 7, which are now the largest gaps, in that order: the buttons are the smaller job. Then real covers, and 5, 6, 9 with them. Then 7 and 8 (shape work, which moves hit areas, so the hit-test check gets re-run). 10 and 11 last; they are small once the rest is right.
+~~1 and 3 first, together~~ (round 11). ~~Then 2 and 4~~ (round 12). ~~Then 5~~, with the urgent parts of 6 and 9 (round 13). ~~Then 8~~, the buttons (round 14). Next 7, the outline's character, which is now the largest gap by far. Then real covers, and 5, 6, 9 with them. Then 7 and 8 (shape work, which moves hit areas, so the hit-test check gets re-run). 10 and 11 last; they are small once the rest is right.

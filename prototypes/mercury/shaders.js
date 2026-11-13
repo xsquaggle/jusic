@@ -258,15 +258,16 @@ float detail(vec2 p0) {
   h += 4.6 * smoothstep(-9., 9., p.y - fy) * strap;
   h += 1.5 * exp(-pow((p.y - fy + 3.) / 5., 2.)) * strap;
 
-  // Buttons: a ring rim around a dish. Pressing deepens the dish and spreads the rim.
+  // Buttons: each is one smooth bowl pressed into the surface, with one rounded shoulder and
+  // no rim standing round it (a rim and a dish gave every lamp four faces to draw a ring
+  // on). Pressing deepens the bowl and spreads it a little.
   for (int i = 0; i < 3; i++) {
     vec4 bt = uBtn[i];
     float press = bt.w;
     float r = bt.z * (1. + .06 * press);
     float rho = length(p - bt.xy);
-    h += (3.8 - 1.6 * press) * exp(-pow((rho - r) / 3.5, 2.));
-    float inside = smoothstep(r + 1., r - 6., rho);
-    h -= (5.5 + 8. * press) * inside * (1. - .5 * (rho * rho) / (r * r));
+    float wall = smoothstep(r + 2., r - 8., rho);
+    h -= (5. + 7. * press) * wall + (2.2 + 2. * press) * wall * (1. - rho * rho / (r * r));
   }
 
   // Utility dishes: flush with the lip until the pointer arrives, then they press in.
@@ -446,6 +447,10 @@ void main() {
     float curv = (abs(bxp + bxm - 2. * b0) + abs(byp + bym - 2. * b0)) / (eb * eb)
                + (abs(txp + txm - 2. * t0) + abs(typ + tym - 2. * t0)) / (ed * ed);
     gSoft = clamp(max(curv * px * 1.2, curv * .3), .004, .3);
+    // Inside a button's bowl nothing is mirrored sharply: one soft light on its wall, not rings.
+    float bowl = 0.;
+    for (int i = 0; i < 3; i++) bowl = max(bowl, smoothstep(uBtn[i].z + 2., uBtn[i].z - 6., length(pw - uBtn[i].xy)));
+    gSoft = max(gSoft, .06 * bowl);
 
     // In a pool the standing form is all but level; ripples and presses still cross it.
     vec3 pl = pools(pw) * born;
@@ -527,10 +532,12 @@ void main() {
       float rho = length(pw - uBtn[i].xy);
       float r = uBtn[i].z;
       dish = max(dish, smoothstep(r + 2., r - 4., rho));
-      ao *= 1. - (.5 + .2 * uBtn[i].w) * smoothstep(r - 1., r - 10., rho);
-      // Pigment glowing up through the bottom of each dish.
-      col += hotA * (.04 + .1 * uAudio.w + .25 * uBtn[i].w) * smoothstep(r, r * .2, rho) * smoothstep(r + 1., r - 3., rho)
-             * (.6 + .4 * dot(normalize(pw - uBtn[i].xy + 1e-3), vec2(-.6, .8)));
+      // A hollow of darker glass: darkest under its upper shoulder, where the light from
+      // above cannot reach.
+      float upper = dot(normalize(pw - uBtn[i].xy + 1e-3), vec2(0., -1.));
+      ao *= 1. - (.4 + .2 * uBtn[i].w) * smoothstep(r + 1., r - 9., rho) * (.72 + .28 * upper);
+      // A breath of the album's colour in the bottom of the bowl, more when pressed or on a beat.
+      col += hotA * (.012 + .05 * uAudio.w + .2 * uBtn[i].w) * smoothstep(r - 2., r * .3, rho);
     }
     for (int i = 0; i < 2; i++) {
       vec3 u = i == 0 ? UTIL0 : UTIL1;
