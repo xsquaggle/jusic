@@ -30,7 +30,10 @@ const fmt = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(
 
 const widget = $('widget');
 const canvas = $('gl');
-const mercury = createMercury(canvas, { reducedMotion: params.has('still'), family: 'Montserrat' });
+const mercury = createMercury(canvas, {
+  reducedMotion: params.has('still'), family: 'Montserrat',
+  ...(params.has('uncapped') ? { maxRender: null } : {}),      // ?uncapped lifts the 1920x1080 render cap, for inspection only
+});
 
 const view = { scale: 1, x: 0, y: 0 };
 
@@ -392,6 +395,8 @@ let raf = 0, last = 0, idleFor = 0, breathing = 0;
 let frames = 0, fpsAt = performance.now();
 const IDLE_AFTER = 2.5;      // seconds of stillness before it settles into breathing
 const BREATH_FPS = 15;
+const MAX_FPS = Number(params.get('fps')) || 120;
+let refreshPrev = 0, refreshMs = 1000 / 60, refreshCount = 0;
 
 function tick(dt, paint = true, idle = false) {
   if (player.playing) {
@@ -407,6 +412,13 @@ function tick(dt, paint = true, idle = false) {
 }
 
 function loop(now) {
+  // The display can refresh far faster than the liquid needs to be drawn (360 Hz on the
+  // owner's monitor). Draw on every nth refresh: the pace stays even and never passes MAX_FPS.
+  if (refreshPrev && now - refreshPrev < 50) refreshMs += (now - refreshPrev - refreshMs) * 0.1;
+  refreshPrev = now;
+  const every = Math.max(1, Math.ceil(1000 / MAX_FPS / refreshMs - 0.15));
+  if (refreshCount++ % every) { raf = requestAnimationFrame(loop); return; }
+
   const dt = last ? (now - last) / 1000 : 1 / 60;
   last = now;
   const moving = tick(dt);

@@ -21,7 +21,10 @@ const srgbToLinear = (c) => c.map((v) => Math.pow(v / 255, 2.2));
 const lerp = (a, b, t) => a + (b - a) * t;
 const rand = (a, b) => a + Math.random() * (b - a);
 
-export function createMercury(canvas, { reducedMotion = false, family } = {}) {
+/** The most pixels the liquid is ever drawn at, however large the widget or dense the display. */
+export const MAX_RENDER = [1920, 1080];
+
+export function createMercury(canvas, { reducedMotion = false, family, maxRender = MAX_RENDER } = {}) {
   const gl = canvas.getContext('webgl2', {
     alpha: true, premultipliedAlpha: true, antialias: false, depth: false, stencil: false,
     powerPreference: 'high-performance', preserveDrawingBuffer: false,
@@ -238,8 +241,16 @@ export function createMercury(canvas, { reducedMotion = false, family } = {}) {
    *   larger than the canvas and resolved down; 2 on a standard display.
    */
   function resize(cssW, cssH, dpr = window.devicePixelRatio || 1, ss = Math.max(1, Math.min(2, 2.5 / dpr))) {
-    const w = Math.max(2, Math.round(cssW * dpr));
-    const h = Math.max(2, Math.round(cssH * dpr));
+    let w = Math.max(2, Math.round(cssW * dpr));
+    let h = Math.max(2, Math.round(cssH * dpr));
+    if (maxRender) {
+      // The cap applies to the supersampled scene, which is where the cost is. Supersampling
+      // gives way first; only a canvas larger than the cap itself is drawn smaller and stretched.
+      const fit = Math.min(1, maxRender[0] / w, maxRender[1] / h);
+      w = Math.max(2, Math.round(w * fit));
+      h = Math.max(2, Math.round(h * fit));
+      ss = Math.max(1, Math.min(ss, maxRender[0] / w, maxRender[1] / h));
+    }
     const sw = Math.round(w * ss), sh = Math.round(h * ss);
     if (scene && w === canvas.width && h === canvas.height && scene.w === sw) return;
     canvas.width = w;
