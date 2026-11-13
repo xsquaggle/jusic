@@ -1,0 +1,12 @@
+{ "out": "design/captures/mercury-still-round13.png", "width": 1616,
+  "title": "Mercury still, round 13: pigment as a ribbon of colour in the lower lip instead of smoke, longer titles fit, the tile's shadow (generated test cover; RTX 3070, 125%)",
+  "rows": [
+  [ { "label": "reference: widget-mercury.png", "src": "design/references/widget-mercury.png", "crop": [0, 110, 1586, 797] },
+    { "label": "round 13: dark desktop", "src": "design/captures/raw/round13/dark.png", "crop": [90, 50, 1022, 513] } ],
+  [ { "label": "reference: widget-mercury-flow.png", "src": "design/references/widget-mercury-flow.png", "crop": [0, 130, 1586, 797] },
+    { "label": "round 13: light desktop (gradient wallpaper)", "src": "design/captures/raw/round13/light.png", "crop": [90, 50, 1022, 513] } ],
+  [ { "label": "reference: widget-mercury-split.png", "src": "design/references/widget-mercury-split.png", "crop": [0, 60, 1586, 797] },
+    { "label": "round 13: near-white window behind it", "src": "design/captures/raw/round13/window.png", "crop": [90, 50, 1022, 513] } ],
+  [ { "label": "round 12, for comparison: dark desktop", "src": "design/captures/raw/round12/dark.png", "crop": [90, 50, 1022, 513] },
+    { "label": "round 12, for comparison: near-white window", "src": "design/captures/raw/round12/window.png", "crop": [90, 50, 1022, 513] } ]
+] }

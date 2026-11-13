@@ -1,8 +1,8 @@
 # Mercury visual audit
 
-Round 8 (13 November 2026): the first look at the prototype on the real PC. Round 9 (same day): the same build in a real transparent window. Round 10 (same day): the screen-capture refraction experiment, which settles item 2. Round 11 (same day): the first round of work on the look itself, items 1 and 3, judged with real covers as well as the generated one. Round 12 (same day): items 2 and 4.
+Round 8 (13 November 2026): the first look at the prototype on the real PC. Round 9 (same day): the same build in a real transparent window. Round 10 (same day): the screen-capture refraction experiment, which settles item 2. Round 11 (same day): the first round of work on the look itself, items 1 and 3, judged with real covers as well as the generated one. Round 12 (same day): items 2 and 4. Round 13 (same day): item 5 and parts of 6 and 9.
 
-**Verdict after round 12: it is now the same kind of object as the references, and still not as good as any of them.** It reads as a solid drop of dark glass with a rolled edge, lit from the upper left, with the album's colour along its lower edge and on the floor under it, and it holds over a dark desktop, a pale wallpaper and a white window alike, which the references are never asked to do. Nothing is outlined, nothing glows as a plate, nothing shows through. What the references still have that it does not, worst first: pigment as a few long luminous threads where ours is smoke that drifts over the words and the timeline (item 5); a body that twists and folds like liquid where ours is a tidy shape with a lip (item 7); single smooth buttons where ours are ringed (item 8); broad liquid highlights that wander across the lobes where ours keep to the edge (items 1 and 4); and a quieter timeline (item 10). The round-8 verdict, for the record: "it does not beat any of the three references yet, and it is not close"; it read as a flat shape traced in neon with a glow plate behind it.
+**Verdict after round 13: it is the same kind of object as the references, clean and readable with every cover on every backdrop, and still not as good as any of them.** It reads as a solid drop of dark glass with a rolled edge, lit from the upper left, with the album's colour along its lower edge, in a ribbon of pigment inside the lower lip and on the floor under it. It holds over a dark desktop, a pale wallpaper and a white window alike, which the references are never asked to do. Nothing is outlined, nothing glows as a plate, nothing shows through, nothing drifts over the words. What the references still have that it does not, worst first: a body that twists and folds like liquid where ours is a tidy shape with a lip (item 7); single smooth buttons where ours are ringed (item 8); broad liquid highlights that wander across the lobes where ours keep to the edge (items 1 and 4); pigment in long threads the whole length of the lower body where ours is a ribbon that fades by the waist (item 5); and a quieter timeline (item 10). The first two are now the largest. The round-8 verdict, for the record: "it does not beat any of the three references yet, and it is not close"; it read as a flat shape traced in neon with a glow plate behind it.
 
 ## How it was captured
 
@@ -15,7 +15,7 @@ Round 8 (13 November 2026): the first look at the prototype on the real PC. Roun
 
 - Round 11 on: `npx electron tools/capture/mercury-shots.js out=design/captures/raw/round11 real=1` (it starts its own server now). `real=1` adds shots with real covers, listed in `data/real-covers.json`, which is not in git. **The repository is public, so no picture that shows a real cover or a real title is committed**: those shots and their sheet stay in `design/captures/raw/` and are sent to the owner directly. The committed sheet of each round uses the generated cover.
 
-Images: `design/captures/mercury-audit-round8.png` (side by side with all three references), `mercury-audit-round8-zoom.png` (details at 200%, hover, small size), `mercury-window-round9.png` (the real window over dark, light and colourful windows), `mercury-refraction-round10.png` (today's body, the refracting body and the nearly opaque body over the same window, then refraction over stripes, colour and dark), `mercury-still-round11.png` (round 11 beside the three references, with round 8 beneath for comparison), `mercury-still-round12.png` (round 12 beside the references, round 11 beneath).
+Images: `design/captures/mercury-audit-round8.png` (side by side with all three references), `mercury-audit-round8-zoom.png` (details at 200%, hover, small size), `mercury-window-round9.png` (the real window over dark, light and colourful windows), `mercury-refraction-round10.png` (today's body, the refracting body and the nearly opaque body over the same window, then refraction over stripes, colour and dark), `mercury-still-round11.png` (round 11 beside the three references, with round 8 beneath for comparison), `mercury-still-round12.png` (round 12 beside the references, round 11 beneath), `mercury-still-round13.png` (round 13 beside the references, round 12 beneath).
 
 ## What the real window showed (round 9)
 
@@ -77,6 +77,16 @@ Run it with `npx electron tools/widget-proto/main.js refract=live` (add `shots=<
 - GPU load is unchanged by rounds 11 and 12: 0.87% idle and 7.5% playing with the card otherwise idle (0.93% and 7.9% before), 57 W.
 - With real covers: every cover now gives a readable widget on every backdrop. The white cover still floods the left lobe with white smoke that hides the elapsed time and half the artist's name. The near-black cover is still the cleanest.
 
+## What round 13 changed (item 5, and parts of 6 and 9)
+
+- **Pigment is a ribbon of colour inside the lower lip, not smoke in the body.** It is let go in three fine threads at the lower left, into a current that runs inside the lip between the timeline and the edge and follows the outline round (`SIM_FORCE`, `SIM_DYE`). The tile weeps only from its lower edge. Drops on a kick leave the tile's lower right, downward, and are smaller. Nothing is let go toward the words, and pigment gives way wherever something has to be read.
+- **What it took to get threads at all,** found by reading the liquid's velocity and pigment back from the simulation (`mercury.probe(x, y)`, for tests): the old stream ran against the slow current that follows the walls, which tore it apart at the waist, so the wall current now runs the same way; a jet left to itself rolls up into curls, so the stream is held firmly to its course; the slow circulation was strong enough to boil (interior speeds over 150 units a second), so it is less than half as strong and the curl put back each step is a fifth of what it was; the pigment field is 1032×480, was 688×320, so a thread three units wide keeps its edge; and the pigment was looked up 14 units off along the surface slope, which on the steep new lip hid the threads completely, so that is 4.5 now. Thin pigment is shown down to 4% (was 14%), or every thread ended a third of the way along.
+- **A cover with no colour to give gives the album's colour.** Pigment from white or grey is made of the palette's primary colour (`PIGMENT`), so a white cover no longer fills the lobe with white fog. The picture's light spilling round the tile is 40% of what it was and closer in, for the same reason.
+- **Long titles fit.** The title has 205 units (was 190) and is set smaller, down to four fifths, before anything is cut; its weight is 560 (was 600).
+- **The tile's shadow** on the body is a soft one further off and a tight one against it, instead of one of middling softness.
+- GPU load with the larger pigment field: 0.83% idle and 7.9% playing with the card otherwise idle (0.87% and 7.5% in round 12), 57 W. `test=passthrough` passes.
+- Left of item 5: the ribbon fades out by the waist; the references' threads run the whole length. The stream reaches the far end at 50 to 70 units a second, so it is the pigment that thins, not the current that stops. Left of item 6: the label sheet is still drawn at the scene's resolution, and nothing has been done about text at the small size. Left of item 9: the tile is still drawn square on, with no keystone.
+
 ## The gaps, worst first
 
 Line numbers are `prototypes/mercury/shaders.js` at commit `62869cb` unless another file is named. Items 1 and 3 were worked on in round 11; their line numbers are of historical interest only.
@@ -117,7 +127,9 @@ The control pod has two large, flat, near-white patches above and below the butt
 
 Fix: set exposure so only the bead and the hottest core of a rim may reach white. The level floor of the pod should be dark glass, so treat it as a pool like the one under the words (flatten and darken its reflection). Make the two soft lights larger, dimmer and graded, and add a palette-coloured light from below and behind so the lower lips pick up the album's colour. Not a repeat of the handoff's dead end (low reflectance everywhere in a dim room gave a black body with wire outlines): the room stays bright, the reflectance drops only where the surface is level.
 
-### 5. Pigment is murky smoke, not threads
+### 5. Pigment is murky smoke, not threads: mostly fixed in round 13
+
+What is left is listed under "What round 13 changed". The original finding follows.
 
 It fills the left half with soft red-brown fog, visibly low resolution at 100% (the 688×320 field stretched up), sits behind the title, and on a light desktop turns the body pink. The references keep the body clean and show a few long, silky, luminous threads along the lower body.
 
@@ -178,4 +190,4 @@ At 100% and at 200% (pixels doubled), on dark and on light, the body's silhouett
 
 ## Order of work for step 3
 
-~~1 and 3 first, together~~ (round 11). ~~Then 2 and 4~~ (round 12). Then real covers, and 5, 6, 9 with them. Then 7 and 8 (shape work, which moves hit areas, so the hit-test check gets re-run). 10 and 11 last; they are small once the rest is right.
+~~1 and 3 first, together~~ (round 11). ~~Then 2 and 4~~ (round 12). ~~Then 5~~, with the urgent parts of 6 and 9 (round 13). Next 8 and 7, which are now the largest gaps, in that order: the buttons are the smaller job. Then real covers, and 5, 6, 9 with them. Then 7 and 8 (shape work, which moves hit areas, so the hit-test check gets re-run). 10 and 11 last; they are small once the rest is right.

@@ -471,7 +471,9 @@ void main() {
     vec2 qWord = pw + wordBend - uLean * 1.1;
 
     /* ---- pigment: light suspended in the liquid ---- */
-    vec2 duv = (pw + clamp(slope, -1.4, 1.4) * 14.) / STAGE;
+    // Seen through the surface, so shifted a little by its slope: only a little, or the steep
+    // outer face of the lip looks clean over the threads that run inside it.
+    vec2 duv = (pw + clamp(slope, -1., 1.) * 4.5) / STAGE;
     vec3 dye = texture(uDye, duv).rgb;
     float dyeAmt = clamp(max(dye.r, max(dye.g, dye.b)), 0., 1.);
     vec2 hz = 9. / STAGE;
@@ -480,7 +482,9 @@ void main() {
     // Thin pigment stays clear; where it gathers it glows in its own colour, brighter than white at the core.
     vec3 hue = dye / max(dyeAmt, 1e-3);
     hue = mix(hue, hue * hue * 1.15, .4);
-    vec3 lumen = hue * (1.3 * smoothstep(.14, .9, dyeAmt) + 1.6 * dyeAmt * dyeAmt * dyeAmt) + haze * haze * .5;
+    // (A thread thins as it travels. It is let show until it is very thin indeed; the old
+    // floor of .14 cut every thread off a third of the way along the lip.)
+    vec3 lumen = hue * (1.3 * smoothstep(.04, .8, dyeAmt) + 1.6 * dyeAmt * dyeAmt * dyeAmt) + haze * haze * .5;
 
     /* ---- the liquid: clear glass that mirrors like chrome ---- */
     float F = mix(.5, 1., pow(1. - ndv, 3.));
@@ -493,6 +497,8 @@ void main() {
     float under = ink(qWord + vec2(1.5, 3.5), 5.) * (1. - lensMask) * born;
     // The glass itself: smoked, with the album's deep tone in it. It no longer borrows its
     // colour from the desktop, so it has to have one.
+    // Pigment gives way wherever something has to be read.
+    lumen *= 1. - .93 * clamp(max(calm, pl.x), 0., 1.);
     vec3 inner = (uPalC * (.3 + .25 * depth) * (.6 + .8 * smoke) + lumen * (.7 + .4 * depth)) * (1. - .5 * under) * (1. - .75 * clamp(calm, 0., 1.));
 
     col = inner * (1. - .5 * F) + refl * F;
@@ -533,11 +539,13 @@ void main() {
     col *= ao;
 
     // The tile floats above the liquid: its shadow, and the picture's own light spilling round it.
-    float tshadow = .5 * smoothstep(18., -12., tileSdf(pw - vec2(5., 13.), uTile.xy)) * born;
+    float tshadow = (.36 * smoothstep(34., -16., tileSdf(pw - vec2(8., 20.), uTile.xy))
+                   + .34 * smoothstep(7., -3., tileSdf(pw - vec2(2.5, 6.), uTile.xy))) * born;
     col *= 1. - tshadow;
     vec2 castUv = clamp(turn(pw - uTile.xy, -COVER_ROT) / (2. * COVER_HALF) + .5, .1, .9);
     vec3 spill = pow(mix(textureLod(uCoverA, castUv, 4.5).rgb, textureLod(uCoverB, castUv, 4.5).rgb, smoothstep(.3, .8, uTrans)), vec3(2.2));
-    col += spill * 1.1 * exp(-max(dT, 0.) / 17.) * smoothstep(-8., 4., dT) * born;
+    // (Kept low and close: at full strength a white cover fogged the whole lobe round it.)
+    col += spill * .42 * exp(-max(dT, 0.) / 11.) * smoothstep(-8., 4., dT) * born;
 
     /* ---- the spectral surface glowing through the fold ---- */
     float along = clamp((pw.x - (BASIN_C.x - BASIN_B.x)) / (2. * BASIN_B.x), 0., 1.);
@@ -703,6 +711,22 @@ ${NOISE}
 `;
 
 /**
+ * Pigment from a cover colour: its hue at full strength, and nothing from its darkness. A
+ * cover with no colour to give (white, grey) gives the album's primary colour instead:
+ * white pigment is fog.
+ */
+const PIGMENT = /* glsl */`
+uniform vec3 uPal;
+vec3 pigment(vec3 art) {
+  art = pow(art, vec3(2.2));
+  float hi = max(art.r, max(art.g, art.b)), lo = min(art.r, min(art.g, art.b));
+  float coloured = smoothstep(.12, .4, (hi - lo) / max(hi, 1e-3));
+  vec3 own = uPal / max(max(uPal.r, max(uPal.g, uPal.b)), .08);
+  return mix(own, art / max(hi, .08), coloured) * smoothstep(.015, .3, hi);
+}
+`;
+
+/**
  * Velocity: carried along itself, then eased toward a slow circulation.
  * The circulation is the curl of a stream function that is zero at the walls,
  * so it swirls and never runs out through the outline.
@@ -721,8 +745,10 @@ float psi(vec2 p) {
   float n2 = fbm2(p * .019 - vec2(uTime * .03, uTime * .017)) - .5;
   // A slow current that follows the walls all the way round: it has to squeeze
   // through the neck, so it runs faster there and idles in the wide lobes.
-  float loop = .9 * smoothstep(0., -58., bodySdf(p, 0.));
-  return wall * (gyres + 2.4 * n + .9 * n2) + loop;
+  // (It runs left to right along the lower edge, the same way as the stream in the lip.
+  // Running the other way, it tore the stream's threads apart at the waist.)
+  float loop = -.9 * smoothstep(0., -58., bodySdf(p, 0.));
+  return wall * (gyres + 1.1 * n + .4 * n2) + loop;
 }
 
 // Solid things the liquid has to go round: the three button dishes.
@@ -739,12 +765,17 @@ void main() {
   v = texture(uVel, vUv - uDt * v / STAGE).xy;
   float e = 3.;
   vec2 cur = vec2(psi(p + vec2(0., e)) - psi(p - vec2(0., e)), psi(p - vec2(e, 0.)) - psi(p + vec2(e, 0.))) / (2. * e) * uFlow;
-  // A steady stream along the lower body, just under the timeline: pigment
-  // caught in it is drawn out into long threads.
-  float xs = clamp(p.x, SEEK_X.x - 10., SEEK_X.y + 60.);
-  float band = exp(-pow((p.y - seekY(xs) - 17.) / 12., 2.)) * smoothstep(176., 236., p.x) * smoothstep(760., 680., p.x);
-  cur += vec2(1., (seekY(xs + 4.) - seekY(xs - 4.)) / 8.) * uFlow * .036 * band;
-  v += (cur - v) * (1. - exp(-uDt * (.45 + 1.2 * band)));
+  // A steady stream inside the lower lip, between the timeline and the edge, following the
+  // outline round. Pigment let go into it is drawn out into long threads. Inside the
+  // stream the slow circulation gives way to it, so the threads stay clean.
+  float sd = bodySdf(p, 0.);
+  vec2 g = vec2(bodySdf(p + vec2(2., 0.), 0.) - sd, bodySdf(p + vec2(0., 2.), 0.) - sd);
+  float lower = smoothstep(-2., 10., p.y - seekY(clamp(p.x, SEEK_X.x, SEEK_X.y)));
+  float band = exp(-pow((-sd - 11.) / 9., 2.)) * lower * smoothstep(150., 215., p.x) * smoothstep(800., 715., p.x);
+  cur = mix(cur, normalize(vec2(g.y, -g.x) + 1e-5) * uFlow * .1, band);
+  // The stream is held firmly to its course: left to itself a jet in still liquid rolls up
+  // into curls within a few lengths, which is smoke again.
+  v += (cur - v) * (1. - exp(-uDt * (.45 + 16. * band)));
   v *= exp(-uDt * .16);
   v *= smoothstep(6., -10., bodySdf(p, 0.)) * (1. - .96 * solid(p));
   o = vec4(clamp(v, -1200., 1200.), 0., 1.);
@@ -842,12 +873,7 @@ uniform float uRadius;
 uniform float uAmount;
 uniform vec3 uColor;
 uniform vec3 uCoverUv;    // xy where on the cover, z 1 to use it
-
-vec3 pigment(vec3 art) {
-  art = pow(art, vec3(2.2));
-  float lum = max(art.r, max(art.g, art.b));
-  return art / max(lum, .08) * smoothstep(.015, .3, lum);     // keeps the hue, drops the darkness
-}
+${PIGMENT}
 
 void main() {
   vec2 q = vUv * STAGE - uPoint;
@@ -883,6 +909,7 @@ uniform float uFade;          // seconds for pigment to die away
 uniform float uSeep;          // how fast the cover leaks between drops
 uniform float uBurst;         // song change: the whole cover becomes pigment
 uniform float uTime;
+${PIGMENT}
 
 void main() {
   vec2 p = vUv * STAGE;
@@ -899,20 +926,26 @@ void main() {
 
   float dc = sdRBox(p - COVER_C, vec2(COVER_HALF), COVER_R);
   vec2 cuv = clamp((p - COVER_C) / (2. * COVER_HALF) + .5, .04, .96);
-  vec3 art = pow(texture(uCover, cuv).rgb, vec3(2.2));
-  float lum = max(art.r, max(art.g, art.b));
-  art = art / max(lum, .08) * smoothstep(.02, .35, lum);
-  // Between drops the rim still weeps, in threads.
-  float thread = pow(smoothstep(.4, .82, fbm2(p * .09 + vec2(0., uTime * .12))), 2.);
-  dye += art * smoothstep(16., 2., abs(dc - 6.)) * (.1 + 2.2 * thread) * uSeep * uDt;
+  vec3 art = pigment(texture(uCover, cuv).rgb);
+  // Between drops the tile weeps a little from its lower edge only, in threads, a short
+  // way into the lobe below it. Nothing leaves its other edges: that is where the words are.
+  float thread = pow(smoothstep(.4, .82, fbm2(vec2(p.x * .16, uTime * .11))), 2.);
+  float lowerEdge = smoothstep(9., 2., abs(dc - 5.)) * smoothstep(COVER_C.y + COVER_HALF - 12., COVER_C.y + COVER_HALF + 2., p.y);
+  dye += art * lowerEdge * (.03 + 1.5 * thread) * uSeep * uDt;
   dye = mix(dye, art * 1.15, uBurst * smoothstep(3., -6., dc) * .5);
-  // The head of the stream: colour let go just below the tile, where the current picks it up.
-  vec2 hq = p - vec2(250., seekY(250.) + 19.);
-  vec3 mean = pow(textureLod(uCover, vec2(.6, .8), 5.).rgb, vec3(2.2));
-  float ml = max(mean.r, max(mean.g, mean.b));
-  dye += mean / max(ml, .08) * smoothstep(.02, .3, ml) * exp(-dot(hq, hq) / 150.) * (.35 + .65 * thread) * uSeep * 13. * uDt;
+  // The stream: three fine threads let go into the current that runs inside the lower lip,
+  // each fed from a different part of the cover, each coming and going on its own.
+  float sd = bodySdf(p, 0.);
+  float below = smoothstep(-2., 10., p.y - seekY(clamp(p.x, SEEK_X.x, SEEK_X.y)));
+  float gate = exp(-pow((p.x - 226.) / 6., 2.)) * below;
+  for (int i = 0; i < 3; i++) {
+    float fi = float(i);
+    float across = exp(-pow((-sd - (6.5 + 4.5 * fi)) / 2.4, 2.));
+    float flick = .45 + .55 * smoothstep(.3, .75, fbm2(vec2(uTime * (.23 + .07 * fi), 7. * fi + 3.)));
+    dye += pigment(textureLod(uCover, vec2(.3 + .25 * fi, .78 - .12 * fi), 4.).rgb) * across * gate * flick * uSeep * 45. * uDt;
+  }
 
-  dye *= smoothstep(10., -6., bodySdf(p, 0.));
+  dye *= smoothstep(10., -6., sd);
   o = vec4(clamp(dye, 0., 1.7), 1.);
 }`;
 

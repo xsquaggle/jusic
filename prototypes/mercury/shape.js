@@ -28,7 +28,7 @@ export const L = {
 
   // The cover is a glass tile floating just above the body, overlapping its upper-left edge.
   cover: { c: [172, 152], half: 74, r: 19, rot: -0.07 },
-  title: { x: 292, y: 197, maxW: 190, size: 24 },
+  title: { x: 292, y: 197, maxW: 205, size: 24 },
   artist: { x: 293, y: 222, size: 15.5 },
 
   buttons: [

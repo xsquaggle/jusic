@@ -133,9 +133,13 @@ export function createInk(gl, { family = 'Montserrat' } = {}) {
     ctx.fillStyle = '#fff';
 
     // Title and artist: upright and plain. The liquid does the rest.
-    ctx.font = font(600, L.title.size);
+    // A long title is set smaller, down to four fifths, before any of it is cut.
+    let size = L.title.size;
+    ctx.font = font(560, size);
+    const need = ctx.measureText(labels.title).width;
+    if (need > L.title.maxW) { size = Math.max(L.title.size * 0.8, size * L.title.maxW / need); ctx.font = font(560, size); }
     ctx.globalAlpha = 1;
-    along(fit(labels.title, L.title.maxW), L.title.x, () => L.title.y);
+    along(fit(labels.title, L.title.maxW), L.title.x, () => L.title.y - (L.title.size - size) * 0.3);
     ctx.font = font(400, L.artist.size);
     ctx.globalAlpha = 0.8;
     along(fit(labels.artist, L.title.maxW - 8), L.artist.x, () => L.artist.y, { tracking: 0.15 });

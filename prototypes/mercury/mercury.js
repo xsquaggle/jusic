@@ -13,7 +13,7 @@ import { createInk } from './ink.js';
 import * as S from './shaders.js';
 
 const SIM_W = 384, SIM_H = 180;       // velocity and pressure
-const DYE_W = 688, DYE_H = 320;       // pigment
+const DYE_W = 1032, DYE_H = 480;      // pigment: fine enough for a thread three units wide to keep its edge
 const PRESSURE_ITERATIONS = 16;
 const BLOOM_LEVELS = 4;
 
@@ -452,8 +452,8 @@ export function createMercury(canvas, { reducedMotion = false, family, maxRender
    * still water a jet rolls up into a mushroom, which is the curl of ink.
    */
   function rimDrop({ kick = 0, fromOutgoing = false, angle = null } = {}) {
-    // Most drops head into the ribbon; a few go the other way round the lobe.
-    const a = angle ?? (Math.random() < 0.72 ? rand(-1.15, 1.15) : rand(0, Math.PI * 2));
+    // Drops leave the tile's lower right, down toward the stream, never up among the words.
+    const a = angle ?? rand(0.35, 1.45);
     const dx = Math.cos(a), dy = Math.sin(a);
     const m = Math.max(Math.abs(dx), Math.abs(dy));
     const c = L.cover;
@@ -461,8 +461,8 @@ export function createMercury(canvas, { reducedMotion = false, family, maxRender
     if (bodySdf(x + dx * 14, y + dy * 14) > -8) return;        // would jet straight into the wall
     const speed = lerp(rand(70, 120), rand(190, 300), Math.min(1, kick));
     drop(x, y, {
-      radius: lerp(rand(8, 12), rand(12, 17), Math.min(1, kick)),
-      amount: lerp(0.42, 0.66, Math.min(1, kick)),
+      radius: lerp(rand(5, 7), rand(7, 10), Math.min(1, kick)),
+      amount: lerp(0.26, 0.42, Math.min(1, kick)),
       coverUv: [0.5 + dx / m * 0.4, 0.5 + dy / m * 0.4],
       outgoing: fromOutgoing,
     });
@@ -581,7 +581,8 @@ export function createMercury(canvas, { reducedMotion = false, family, maxRender
   function simulate(dt, idle = false) {
     gl.disable(gl.BLEND);
     const texel = sim.vel.read.texel;
-    const flow = st.reducedMotion ? 0 : lerp(260, 1150 + 1500 * st.bass, sp.playing.x);
+    // Calm: a slow turning when paused, a livelier one with the music, never a boil.
+    const flow = st.reducedMotion ? 0 : lerp(160, 520 + 700 * st.bass, sp.playing.x);
 
     let u = use(P.force);
     bind(sim.vel.write);
@@ -619,7 +620,7 @@ export function createMercury(canvas, { reducedMotion = false, family, maxRender
     sampler(u.uCurl, sim.curl.tex[0]);
     gl.uniform2fv(u.uTexel, texel);
     gl.uniform1f(u.uDt, dt);
-    gl.uniform1f(u.uStrength, 30);
+    gl.uniform1f(u.uStrength, 6);
     draw();
     sim.vel.swap();
 
@@ -658,6 +659,7 @@ export function createMercury(canvas, { reducedMotion = false, family, maxRender
       gl.uniform1f(u.uRadius, d.radius);
       gl.uniform1f(u.uAmount, d.amount);
       gl.uniform3fv(u.uColor, d.color);
+      gl.uniform3fv(u.uPal, st.pal.a);
       gl.uniform3f(u.uCoverUv, d.coverUv ? d.coverUv[0] : 0, d.coverUv ? d.coverUv[1] : 0, d.coverUv ? 1 : 0);
       draw();
       sim.dye.swap();
@@ -686,7 +688,8 @@ export function createMercury(canvas, { reducedMotion = false, family, maxRender
     sampler(u.uCover, st.trans < 0.5 ? coverA : coverB);
     gl.uniform2fv(u.uTexel, sim.dye.read.texel);
     gl.uniform1f(u.uDt, dt);
-    gl.uniform1f(u.uFade, st.transActive ? 8 : 12);
+    gl.uniform1f(u.uFade, st.transActive ? 7 : 11);
+    gl.uniform3fv(u.uPal, st.pal.a);
     gl.uniform1f(u.uSeep, st.reducedMotion ? 0.08 : lerp(0.02, 0.1, sp.playing.x));
     gl.uniform1f(u.uBurst, st.burst);
     gl.uniform1f(u.uTime, st.time);
@@ -804,8 +807,7 @@ export function createMercury(canvas, { reducedMotion = false, family, maxRender
       st.lastKick = st.time;
       const power = Math.min(1, st.pulse);
       sp.thump.kick(9 * power);
-      const n = power > 0.8 ? 2 : 1;
-      for (let i = 0; i < n; i++) rimDrop({ kick: power });
+      rimDrop({ kick: power });
       const s = (Math.random() < 0.5 ? 1 : -1) * (260 + 520 * power);
       swirl(rand(300, 480), rand(205, 255), s, rand(34, 52));
       swirl(rand(540, 720), rand(170, 250), -s, rand(34, 52));
@@ -816,13 +818,13 @@ export function createMercury(canvas, { reducedMotion = false, family, maxRender
     // Between kicks the cover still lets a drop go now and then.
     if (st.time >= st.nextDrop) {
       rimDrop({ kick: 0.15 * st.mid });
-      st.nextDrop = st.time + rand(1.0, 1.8) / (0.6 + st.mid + st.bass);
+      st.nextDrop = st.time + rand(1.6, 2.8) / (0.6 + st.mid + st.bass);
     }
     // The bead leaves a thread of colour behind it as the song moves on.
     if (st.time >= st.nextTrail) {
       const bx = seekX(sp.seekBead.x);
-      drop(bx, seekY(bx) + 6, { radius: 8, amount: 0.4, color: st.pal.a });
-      push(bx, seekY(bx) - 4, rand(-20, 20), -34, 12);
+      drop(bx, seekY(bx) + 8, { radius: 4.5, amount: 0.3, color: st.pal.a });
+      push(bx, seekY(bx) + 8, 30, 6, 10);
       st.nextTrail = st.time + rand(0.9, 1.5);
     }
     // Highs shiver the whole body with small eddies.
@@ -879,6 +881,17 @@ export function createMercury(canvas, { reducedMotion = false, family, maxRender
       || st.pendingDrops.length > 0;
   }
 
+  /** For tests: the liquid's velocity (stage units a second) and the pigment at a stage position. */
+  function probe(x, y) {
+    const read = (t) => {
+      const out = new Float32Array(4);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, t.fbo);
+      gl.readPixels(Math.floor(x / STAGE.w * t.w), Math.floor(y / STAGE.h * t.h), 1, 1, gl.RGBA, gl.FLOAT, out);
+      return [...out.slice(0, 3)].map((v) => Math.round(v * 100) / 100);
+    };
+    return { velocity: read(sim.vel.read).slice(0, 2), pigment: read(sim.dye.read) };
+  }
+
   function destroy() {
     const ext = gl.getExtension('WEBGL_lose_context');
     if (ext) ext.loseContext();
@@ -886,7 +899,7 @@ export function createMercury(canvas, { reducedMotion = false, family, maxRender
 
   return {
     gl, state: st, springs: sp, ink,
-    resize, frame, render, destroy, hit,
+    resize, frame, render, destroy, hit, probe,
     setCover, setPalette, setPlaying, setProgress, setVolume, setAudio, setLabels, setTip,
     setBackdropFrame, setBackdropMap, backdrop: back,
     pointerMove, pointerLeave, pressAt, release, pressButton, pressUtil, ripple, lurch, appear, vanish,
