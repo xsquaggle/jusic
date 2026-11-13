@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mercury prototype</title>
+<style>
+@font-face {
+  font-family: 'Montserrat';
+  src: url('../../public/fonts/montserrat-latin-wght-normal.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-display: block;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Montserrat';
+  src: url('../../public/fonts/montserrat-latin-ext-wght-normal.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-display: block;
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  font-family: 'Montserrat', 'Segoe UI', system-ui, sans-serif;
+  color: #fff;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+}
+
+/* Stand-ins for a desktop: the widget itself is drawn with no background. */
+.desk { position: fixed; inset: 0; transition: opacity .5s; }
+.desk[data-bg="studio"] {
+  background:
+    radial-gradient(120% 90% at 50% 105%, #1a0d0e 0%, transparent 60%),
+    radial-gradient(90% 70% at 50% 40%, #171012 0%, #0a0708 70%, #050404 100%);
+}
+.desk[data-bg="wallpaper"] {
+  background:
+    radial-gradient(60% 80% at 15% 20%, #f7b267 0%, transparent 60%),
+    radial-gradient(70% 90% at 85% 30%, #7bdff2 0%, transparent 60%),
+    radial-gradient(90% 80% at 50% 100%, #b388eb 0%, transparent 70%),
+    linear-gradient(160deg, #fdf0d5, #c1d3fe);
+}
+.desk[data-bg="window"] {
+  background: #f3f4f6;
+  background-image:
+    linear-gradient(#e5e7eb 1px, transparent 1px), linear-gradient(90deg, #e5e7eb 1px, transparent 1px),
+    linear-gradient(#d1d5db 1px, transparent 1px);
+  background-size: 28px 28px, 28px 28px, 100% 140px;
+}
+.desk[data-bg="black"] { background: #000; }
+
+.widget {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 860px;
+  height: 400px;
+  margin: -200px 0 0 -430px;
+  transform-origin: 50% 50%;
+  will-change: transform;
+}
+.widget canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+
+/* Prototype-only controls. Not part of the widget. */
+.panel {
+  position: fixed;
+  left: 14px;
+  bottom: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-width: calc(100vw - 28px);
+  font: 500 12px/1 'Montserrat', system-ui, sans-serif;
+  z-index: 5;
+}
+.panel button, .panel span {
+  padding: 8px 11px;
+  border: 1px solid rgb(255 255 255 / .16);
+  border-radius: 999px;
+  background: rgb(20 20 24 / .72);
+  color: #fff;
+  font: inherit;
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+}
+.panel span { cursor: default; color: rgb(255 255 255 / .6); font-variant-numeric: tabular-nums; }
+.panel button:hover { background: rgb(50 50 60 / .8); }
+body.capture .panel { display: none; }
+.hint {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 16px;
+  text-align: center;
+  font: 500 12px/1.4 'Montserrat', system-ui, sans-serif;
+  color: rgb(255 255 255 / .5);
+  mix-blend-mode: difference;
+  pointer-events: none;
+}
+body.capture .hint { display: none; }
+</style>
+</head>
+<body>
+
+<div class="desk" id="desk" data-bg="studio"></div>
+<div class="hint" id="hint">Mercury prototype · tap play to start the built-in test synth</div>
+
+<div class="widget" id="widget">
+  <canvas id="gl"></canvas>
+</div>
+
+<div class="panel" id="panel">
+  <button data-act="bg">Backdrop</button>
+  <button data-act="size">Size</button>
+  <button data-act="form">Close / appear</button>
+  <button data-act="motion">Reduced motion: off</button>
+  <span id="fps">–</span>
+</div>
+
+<script type="module" src="demo.js"></script>
+</body>
+</html>
