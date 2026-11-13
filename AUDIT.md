@@ -1,18 +1,34 @@
 # Mercury visual audit
 
-Round 8, 13 November 2026. The first look at the prototype on the real PC. Nothing about the look was changed before these captures; the only code change is the 120 fps and 1920×1080 cap the owner asked for mid-audit.
+Round 8 (13 November 2026): the first look at the prototype on the real PC. Round 9 (same day): the same build in a real transparent window. Nothing about the look has been changed yet; the only code changes are the 120 fps and 1920×1080 cap the owner asked for and a clear page for the widget window.
 
-**Verdict: it does not beat any of the three references yet, and it is not close.** The proportions, layout and edge anti-aliasing are sound. What is wrong is the material: it reads as a flat shape traced in neon with a glow plate behind it, where the references read as a solid object made of dark glass and chrome.
+**Verdict: it does not beat any of the three references yet, and it is not close.** The proportions, layout and edge anti-aliasing are sound. What is wrong is the material: it reads as a flat shape traced in neon with a glow plate behind it, where the references read as a solid object made of dark glass and chrome. In a real window a second problem joins it: whatever is behind the widget shows straight through the body.
 
 ## How it was captured
 
-- Real GPU, real compositor: Electron 45.3.2, ANGLE on Direct3D 11, in a normal window, photographed with `capturePage`.
-- The machine reports an **RTX 3070** (the plan says 3060), a **2560×1440 display at 125% scaling, 360 Hz**.
-- Widget at 100% size is 1075×500 screen pixels; the liquid is drawn at 1920×893 and resolved down (1.79× supersampling under the new cap, was 2×).
-- `?capture=1`, clock stepped 720 frames with the scripted test audio, test cover "Silver Current" (a generated fixture, not real artwork).
-- Reproduce: `node prototypes/serve.js`, then `npx electron tools/capture/mercury-shots.js out=design/captures/raw/round8`, then `npx electron tools/capture/sheet.js tools/capture/sheets/round8-overview.json` (and `round8-zoom.json`).
+- Real GPU, real compositor: Electron 45.3.2, ANGLE on Direct3D 11.
+- The machine reports an **RTX 3070** (the plan says 3060). Main monitor **2560×1440 at 125% scaling, 360 Hz**; second monitor 1920×1080 at 100%.
+- Round 8: an ordinary window photographed with `capturePage`. Widget at 100% size is 1075×500 screen pixels; the liquid is drawn at 1920×893 and resolved down (1.79× supersampling under the cap, was 2×). `node prototypes/serve.js`, then `npx electron tools/capture/mercury-shots.js out=design/captures/raw/round8`.
+- Round 9: the real widget window (transparent, frameless, always on top, never focused) over test windows on the second monitor, photographed from the screen itself. `npx electron tools/widget-proto/main.js shots=design/captures/raw/round9`.
+- Both: `?capture=1`, clock stepped 720 frames with the scripted test audio, test cover "Silver Current" (a generated fixture, not real artwork).
+- Sheets are built with `npx electron tools/capture/sheet.js tools/capture/sheets/<name>.json`.
 
-Images: `design/captures/mercury-audit-round8.png` (side by side with all three references, dark, light and near-white) and `design/captures/mercury-audit-round8-zoom.png` (details at 200%, hover, small size).
+Images: `design/captures/mercury-audit-round8.png` (side by side with all three references), `mercury-audit-round8-zoom.png` (details at 200%, hover, small size), `mercury-window-round9.png` (the real window over dark, light and colourful windows).
+
+## What the real window showed (round 9)
+
+- **It works.** Per-pixel transparency, no rectangle, no frame, always on top. By accident it was also seen over a full-screen game on the main monitor: it stayed on top and the game showed round it and through it.
+- **The see-through body is the second-biggest problem,** worse than the stand-in backdrops suggested. A heading in the window behind reads straight through the title; over the game, item tiles and prices showed through the cover area and the control pod. It moves up from fourth to second.
+- **The glow is treated differently on the two monitors** (measured with `tools/capture/premul-probe.js`, a canvas adding light with alpha 0, 1/255, 0.1 and 0.3):
+
+  | Where | Light with alpha 0 | Light with alpha 1/255 or more |
+  |---|---|---|
+  | Ordinary window, main monitor (125%) | discarded | added in full |
+  | Transparent window, main monitor (125%) | discarded | added in full |
+  | Transparent window, second monitor (100%) | added in full | added in full |
+
+  So on the main monitor the glow stops dead where the shadow's alpha runs out (the plate with a hard border), and on the second monitor it has no border but spreads as a fog that whitens the words round the widget on a light window. Light with no alpha behind it cannot be relied on.
+- Not tested yet: click-through, dragging, focus, GPU load, refraction.
 
 ## The gaps, worst first
 
@@ -24,25 +40,25 @@ A white line of even width runs round the silhouette, round the cover tile, roun
 
 Fix: remove the explicit rim line (the `lit` floor of .28 and the `pow(1 - ndv, 16)` term, 443–449), the bright line on the underside's lower edge (577) and the tile strokes (589, 608). Give the edge a real profile about 40 units wide whose normal sweeps from up to sideways, so a broad light makes a highlight with width that varies along the contour. Give the underside its own curved normal and shade it from the room instead of a flat colour plus a line. Make the wall's height vary round the contour (deep at the front, none at the back) so it reads as a view from slightly above, as in the references, instead of a copy of the outline shifted down 14 units.
 
-### 2. The glow is a plate behind the widget (the opposite of "no rectangle behind it")
+### 2. Whatever is behind it shows through the body (glass transparency)
 
-On the near-white backdrop the glow is a solid white slab with a hard edge that erases whatever is behind it. On the wallpaper it is a pale band with a visible border. On dark it is a brown band that stops dead: brightness halves across one pixel (42,22,25 to 19,11,11 in the capture), and the border is jagged at 200% because nothing anti-aliases it. This will be the first thing noticed in the real transparent window.
+The body is see-through and tinted but does not bend or blur anything. In the real window, text and pictures behind the widget read straight through it and collide with the title, the timeline and the times; on a light desktop the body washes to pink-white and loses its form. The three dark pools only dim what is behind them. The references are dark smoked glass that mostly reflects.
 
-Cause, measured: the glow is drawn by adding light where the canvas's alpha is low (`COMPOSITE`, 917–935). A probe page shows the compositor keeps that light wherever alpha is at least 1/255 and discards it where alpha is exactly 0 (alpha 0: nothing added; alpha 1/255: the full amount added). Outside the body the only alpha comes from the shadow, so the glow exists exactly as far as the shadow reaches (34 units, line 366) and is cut there. Switching bloom off does not move the border, so it is not the bloom. Inside the border the light is added at full strength, which is what clips a light desktop to white.
+Fix: depends on the refraction experiment later in step 2. If screen-capture refraction works, bend, blur and darken what is behind (about 70–85% opaque), which is the only way see-through glass stays readable. If it does not, go back to the plan's original position: body nearly opaque (85–90%), clear only at the thin edges, so it reads the same over anything.
 
-Fix: give the glow its own alpha, equal to its brightness (a screen blend rather than an add). That removes the cut-off, because alpha is never zero where there is light, and it stops the glow pushing a light desktop past white. Then stop spreading it evenly all round: pool it under the lower edge like the floor light in the references. On light desktops let a real soft, offset drop shadow carry the form; today the shadow peaks at 26% and is buried under the glow. The same probe has to be repeated in the real transparent window in step 2, because Windows' own compositor may treat these pixels differently again.
+### 3. The glow is a plate, or a fog, behind the widget
 
-### 3. Highlights are blown out and colourless (chrome material)
+On the main monitor the glow is a band that stops dead: solid white with a hard edge on a near-white backdrop (it erases what is behind it), a brown band on dark whose brightness halves across one pixel (42,22,25 to 19,11,11), jagged at 200% because nothing anti-aliases it. On the second monitor there is no edge, and the same light spreads as a fog that whitens the words round the widget on a light window.
+
+Cause, measured: the glow is drawn by adding light where the canvas's alpha is low (`COMPOSITE`, 917–935). Whether that light survives where alpha is exactly 0 depends on the monitor (table above). Outside the body the only alpha comes from the shadow (34 units, line 366), so on the main monitor the glow exists exactly as far as the shadow reaches. Switching bloom off does not move the border, so it is not the bloom. Wherever the light is kept it is added at full strength, which is what clips a light desktop to white.
+
+Fix: give the glow its own alpha, equal to its brightness (a screen blend rather than an add). Every pixel is then an ordinary premultiplied colour that every path treats the same way: no cut-off, and a light desktop can no longer be pushed past white. Then stop spreading the glow evenly all round: pool it under the lower edge like the floor light in the references. On light desktops let a real soft, offset drop shadow carry the form; today the shadow peaks at 26% and is buried under the glow.
+
+### 4. Highlights are blown out and colourless (chrome material)
 
 The control pod has two large, flat, near-white patches above and below the buttons, and on a light desktop most of the right lobe is solid white. In the references almost nothing clips: highlights are thin to medium, graded, cool white from above and coral from below, on a dark body. Our chrome is neutral grey and white; the album's colour shows only in the glow, the underside and the pigment.
 
 Fix: set exposure so only the bead and the hottest core of a rim may reach white. The level floor of the pod should be dark glass, so treat it as a pool like the one under the words (flatten and darken its reflection). Make the two soft lights larger, dimmer and graded, and add a palette-coloured light from below and behind so the lower lips pick up the album's colour. Not a repeat of the handoff's dead end (low reflectance everywhere in a dim room gave a black body with wire outlines): the room stays bright, the reflectance drops only where the surface is level.
-
-### 4. On a light desktop the body loses itself (glass transparency)
-
-The body is see-through and tinted but does not bend anything, so a light desktop simply shows through as a wash: pink-white over the wallpaper, white plastic with black holes over a white window. The dark interior that keeps text readable exists only in the three pools. The references are dark smoked glass that mostly reflects.
-
-Fix: depends on the refraction experiment in step 2. If screen-capture refraction works, bend and darken what is behind (about 70–85% opaque). If it does not, go back to the plan's original position: body nearly opaque (85–90%), clear only at the thin edges, so it reads the same on any wallpaper.
 
 ### 5. Pigment is murky smoke, not threads
 
@@ -92,17 +108,17 @@ The dimple is a ringed disc about 60 px across that looks like another button an
 
 ### 13. Edge quality and anti-aliasing: mostly good
 
-At 100% and at 200% (pixels doubled), on dark and on light, the body's silhouette, the tile and the buttons have clean edges: no stair-stepping and no dark fringe. The supersampled resolve works on the real GPU and still works at 1.79× under the new cap. Drawn at 200% size the widget is rendered at 1920 px and stretched 12%, which is slightly soft but clean; real sizes are 100% and below. The edge problems are elsewhere: the cut-off border of the glow (item 2), the blocky pigment (item 5) and the soft text (item 6).
+At 100% and at 200% (pixels doubled), on dark and on light, the body's silhouette, the tile and the buttons have clean edges: no stair-stepping and no dark fringe. The supersampled resolve works on the real GPU and still works at 1.79× under the cap. Drawn at 200% size the widget is rendered at 1920 px and stretched 12%, which is slightly soft but clean; real sizes are 100% and below. The edge problems are elsewhere: the cut-off border of the glow (item 3), the blocky pigment (item 5) and the soft text (item 6).
 
 ## Different here from the handoff screenshots
 
 - The glow's hard border is far more visible on the real display than in the downscaled round-7 capture. On a near-white window it is a solid plate; the handoff did not show that backdrop.
-- The handoff assumed the glow adds onto the desktop wherever alpha is low. Measured here, that only holds where alpha is at least 1/255; where it is exactly 0 the light is thrown away (item 2). This is the first half of the handoff's open "Transparency" test; the real-window half is step 2.
+- The handoff assumed the glow adds onto the desktop wherever alpha is low. Measured here, that depends on the monitor (item 3).
 - The fin at the waist is crisp enough here to read as a fault.
-- The hardware is not what the plan assumed: RTX 3070, 125% scaling (the plan's tests name 100% and 150%), and a 360 Hz display. With nothing limiting it the loop drew about 340 times a second with uneven gaps (p95 5.4 ms, max 8.4 ms), which is the lag the owner saw. Capped: 120 draws a second, gaps 8.3 ms median, 8.4 ms p95, 8.7 ms max over 4 s.
+- The hardware is not what the plan assumed: RTX 3070, 125% scaling (the plan's tests name 100% and 150%), a 360 Hz main display and a second monitor. With nothing limiting it the loop drew about 340 times a second with uneven gaps (p95 5.4 ms, max 8.4 ms), which is the lag the owner saw. Capped: 120 draws a second, gaps 8.3 ms median, 8.4 ms p95, 8.7 ms max over 4 s.
 - Otherwise colour, layout and overall look match the software captures closely. The cloud renders were representative; nothing got better or worse by moving to the GPU.
-- For step 2: destroying an Electron window and loading the same page in a new one straight away failed once with `ERR_FAILED`; reusing one window works.
+- Destroying an Electron window and loading the same page in a new one straight away failed once with `ERR_FAILED`; reusing one window works.
 
 ## Order of work for step 3
 
-1 and 2 first, together: they are the same decision about how edges and light are drawn, and they change how every later item looks. Then 3 and 4 (material and opacity, after the refraction experiment). Then real covers, and 5, 6, 9 with them. Then 7 and 8 (shape work, which moves hit areas, so the hit-test check gets re-run). 10 and 11 last; they are small once the rest is right.
+1 and 3 first, together: they are the same decision about how edges and light are drawn, and they change how every later item looks. Then 2 and 4 (opacity and material, once the refraction experiment has said which way 2 goes). Then real covers, and 5, 6, 9 with them. Then 7 and 8 (shape work, which moves hit areas, so the hit-test check gets re-run). 10 and 11 last; they are small once the rest is right.

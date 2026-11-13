@@ -1,0 +1,8 @@
+{ "out": "design/captures/mercury-window-round9.png", "width": 1616,
+  "title": "Mercury round 9: the same build in a real transparent, frameless, always-on-top window, photographed from the screen (second monitor, 100% scale)",
+  "rows": [
+  [ { "label": "over a dark window", "src": "design/captures/raw/round9/window-dark.png" },
+    { "label": "over a light window", "src": "design/captures/raw/round9/window-light.png" } ],
+  [ { "label": "over a colourful window", "src": "design/captures/raw/round9/window-busy.png" },
+    { "label": "reference: widget-mercury.png", "src": "design/references/widget-mercury.png", "crop": [0, 110, 1586, 793] } ]
+] }

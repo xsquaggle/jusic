@@ -15,6 +15,9 @@ const $ = (id) => document.getElementById(id);
 const params = new URLSearchParams(location.search);
 const CAPTURE = params.has('capture');
 if (CAPTURE) document.body.classList.add('capture');
+const WIDGET = params.has('widget');      // running in the real transparent widget window (tools/widget-proto)
+if (WIDGET) document.body.classList.add('widget-mode');
+const host = WIDGET ? window.widgetHost : null;   // the window's own controls, exposed by its preload
 
 const TRACKS = [
   { title: 'Silver Current', artist: 'Artist 02', cover: 'covers/silver-current.jpg', duration: 226, bpm: 96, root: 45 },

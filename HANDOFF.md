@@ -4,25 +4,25 @@
 
 ## Current status
 
-Updated 13 November 2026, at the end of stage 1 (the visual audit).
+Updated 13 November 2026, at the end of stage 2a (the real widget window).
 
-**Done in this stage**
+**Step 2 so far**
 
-- **Visual audit on the real GPU:** `AUDIT.md`, 13 gaps ranked by how much they hurt, each with a fix. Side by side with all three references: `design/captures/mercury-audit-round8.png`. Details at 200%, hover and the small size: `design/captures/mercury-audit-round8-zoom.png`. Verdict: not better than any reference yet. The top three are outlines instead of form, the glow plate behind the widget, and blown-out colourless highlights.
-- **Cap the owner asked for mid-audit:** the liquid is never drawn above 1920×1080 (`MAX_RENDER` in `mercury.js`; supersampling gives way first) and never more often than 120 times a second (the limiter at the top of `loop` in `demo.js`). Measured at 100% size: 120 draws a second, gaps 8.3 ms median and 8.7 ms at worst. Before, it free-ran at about 340 a second with uneven gaps, which the owner saw as lag. `?fps=N` and `?uncapped` override both.
-- **Capture tools** in `tools/capture/` (see the file map). Electron 45.3.2 is a pinned dev dependency: `npm install`, then `node node_modules/electron/install.js` if `node_modules/electron/dist/electron.exe` is missing.
-- **Why the glow has a hard border** (measured, `tools/capture/premul-probe.js`): the compositor keeps light added by the canvas where alpha is at least 1/255 and discards it where alpha is exactly 0. `AUDIT.md` item 2 has the fix.
-- **The machine:** RTX 3070 (not 3060), 2560×1440 at 125% scaling, 360 Hz.
+- **2a done: the prototype runs in a real widget window.** `tools/widget-proto/main.js` is a throwaway shell, not the app: transparent, frameless, always on top, never focused, no taskbar entry, tray icon to quit. The page has a `?widget` mode (clear page, no test panel). Run it with `npx electron tools/widget-proto/main.js` (options `size=0.8`, `display=other`). It starts the prototype server itself if one is not running.
+- **Transparency works:** per-pixel, no rectangle. Photographed from the real screen over test windows on the second monitor: `design/captures/mercury-window-round9.png`. `npx electron tools/widget-proto/main.js shots=<folder>` makes the raw shots; it puts windows of its own behind the widget so nothing of the owner's desktop is recorded.
+- **Seen by accident:** a full-screen game was on the main monitor during the first run, and the widget stayed on top of it. Assume the owner may be using the main screen: keep test windows on the second monitor (`display=other`, the default for shots) unless a test needs the main one, and say so first.
+- **The glow depends on the monitor** (`tools/capture/premul-probe.js`, table in `AUDIT.md`): on the main monitor (125%) light with alpha 0 is discarded, on the second (100%) it is kept. The fix is `AUDIT.md` item 3.
+- **`AUDIT.md` updated for round 9:** the see-through body moved up to second, because what is behind the window reads straight through it; the glow is now item 3.
 
-**Half-finished:** nothing. The working tree is clean.
+**From stage 1:** the audit itself (`AUDIT.md`, `design/captures/mercury-audit-round8.png` and `-zoom.png`); the cap the owner asked for, 120 draws a second and 1920×1080 (`MAX_RENDER` in `mercury.js`, the limiter at the top of `loop` in `demo.js`; `?fps=N` and `?uncapped` override); capture tools in `tools/capture/`; Electron 45.3.2 pinned (`npm install`, then `node node_modules/electron/install.js` if `node_modules/electron/dist/electron.exe` is missing). The machine: RTX 3070 (not 3060), main monitor 2560×1440 at 125% and 360 Hz, second monitor 1920×1080 at 100%.
 
-**Waiting on the owner:** they asked to see the audit before anything else happens. Do not start step 2 until they reply.
+**Half-finished:** click-through and drag. `main.js` and `preload.js` already give the page `widgetHost.setIgnore`, `.drag` and `.close`, and `demo.js` reads them into `host`, but nothing calls them yet. Until 2b lands the whole 860×400 window swallows clicks.
 
-**Exact next step once they reply (step 2, stage 2a):** a throwaway Electron script, `tools/widget-proto.js`, that opens the prototype in a real widget window: `transparent: true`, `frame: false`, `alwaysOnTop: true`, `focusable: false`, `resizable: false`, sized to the 860×400 stage. It needs a transparent page, so add a `bg=none` backdrop to `index.html` that leaves the body clear and hides the panel and hint. Then, one stage each: (2b) click-through with `setIgnoreMouseEvents(true, { forward: true })` switched by `hit()` on every mouse move; (2c) run `premul-probe.js` logic inside the transparent window and photograph the widget over the real desktop, dark and light; (2d) idle and playing GPU load with `nvidia-smi --query-gpu=utilization.gpu,power.draw --format=csv -l 1` against a baseline with the widget closed; (2e) the screen-capture refraction experiment (`setContentProtection(true)` plus `desktopCapturer`), which the owner has asked to try.
+**Exact next step (2b):** in `demo.js`, when `host` is set: in `onMove`, call `host.setIgnore(!h.inside && !dragging)` whenever the answer changes (start ignored); in the body and cover drag branch, replace the `view.x` / `view.y` transform with `host.drag('start' | 'move' | 'end')` and feed `mercury.setDragVelocity` from `event.screenX` / `screenY` deltas; make the hide dish (`util` index 1) call `host.close()`. Then test with real mouse input on the second monitor: clicks outside the shape must reach the window behind, clicks inside must not, and the window must never take focus. After that: (2d) GPU load idle and playing, per process, against a baseline; (2e) the screen-capture refraction experiment (`setContentProtection(true)` plus `desktopCapturer`), which the owner has asked to try.
 
 **The owner's instructions for these sessions**
 
-1. Audit first (done), then stop for their reply.
+1. Audit first, then stop for their reply. Done; they replied "Start step 2".
 2. Real transparent, frameless, always-on-top window; test transparency and click-through on the real desktop; try screen-capture refraction; check idle GPU use.
 3. Polish the still, working down `AUDIT.md`, with real covers from `C:\Users\g8rla\OneDrive\Documents\Claudington\jusic-player\data\art` (119 files). **That `jusic-player` folder is the app they use every day: read only, never modify anything in it.** Re-run the side by side after each round, update `AUDIT.md`, and correct section 6a of the plan.
 4. Only when the still beats the references: tune and record the interactions.
@@ -159,7 +159,7 @@ Section 6a is out of date on three points and needs correcting: the cover is a f
 |---|---|
 | Frame rate while playing | **Pacing measured** (RTX 3070, 125% scaling, 360 Hz): capped at 120 draws a second, gaps 8.3 ms median, 8.7 ms worst, at 100% size. The owner reports it smooth. GPU load while playing is still unmeasured. |
 | Idle GPU and CPU (paused, pointer away, 15 fps breathing) | Target is near zero. If it is not, cut the idle rate, the supersampling or the pressure iterations. Unmeasured. |
-| Transparency | **Half answered.** Inside an ordinary window the compositor adds the glow where alpha is at least 1/255 and discards it where alpha is exactly 0, which is what gives the glow its hard border (`AUDIT.md` item 2). Whether Windows does the same for a transparent window on the real desktop is untested. |
+| Transparency | **Answered.** Inside an ordinary window the compositor adds the glow where alpha is at least 1/255 and discards it where alpha is exactly 0, which is what gives the glow its hard border. In a transparent window the main monitor (125%) behaves the same way and the second monitor (100%) keeps the light even at alpha 0 (`AUDIT.md` item 3, `tools/capture/premul-probe.js`). Per-pixel transparency itself works. |
 | Click-through outside the shape | Planned with `setIgnoreMouseEvents(true, { forward: true })` driven by `hit()`. Not tried. This is the main technical risk. |
 | Real refraction through screen capture | Idea only: `win.setContentProtection(true)` to keep the widget out of the capture, `desktopCapturer` for the screen, pass the region behind the widget in as a backdrop texture to bend. Unknown cost, and it means the app captures the screen, which the owner should agree to first. |
 | Always on top, drag, remembered position, not stealing focus from a game or FL Studio | Not built. |

@@ -55,6 +55,11 @@ body {
 }
 .desk[data-bg="black"] { background: #000; }
 
+/* Inside the real widget window (?widget): nothing but the liquid. The page is
+   clear, so whatever is behind the window shows through the canvas's alpha. */
+body.widget-mode { background: transparent; }
+body.widget-mode .desk, body.widget-mode .panel, body.widget-mode .hint { display: none; }
+
 .widget {
   position: absolute;
   left: 50%;

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Backdrop</title>
+<style>
+/* Something real to put behind the widget window when it is photographed:
+   ?mode=dark | light | busy. Lines and words, so see-through and bending can be judged. */
+html, body { margin: 0; height: 100%; overflow: hidden; }
+body { font: 15px/1.55 'Segoe UI', system-ui, sans-serif; }
+body.dark { background: #0b0a0c; color: #6b6b78; }
+body.light { background: #f3f4f6; color: #1f2937; }
+body.busy { background: linear-gradient(115deg, #0e3b6e 0%, #1c7fa6 30%, #e8563a 62%, #f4c542 100%); color: #fff; }
+.grid {
+  position: fixed; inset: 0; opacity: .22;
+  background-image: linear-gradient(currentColor 1px, transparent 1px), linear-gradient(90deg, currentColor 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+.text { position: fixed; inset: 18px 24px; columns: 3; column-gap: 28px; }
+.text p { margin: 0 0 10px; }
+.text b { display: block; font-size: 22px; line-height: 1.2; margin-bottom: 6px; }
+body.busy .shape { position: fixed; border-radius: 50%; }
+</style>
+</head>
+<body>
+<div class="grid"></div>
+<div class="text" id="text"></div>
+<script>
+const mode = new URLSearchParams(location.search).get('mode') || 'dark';
+document.body.className = mode;
+const lines = ['Quarterly notes', 'A window with ordinary words in it, the kind the widget will sit on top of most of the day.',
+  'Rows of text make it easy to see whether the glass is clear, tinted or bending what is behind it.',
+  'Grid lines every forty pixels show where edges fall and whether anything is erased around the shape.',
+  'Second heading', 'The quick brown fox jumps over the lazy dog. Pack my box with five dozen liquor jugs.',
+  'Sphinx of black quartz, judge my vow. How vexingly quick daft zebras jump.',
+  'Third heading', 'One two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen.',
+  'The five boxing wizards jump quickly. Bright vixens jump; dozy fowl quack.'];
+let html = '';
+for (let rep = 0; rep < 3; rep++) for (const l of lines) html += l.length < 20 ? `<p><b>${l}</b></p>` : `<p>${l}</p>`;
+document.getElementById('text').innerHTML = html;
+if (mode === 'busy') {
+  for (const [x, y, r, c] of [[12, 20, 150, '#ffffff55'], [58, 55, 220, '#10203099'], [80, 10, 120, '#ffe08a88'], [35, 80, 180, '#ff2d7088']]) {
+    const s = document.createElement('div');
+    s.className = 'shape';
+    s.style.cssText = `left:${x}%;top:${y}%;width:${r}px;height:${r}px;background:${c};transform:translate(-50%,-50%)`;
+    document.body.appendChild(s);
+  }
+}
+</script>
+</body>
+</html>
