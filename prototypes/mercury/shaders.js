@@ -130,8 +130,14 @@ float outline(vec2 p) { return bodySdf(p, uSwell) + (1. - uForm) * 132.; }
 
 vec2 turn(vec2 v, float a) { float c = cos(a), s = sin(a); return vec2(c * v.x - s * v.y, s * v.x + c * v.y); }
 
-// The cover tile in its own frame.
-float tileSdf(vec2 p, vec2 centre) { return sdRBox(turn(p - centre, -COVER_ROT), vec2(COVER_HALF), COVER_R); }
+// The cover tile. A stage point in the tile's own plane: turned into its frame, then the lean
+// taken out (the tile leans back, so its far edge is drawn narrower and is widened back here).
+vec2 tilePlane(vec2 p, vec2 centre) {
+  vec2 q = turn(p - centre, -COVER_ROT);
+  float ty = q.y / (COVER_SQUASH + COVER_LEAN * q.y);
+  return vec2(q.x * (1. - COVER_LEAN * ty), ty);
+}
+float tileSdf(vec2 p, vec2 centre) { return sdRBox(tilePlane(p, centre), vec2(COVER_HALF), COVER_R); }
 
 /* --------------------------------------------------------------- details --- */
 
@@ -237,6 +243,15 @@ float base(vec2 p0) {
 
   // Broad swells, drifting slowly.
   vec2 a = p - vec2(186., 196.), b = p - vec2(646., 196.), c = p - vec2(420., 240.);
+  // The cover presses into the liquid. The surface sinks toward the tile all the way round
+  // it, and what it pushes aside stands up as a low swell a little way out. The side of the
+  // hollow toward the lamps is in shade, the far side takes their light: that is what shows
+  // the tile is resting in the liquid and not painted on it.
+  float dTile = tileSdf(p, uTile.xy);
+  float pressed = smoothstep(.72, 1., uForm);
+  h -= PRESS.x * smoothstep(PRESS.y, -5., dTile) * pressed;
+  h += PRESS.z * exp(-pow((dTile - PRESS.y - 5.) / 9., 2.)) * pressed;
+
   // The bulb is crowned: full in the middle and falling away to its rim all round, so the
   // part of it toward the lamps carries a sheen and the part toward the floor its colour.
   h += BULB_CROWN * pow(max(1. - dot(a, a) / (BULB.z * BULB.z), 0.), 1.5);
@@ -588,10 +603,12 @@ void main() {
     col *= ao;
 
     // The tile floats above the liquid: its shadow, and the picture's own light spilling round it.
-    float tshadow = (.36 * smoothstep(34., -16., tileSdf(pw - vec2(8., 20.), uTile.xy))
-                   + .34 * smoothstep(7., -3., tileSdf(pw - vec2(2.5, 6.), uTile.xy))) * born;
+    // (It lies in the hollow it has pressed, so its shadow is close in all round, where the
+    // liquid meets it, and only a little longer on the side away from the lamps.)
+    float tshadow = (.4 * smoothstep(12., -2., dT)
+                   + .22 * smoothstep(20., -10., tileSdf(pw - vec2(4., 9.), uTile.xy))) * born;
     col *= 1. - tshadow;
-    vec2 castUv = clamp(turn(pw - uTile.xy, -COVER_ROT) / (2. * COVER_HALF) + .5, .2, .8);
+    vec2 castUv = clamp(tilePlane(pw, uTile.xy) / (2. * COVER_HALF) + .5, .2, .8);
     vec3 spill = pow(mix(textureLod(uCoverA, castUv, 6.2).rgb, textureLod(uCoverB, castUv, 6.2).rgb, smoothstep(.3, .8, uTrans)), vec3(2.2));
     // (Kept low and close: at full strength a white cover fogged the whole lobe round it.)
     col += spill * .3 * exp(-max(dT, 0.) / 9.) * smoothstep(-8., 4., dT) * born;
@@ -711,7 +728,7 @@ void main() {
 
   /* ================================ the cover tile ================================ */
   if (covTile > 0.) {
-    vec2 tq = turn(pw - uTile.xy, -COVER_ROT);
+    vec2 tq = tilePlane(pw, uTile.xy);
     vec2 cuv = tq / (2. * COVER_HALF) + .5;
     // Which way the tile's edge faces here.
     float e2 = .7;

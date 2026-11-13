@@ -1,0 +1,12 @@
+{ "out": "design/captures/mercury-still-round17.png", "width": 1616,
+  "title": "Mercury still, round 17: the cover presses into the glass and leans back (generated test cover; RTX 3070, 125%)",
+  "rows": [
+  [ { "label": "reference: the bulb, with the cover set into the glass", "src": "design/references/widget-mercury.png", "crop": [20, 190, 640, 590] },
+    { "label": "round 17: the bulb", "src": "design/captures/raw/round17/dark.png", "crop": [110, 105, 420, 387] } ],
+  [ { "label": "reference: widget-mercury.png", "src": "design/references/widget-mercury.png", "crop": [0, 110, 1586, 797] },
+    { "label": "round 17: dark desktop", "src": "design/captures/raw/round17/dark.png", "crop": [90, 50, 1022, 513] } ],
+  [ { "label": "round 17: light desktop (gradient wallpaper)", "src": "design/captures/raw/round17/light.png", "crop": [90, 50, 1022, 513] },
+    { "label": "round 17: near-white window behind it", "src": "design/captures/raw/round17/window.png", "crop": [90, 50, 1022, 513] } ],
+  [ { "label": "round 16, before this round: the bulb", "src": "design/captures/raw/round16/dark.png", "crop": [110, 105, 420, 387] },
+    { "label": "round 16, before this round: dark desktop", "src": "design/captures/raw/round16/dark.png", "crop": [90, 50, 1022, 513] } ]
+] }

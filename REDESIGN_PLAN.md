@@ -277,6 +277,18 @@ Extra springs used only by the widget:
 - The liquid lies level in three pools (under the words, along the timeline, along the volume strip), so highlights break around them. The body holds back 94 to 97% of what is behind the window, so text is white on dark glass on any desktop.
 - Hit areas come from the same numbers the shader draws with (verified: 0 mismatches across 86,000 sample points outside a 1.5-unit edge band).
 
+### 6b. The widget for whatever is playing on the PC (asked for on 13 November 2026)
+
+A switch in Settings, and in the widget's right-click menu: **Widget shows: Jusic / whatever is playing on this PC.** Off by default. With it on, the widget follows the media that Windows itself reports as current, whichever app it comes from (Spotify, a YouTube tab in a browser, a video player), and goes back to Jusic when nothing else is playing.
+
+- **Where it comes from.** Windows keeps a list of the apps that are playing media and what each is playing, the same list its volume flyout and the media keys use (`GlobalSystemMediaTransportControlsSessionManager`). Checked on the owner's PC with a ten-line script and nothing installed: it listed a browser tab, Spotify and Jusic itself, each with a title, artwork, length and position, and what each lets a controller do. Jusic already appears in that list (through the browser's Media Session), so the same reader can serve both positions of the switch.
+- **What the widget does with it.** Title, artist and cover from that app; the cover's palette is worked out as for a Jusic cover, so the glass takes its colour. Play, pause, next and previous are sent back to that app. The timeline shows its position, and dragging it seeks.
+- **What depends on the other app.** Each app says what it allows. In the check, the browser tab allowed pause and seeking but had no next or previous and gave no artist; Spotify and Jusic allowed everything. A control the app does not allow is drawn dimmed and does nothing. Some sources give a small cover or none; then the tile is plain glass in the palette's colour.
+- **Volume.** In Jusic's position the volume line sets Jusic's own volume, as now. Windows' list has no volume for another app; the plan is to set that app's level in the Windows mixer, to be proved, with the master volume as the fallback.
+- **The liquid's movement.** The waves and the pigment follow Jusic's own analyser, and another app's sound never passes through Jusic. In this position the widget would listen to what the PC is playing (a loopback of the output, analysed and thrown away, never stored). It then moves to everything the PC plays, a game's sound included; if that is unwanted, the widget in this position moves gently on its own instead. To be tried on the PC.
+- **How it is built.** A small helper started by the app's main process (the list is a Windows API that a web page cannot reach), which sends changes as lines of JSON and takes commands; the engine bus presents it to the widget as one more source beside Jusic's own player. Phase 4.
+- **Not decided:** which app wins when several play at once (Windows names one as current, and the widget would follow that), and what the widget shows for a video with no cover.
+
 ---
 
 ## 7. Performance targets and how they are measured
@@ -305,7 +317,7 @@ Each phase ends with commits pushed to `redesign` and a short update to you.
 - **Phase 1 — Mercury prototype.** A standalone page in `prototypes/mercury/` with the chrome, pigment, ripples, jelly presses, seek bead and song change, driven by test covers and test audio. Screenshots and recordings at idle, hover, press, track change and seek drag, compared against your three references. You see it before it goes anywhere near the app.
 - **Phase 2 — Shell and engine.** Electron main process, the server started in-process, the engine window, the message bus, and the **current UI** running on top of the new engine. The feature checklist passes here before anything is restyled, so later failures can only be visual.
 - **Phase 3 — Midnight Glass.** Design tokens, type and glass; title bar; sidebar, library, stage, deck; back light and basin; springs and parallax; palette upgrade; menus, dialogs, EQ, settings, shortcuts overlay, toasts; virtual list; mini-player; reduced-motion switch.
-- **Phase 4 — Mercury in the shell.** The transparent window, click-through, dragging and remembered position, sizes, the tray, the global shortcut (default `Ctrl+Alt+J`, changeable), start with Windows, idle and hidden throttling.
+- **Phase 4 — Mercury in the shell.** The transparent window, click-through, dragging and remembered position, sizes, the tray, the global shortcut (default `Ctrl+Alt+J`, changeable), start with Windows, idle and hidden throttling, and the switch that lets the widget show whatever is playing on the PC (section 6b).
 - **Phase 5 — Verification.** The feature checklist one by one, the `main` → `redesign` data test, the measurement run, reference comparisons, the shortcut installer, README.
 - **Phase 6 — On your PC.** Run the measurements and the Windows checks on the real machine and library, fix what only shows up there.
 

@@ -53,8 +53,13 @@ export const L = {
   edgeInLobe: 58,
   bulbCrown: 15,      // how far the middle of the bulb stands above its rim's foot
 
-  // The cover is a glass tile floating just above the bulb, inside its rim all the way round.
-  cover: { c: [180, 170], half: 74, r: 19, rot: -0.07 },
+  // The cover is a glass tile lying in the bulb, inside its rim all the way round. It presses
+  // into the liquid, and it leans back: its far (upper) edge is drawn a little narrower and
+  // the whole a little shorter, as a slab seen from in front and above.
+  cover: { c: [180, 170], half: 74, r: 19, rot: -0.07, lean: 0.0012, squash: 0.965 },
+  // The hollow it presses: how deep, how far out the liquid starts to sink toward it, and how
+  // high what it pushes aside stands up beyond that.
+  press: { d: 10, w: 28, swell: 1.2 },
   title: { x: 292, y: 197, maxW: 196, size: 24 },   // it stops short of the lip's waist leg; a long title is set smaller, down to three quarters
   artist: { x: 293, y: 222, size: 15.5, maxW: 180 },   // shorter than the title: the lip's waist leg passes its far end
 
@@ -195,11 +200,22 @@ export const seekProgress = (x) => clamp01((x - L.seek.x0) / (L.seek.x1 - L.seek
 export const volX = (v) => mix(L.vol.x0, L.vol.x1, clamp01(v));
 export const volValue = (x) => clamp01((x - L.vol.x0) / (L.vol.x1 - L.vol.x0));
 
-/** Signed distance to the cover tile, negative inside. (cx, cy) lets the caller pass its floating position. */
-export function tileSdf(x, y, cx = L.cover.c[0], cy = L.cover.c[1]) {
+/**
+ * A stage point in the tile's own plane: turned into its frame, then the lean taken out (the
+ * far edge is drawn narrower, so it is widened back).
+ */
+export function tilePlane(x, y, cx = L.cover.c[0], cy = L.cover.c[1]) {
   const c = Math.cos(-L.cover.rot), s = Math.sin(-L.cover.rot);
   const dx = x - cx, dy = y - cy;
-  return sdRBox(c * dx - s * dy, s * dx + c * dy, L.cover.half, L.cover.half, L.cover.r);
+  const qx = c * dx - s * dy, qy = s * dx + c * dy;
+  const ty = qy / (L.cover.squash + L.cover.lean * qy);
+  return [qx * (1 - L.cover.lean * ty), ty];
+}
+
+/** Signed distance to the cover tile, negative inside. (cx, cy) lets the caller pass its floating position. */
+export function tileSdf(x, y, cx = L.cover.c[0], cy = L.cover.c[1]) {
+  const [tx, ty] = tilePlane(x, y, cx, cy);
+  return sdRBox(tx, ty, L.cover.half, L.cover.half, L.cover.r);
 }
 
 /* --------------------------------------------------------------- hit test --- */
@@ -261,6 +277,9 @@ const vec2 COVER_C = ${v2(L.cover.c)};
 const float COVER_HALF = ${f1(L.cover.half)};
 const float COVER_R = ${f1(L.cover.r)};
 const float COVER_ROT = ${f1(L.cover.rot)};
+const float COVER_LEAN = ${f1(L.cover.lean * 10000) } * 1e-4;
+const float COVER_SQUASH = ${f1(L.cover.squash)};
+const vec3 PRESS = vec3(${f1(L.press.d)}, ${f1(L.press.w)}, ${f1(L.press.swell)});
 const vec2 ARCH_C = ${v2(L.arch.c)};
 const float ARCH_R = ${f1(L.arch.r)};
 const vec2 BAND_C = ${v2(L.band.c)};
