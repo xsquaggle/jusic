@@ -222,10 +222,6 @@ float base(vec2 p0) {
   h += 1.1 * sin(p.x * .017 + uTime * .36 + .8 * sin(p.y * .015 - uTime * .17));
   h += .7 * sin(p.x * .009 - p.y * .022 - uTime * .26 + 2.);
 
-  // The tail: the right end twists as it draws out, one flank lifting.
-  vec2 tq = p - vec2(752., 226.);
-  h += 5.5 * exp(-dot(tq, tq) / 2600.) * (tq.y * .04 - tq.x * .02);
-
   // Waves from the music, running along the lower body; a fine shiver from the highs.
   float lower = smoothstep(226., 300., p.y);
   h += (.15 + 2.8 * uAudio.x) * sin(p.x * .022 - uTime * 2.2 + .6 * sin(p.y * .03)) * lower;
@@ -417,8 +413,8 @@ void main() {
   // shape reads as a plate behind it.
   // How much of the drop hangs over this stretch of floor: all of it under the lobes, less
   // under the lifted waist, fading out past either end.
-  vec2 f1 = (pw - vec2(196., 358.)) / vec2(150., 17.), f2 = (pw - vec2(640., 354.)) / vec2(165., 17.);
-  float pool = (exp(-dot(f1, f1)) + .85 * exp(-dot(f2, f2))) * smoothstep(0., 16., dU);
+  vec2 f1 = (pw - vec2(200., 359.)) / vec2(128., 16.), f2 = (pw - vec2(652., 350.)) / vec2(104., 15.);
+  float pool = (exp(-dot(f1, f1)) + .8 * exp(-dot(f2, f2))) * smoothstep(0., 16., dU);
   vec3 halo = hotA * .3 * pool * (life + .9 * uAudio.w) * window * loud;
   // The shadow falls straight down, so it shows only beneath the drop. On a light desktop
   // it is what lifts the drop off the page.
@@ -549,8 +545,8 @@ void main() {
     float tshadow = (.36 * smoothstep(34., -16., tileSdf(pw - vec2(8., 20.), uTile.xy))
                    + .34 * smoothstep(7., -3., tileSdf(pw - vec2(2.5, 6.), uTile.xy))) * born;
     col *= 1. - tshadow;
-    vec2 castUv = clamp(turn(pw - uTile.xy, -COVER_ROT) / (2. * COVER_HALF) + .5, .1, .9);
-    vec3 spill = pow(mix(textureLod(uCoverA, castUv, 4.5).rgb, textureLod(uCoverB, castUv, 4.5).rgb, smoothstep(.3, .8, uTrans)), vec3(2.2));
+    vec2 castUv = clamp(turn(pw - uTile.xy, -COVER_ROT) / (2. * COVER_HALF) + .5, .2, .8);
+    vec3 spill = pow(mix(textureLod(uCoverA, castUv, 6.2).rgb, textureLod(uCoverB, castUv, 6.2).rgb, smoothstep(.3, .8, uTrans)), vec3(2.2));
     // (Kept low and close: at full strength a white cover fogged the whole lobe round it.)
     col += spill * .42 * exp(-max(dT, 0.) / 11.) * smoothstep(-8., 4., dT) * born;
 
@@ -778,7 +774,7 @@ void main() {
   float sd = bodySdf(p, 0.);
   vec2 g = vec2(bodySdf(p + vec2(2., 0.), 0.) - sd, bodySdf(p + vec2(0., 2.), 0.) - sd);
   float lower = smoothstep(-2., 10., p.y - seekY(clamp(p.x, SEEK_X.x, SEEK_X.y)));
-  float band = exp(-pow((-sd - 11.) / 9., 2.)) * lower * smoothstep(150., 215., p.x) * smoothstep(800., 715., p.x);
+  float band = exp(-pow((-sd - 11.) / 9., 2.)) * lower * smoothstep(150., 215., p.x) * smoothstep(786., 700., p.x);
   cur = mix(cur, normalize(vec2(g.y, -g.x) + 1e-5) * uFlow * .1, band);
   // The stream is held firmly to its course: left to itself a jet in still liquid rolls up
   // into curls within a few lengths, which is smoke again.

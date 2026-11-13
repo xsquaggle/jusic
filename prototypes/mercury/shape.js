@@ -11,13 +11,18 @@ export const STAGE = { w: 860, h: 400 };
 
 export const L = {
   // Silhouette primitives.
-  lobeL: { c: [186, 196], b: [118, 124], r: 106 },
-  lobeR: { c: [648, 190], b: [140, 102], r: 98, rot: -0.07 },
-  spine: { a: [190, 228], b: [650, 226], ra: 78, rb: 62 },
-  pinch: { c: [430, -150], r: 312 },        // presses the top of the waist flat
-  lift: { c: [482, 508], r: 230 },          // lifts the lower edge at the waist
-  tail: { a: [704, 214], b: [796, 242], ra: 48, rb: 9 },   // the right end draws out into a tapering tail
-  blend: 64,
+  lobeL: { c: [186, 197], r: 128 },          // the left lobe: a full round bulb
+  // The body drawing out of the bulb toward the waist. Its lower edge is one long straight
+  // rise, which the timeline rides; its upper edge is cut away by the pinch.
+  bridge: { a: [236, 226], b: [545, 200], ra: 96, rb: 72, k: 36 },
+  // The right lobe: a round shoulder and, beyond it, the end itself, a little smaller and lower.
+  lobeR: { c: [645, 189], r: 101, k: 40 },
+  crest: { c: [706, 198], r: 88, k: 50 },
+  // What is cut away under the right end, so the outline comes over the top, down the end and
+  // back along a rising lower edge: a soft crest instead of a tail.
+  cut: { c: [838.7, 422.6], r: 200, k: 24 },
+  // The top of the waist: one arc, struck from above, that both lobes run into without a corner.
+  pinch: { c: [425, -41], r: 210, k: 30 },
 
   // The lip: a rounded tube running round the whole outline. It rises steeply from the
   // silhouette to a crest, then falls gently into the body, which lies a little lower.
@@ -26,8 +31,8 @@ export const L = {
   edgeDip: 5.5,       // how far the body lies below the crest
   edgeIn: 46,         // where the inner face of the lip has levelled out
 
-  // The cover is a glass tile floating just above the body, overlapping its upper-left edge.
-  cover: { c: [172, 152], half: 74, r: 19, rot: -0.07 },
+  // The cover is a glass tile floating just above the bulb, inside its rim all the way round.
+  cover: { c: [180, 170], half: 74, r: 19, rot: -0.07 },
   title: { x: 292, y: 197, maxW: 205, size: 24 },
   artist: { x: 293, y: 222, size: 15.5 },
 
@@ -38,7 +43,7 @@ export const L = {
   ],
   basin: { c: [642, 198], b: [122, 46], r: 46 },
 
-  seek: { x0: 214, x1: 646 },
+  seek: { x0: 214, x1: 646, y0: 279, y1: 247, bow: 1.5 },
   vol: { x0: 658, x1: 744, icon: [634, 0] },
 
   // Two small dishes set into the lip where it wraps round the right end.
@@ -90,18 +95,15 @@ function sdCapsule(px, py, ax, ay, bx, by, ra, rb) {
  * @param {number} swell how far the lobes are breathing out with the bass
  */
 export function bodySdf(x, y, swell = 0) {
-  const { lobeL, lobeR, spine, pinch, lift, tail, blend } = L;
+  const { lobeL, lobeR, crest, bridge, pinch, cut } = L;
 
-  let d = sdRBox(x - lobeL.c[0], y - lobeL.c[1], lobeL.b[0] + swell, lobeL.b[1] + swell, lobeL.r);
-  d = smin(d, sdCapsule(x, y, spine.a[0], spine.a[1], spine.b[0], spine.b[1], spine.ra, spine.rb), blend);
+  let d = Math.hypot(x - lobeL.c[0], y - lobeL.c[1]) - (lobeL.r + swell);
+  d = smin(d, sdCapsule(x, y, bridge.a[0], bridge.a[1], bridge.b[0], bridge.b[1], bridge.ra, bridge.rb), bridge.k);
 
-  const cr = Math.cos(lobeR.rot), sr = Math.sin(lobeR.rot);
-  const rx = x - lobeR.c[0], ry = y - lobeR.c[1];
-  d = smin(d, sdRBox(cr * rx - sr * ry, sr * rx + cr * ry, lobeR.b[0] + swell, lobeR.b[1] + swell, lobeR.r), blend);
-
-  d = smin(d, sdCapsule(x, y, tail.a[0], tail.a[1], tail.b[0], tail.b[1], tail.ra, tail.rb), 26);
-  d = smax(d, -(Math.hypot(x - pinch.c[0], y - pinch.c[1]) - pinch.r), 54);
-  d = smax(d, -(Math.hypot(x - lift.c[0], y - lift.c[1]) - lift.r), 44);
+  d = smin(d, Math.hypot(x - lobeR.c[0], y - lobeR.c[1]) - (lobeR.r + swell), lobeR.k);
+  d = smin(d, Math.hypot(x - crest.c[0], y - crest.c[1]) - (crest.r + swell), crest.k);
+  d = smax(d, -(Math.hypot(x - pinch.c[0], y - pinch.c[1]) - pinch.r), pinch.k);
+  d = smax(d, -(Math.hypot(x - cut.c[0], y - cut.c[1]) - cut.r), cut.k);
   return d;
 }
 
@@ -138,10 +140,11 @@ function sample(tab, t) {
 export const SEEK_N = 33;
 export const VOL_N = 9;
 
-// The timeline follows the ribbon's lower edge: wide of it under the cover,
-// closing on it where the waist lifts (but staying clear of the lip), easing away again.
+// The timeline is one long, nearly straight rise, like the lower edge it runs above: wide of
+// the edge under the cover, closest to it at the waist (but clear of the lip's crest), wide
+// of it again under the buttons. It does not follow the edge's dip under the right lobe.
 const SEEK_TAB = table(SEEK_N, L.seek.x0, L.seek.x1, (x, t) =>
-  edgeY(x, 1) - (mix(46, 22, smoothstep(0, 0.62, t)) + 11 * smoothstep(0.62, 1, t)));
+  mix(L.seek.y0, L.seek.y1, t) + L.seek.bow * Math.sin(Math.PI * t), 0);
 
 // Volume rides the middle of the lip, between the outline and the fold.
 const foldY = (x) => {
@@ -272,14 +275,12 @@ float volY(float x) {
 
 // swell: the lobes breathing out with the bass.
 float bodySdf(vec2 p, float swell) {
-  float d = sdRBox(p - ${v2(L.lobeL.c)}, ${v2(L.lobeL.b)} + swell, ${f1(L.lobeL.r)});
-  d = smin(d, sdCapsule(p, ${v2(L.spine.a)}, ${v2(L.spine.b)}, ${f1(L.spine.ra)}, ${f1(L.spine.rb)}), ${f1(L.blend)});
-  vec2 r = p - ${v2(L.lobeR.c)};
-  float cr = ${f1(Math.cos(L.lobeR.rot))}, sr = ${f1(Math.sin(L.lobeR.rot))};
-  d = smin(d, sdRBox(vec2(cr * r.x - sr * r.y, sr * r.x + cr * r.y), ${v2(L.lobeR.b)} + swell, ${f1(L.lobeR.r)}), ${f1(L.blend)});
-  d = smin(d, sdCapsule(p, ${v2(L.tail.a)}, ${v2(L.tail.b)}, ${f1(L.tail.ra)}, ${f1(L.tail.rb)}), 26.);
-  d = smax(d, -(length(p - ${v2(L.pinch.c)}) - ${f1(L.pinch.r)}), 54.);
-  d = smax(d, -(length(p - ${v2(L.lift.c)}) - ${f1(L.lift.r)}), 44.);
+  float d = length(p - ${v2(L.lobeL.c)}) - (${f1(L.lobeL.r)} + swell);
+  d = smin(d, sdCapsule(p, ${v2(L.bridge.a)}, ${v2(L.bridge.b)}, ${f1(L.bridge.ra)}, ${f1(L.bridge.rb)}), ${f1(L.bridge.k)});
+  d = smin(d, length(p - ${v2(L.lobeR.c)}) - (${f1(L.lobeR.r)} + swell), ${f1(L.lobeR.k)});
+  d = smin(d, length(p - ${v2(L.crest.c)}) - (${f1(L.crest.r)} + swell), ${f1(L.crest.k)});
+  d = smax(d, -(length(p - ${v2(L.pinch.c)}) - ${f1(L.pinch.r)}), ${f1(L.pinch.k)});
+  d = smax(d, -(length(p - ${v2(L.cut.c)}) - ${f1(L.cut.r)}), ${f1(L.cut.k)});
   return d;
 }
 `;
