@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>jusic</title>
+<meta name="theme-color" content="#07070c">
+<meta name="application-name" content="jusic">
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="manifest" href="site.webmanifest">
+<link rel="stylesheet" href="styles.css">
+<!-- Inter is a nicety, not a dependency: loaded without blocking paint so the
+     app starts instantly offline and falls back to the system UI font. -->
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" media="print" onload="this.media='all'"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+</head>
+<body>
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.14v13.72a1 1 0 0 0 1.52.85l11.14-6.86a1 1 0 0 0 0-1.7L9.52 4.29A1 1 0 0 0 8 5.14Z"/></symbol>
+  <symbol id="i-pause" viewBox="0 0 24 24"><path d="M7 4h3.5v16H7zM13.5 4H17v16h-3.5z" rx="1"/></symbol>
+  <symbol id="i-prev" viewBox="0 0 24 24"><path d="M7 5a1 1 0 0 1 2 0v5.4l9.5-5.85A1 1 0 0 1 20 5.4v13.2a1 1 0 0 1-1.5.85L9 13.6V19a1 1 0 0 1-2 0Z"/></symbol>
+  <symbol id="i-next" viewBox="0 0 24 24"><path d="M17 5a1 1 0 0 0-2 0v5.4L5.5 4.55A1 1 0 0 0 4 5.4v13.2a1 1 0 0 0 1.5.85L15 13.6V19a1 1 0 0 0 2 0Z"/></symbol>
+  <symbol id="i-shuffle" viewBox="0 0 24 24"><path d="M17.3 4.3a1 1 0 0 1 1.4 0l2.5 2.5a1 1 0 0 1 0 1.4l-2.5 2.5a1 1 0 0 1-1.4-1.4l.8-.8H16c-.9 0-1.5.4-2.2 1.3l-.7 1-1.3-1.7.5-.7C13.3 6.7 14.4 6 16 6h2.1l-.8-.8a1 1 0 0 1 0-1.4ZM3 7a1 1 0 0 1 1-1h2c1.9 0 3.2 1 4.3 2.5l3.6 5c.9 1.2 1.5 1.5 2.4 1.5h2.1l-.8-.8a1 1 0 0 1 1.4-1.4l2.5 2.5a1 1 0 0 1 0 1.4l-2.5 2.5a1 1 0 0 1-1.4-1.4l.8-.8H16c-1.9 0-3.2-1-4.3-2.5l-3.6-5C7.2 8.3 6.6 8 5.7 8H4a1 1 0 0 1-1-1Zm0 10a1 1 0 0 1 1-1h1.7c1 0 1.6-.3 2.3-1.2l.6-.9 1.3 1.7-.4.6C8.5 17.2 7.4 18 5.7 18H4a1 1 0 0 1-1-1Z"/></symbol>
+  <symbol id="i-repeat" viewBox="0 0 24 24"><path d="M7 5h10a4 4 0 0 1 4 4v1a1 1 0 1 1-2 0V9a2 2 0 0 0-2-2H7.4l1.3 1.3a1 1 0 1 1-1.4 1.4L4.6 7l2.7-2.7a1 1 0 0 1 1.4 1.4Zm10 14H7a4 4 0 0 1-4-4v-1a1 1 0 1 1 2 0v1a2 2 0 0 0 2 2h9.6l-1.3-1.3a1 1 0 0 1 1.4-1.4L19.4 17l-2.7 2.7a1 1 0 0 1-1.4-1.4Z"/></symbol>
+  <symbol id="i-repeat1" viewBox="0 0 24 24"><path d="M7 5h10a4 4 0 0 1 4 4v1a1 1 0 1 1-2 0V9a2 2 0 0 0-2-2H7.4l1.3 1.3a1 1 0 1 1-1.4 1.4L4.6 7l2.7-2.7a1 1 0 0 1 1.4 1.4Zm10 14H7a4 4 0 0 1-4-4v-1a1 1 0 1 1 2 0v1a2 2 0 0 0 2 2h9.6l-1.3-1.3a1 1 0 0 1 1.4-1.4L19.4 17l-2.7 2.7a1 1 0 0 1-1.4-1.4Z"/><text x="12" y="15.5" text-anchor="middle" font-size="9" font-weight="700" font-family="Inter,sans-serif" fill="currentColor" stroke="none">1</text></symbol>
+  <symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 20.2s-7.5-4.6-7.5-9.7A4.5 4.5 0 0 1 12 7.4a4.5 4.5 0 0 1 7.5 3.1c0 5.1-7.5 9.7-7.5 9.7Z"/></symbol>
+  <symbol id="i-heart-o" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 19.3s-6.8-4.2-6.8-8.8a3.9 3.9 0 0 1 6.8-2.6 3.9 3.9 0 0 1 6.8 2.6c0 4.6-6.8 8.8-6.8 8.8Z" stroke-linejoin="round"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5" stroke-linecap="round"/></symbol>
+  <symbol id="i-vol" viewBox="0 0 24 24"><path d="M11 4.6a1 1 0 0 0-1.6-.8L5.6 7H3a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h2.6l3.8 3.2a1 1 0 0 0 1.6-.8Z"/><path d="M15.4 8.2a1 1 0 0 1 1.4.1 5.8 5.8 0 0 1 0 7.4 1 1 0 1 1-1.5-1.3 3.8 3.8 0 0 0 0-4.8 1 1 0 0 1 .1-1.4Z"/><path d="M18.3 5.2a1 1 0 0 1 1.4.1 9.8 9.8 0 0 1 0 13.4 1 1 0 1 1-1.5-1.3 7.8 7.8 0 0 0 0-10.8 1 1 0 0 1 .1-1.4Z"/></symbol>
+  <symbol id="i-vol-low" viewBox="0 0 24 24"><path d="M11 4.6a1 1 0 0 0-1.6-.8L5.6 7H3a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h2.6l3.8 3.2a1 1 0 0 0 1.6-.8Z"/><path d="M15.4 8.2a1 1 0 0 1 1.4.1 5.8 5.8 0 0 1 0 7.4 1 1 0 1 1-1.5-1.3 3.8 3.8 0 0 0 0-4.8 1 1 0 0 1 .1-1.4Z"/></symbol>
+  <symbol id="i-mute" viewBox="0 0 24 24"><path d="M11 4.6a1 1 0 0 0-1.6-.8L5.6 7H3a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h2.6l3.8 3.2a1 1 0 0 0 1.6-.8Z"/><path d="M15.3 9.3a1 1 0 0 1 1.4 0l1.3 1.3 1.3-1.3a1 1 0 1 1 1.4 1.4L19.4 12l1.3 1.3a1 1 0 0 1-1.4 1.4L18 13.4l-1.3 1.3a1 1 0 0 1-1.4-1.4l1.3-1.3-1.3-1.3a1 1 0 0 1 0-1.4Z"/></symbol>
+  <symbol id="i-queue" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h10M4 17h7"/><path d="M17 13v6.2" /><circle cx="19" cy="19" r="2.2" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-dots" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="19" cy="12" r="1.9"/></symbol>
+  <symbol id="i-lib" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M4 5v14M8.5 5v14"/><path d="m13.5 6.5 4 13"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="12" cy="12" r="8.2"/><path d="M12 7.5V12l3 2"/></symbol>
+  <symbol id="i-disc" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="12" r="8.2"/><circle cx="12" cy="12" r="2.4"/></symbol>
+  <symbol id="i-list" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m6 6 12 12M18 6 6 18"/></symbol>
+  <symbol id="i-fire" viewBox="0 0 24 24"><path d="M12 2.5s1 2.7-.6 4.9c-1.3 1.8-3.6 2.6-3.6 5.6a4.2 4.2 0 0 0 2 3.6c-.3-1.8.5-3.2 1.7-4.1 0 2.1 1.4 2.6 2.4 4 .6.9.5 2 .1 2.8a4.7 4.7 0 0 0 2.6-4.2c0-3.9-3.3-4.6-3.3-7.4 0-1.9 1.1-3 1.1-3S13.9 2.9 12 2.5Z"/><path d="M12 21.5a5.5 5.5 0 0 1-5.5-5.5c0-1 .2-1.8.6-2.6A6.9 6.9 0 0 0 12 21.5Z" opacity=".55"/></symbol>
+  <symbol id="i-grid" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="4" y="4" width="7" height="7" rx="1.6"/><rect x="13" y="4" width="7" height="7" rx="1.6"/><rect x="4" y="13" width="7" height="7" rx="1.6"/><rect x="13" y="13" width="7" height="7" rx="1.6"/></symbol>
+  <symbol id="i-settings" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2.2"/><circle cx="9" cy="17" r="2.2"/></symbol>
+  <symbol id="i-headphones" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M4 15v-3a8 8 0 0 1 16 0v3"/><rect x="3.5" y="14" width="4.5" height="6.5" rx="1.6"/><rect x="16" y="14" width="4.5" height="6.5" rx="1.6"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
+  <symbol id="i-warn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4 2.8 19.5h18.4Z"/><path d="M12 10v4.2M12 17h.01"/></symbol>
+  <symbol id="i-kbd" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><rect x="2.5" y="6" width="19" height="12" rx="2.5"/><path d="M6.5 10h.01M10 10h.01M13.5 10h.01M17 10h.01M8 14h8"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M3 7.5A1.5 1.5 0 0 1 4.5 6h4l2 2.5h7A1.5 1.5 0 0 1 19 10v7a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 3 17Z"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11m0 0 4-4m-4 4-4-4M5 19h14"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.6-5.9M20 4v4h-4"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 5 7 7-7 7"/></symbol>
+  <symbol id="i-wave" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 12h2.5M8 7v10M12 4.5v15M16 8.5v7M20.5 11v2"/></symbol>
+  <symbol id="i-eq" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M6 20V14M6 10V4M12 20v-9M12 7V4M18 20v-4M18 12V4"/><path d="M3.6 12.6h4.8M9.6 9.2h4.8M15.6 14.2h4.8" stroke-width="2.4"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><path d="m12 3.8 8.5 4.4L12 12.6 3.5 8.2Z"/><path d="m3.5 12.1 8.5 4.4 8.5-4.4" stroke-linecap="round"/><path d="m3.5 16 8.5 4.4 8.5-4.4" stroke-linecap="round" opacity=".55"/></symbol>
+  <symbol id="i-sort" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m7 10 5-5 5 5"/></symbol>
+  <symbol id="i-tag" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><path d="M3.5 12.3V4.8c0-.7.6-1.3 1.3-1.3h7.5l8.2 8.2a1.3 1.3 0 0 1 0 1.8l-7.5 7.5a1.3 1.3 0 0 1-1.8 0Z"/><circle cx="8.3" cy="8.3" r="1.5" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-power" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M12 3.5v8"/><path d="M7.4 6.6a7.5 7.5 0 1 0 9.2 0"/></symbol>
+</svg>
+
+<div id="ambient" aria-hidden="true" data-beat>
+  <div class="ambient-art"></div>
+  <div class="ambient-art ambient-art--next"></div>
+  <div class="ambient-wash"></div>
+  <div class="ambient-pulse"></div>
+  <div class="ambient-grain"></div>
+</div>
+
+<div class="app" id="app">
+
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <span class="brand-mark" data-beat><span class="brand-bar"></span><span class="brand-bar"></span><span class="brand-bar"></span><span class="brand-bar"></span></span>
+      <span class="brand-name">jusic</span>
+    </div>
+
+    <nav class="nav" id="nav-primary">
+      <button class="nav-item is-active" data-view="all"><svg class="ic"><use href="#i-lib"/></svg><span>All Tracks</span><em class="nav-count" data-count="all"></em></button>
+      <button class="nav-item" data-view="favorites"><svg class="ic"><use href="#i-heart"/></svg><span>Favorites</span><em class="nav-count" data-count="favorites"></em></button>
+      <button class="nav-item" data-view="recent"><svg class="ic"><use href="#i-clock"/></svg><span>Recently Played</span><em class="nav-count" data-count="recent"></em></button>
+      <button class="nav-item" data-view="most"><svg class="ic"><use href="#i-fire"/></svg><span>Most Played</span><em class="nav-count" data-count="most"></em></button>
+      <button class="nav-item" data-view="eras"><svg class="ic"><use href="#i-layers"/></svg><span>Eras</span><em class="nav-count" data-count="eras"></em></button>
+      <button class="nav-item" data-view="sessions"><svg class="ic"><use href="#i-grid"/></svg><span>Sessions</span><em class="nav-count" data-count="sessions"></em></button>
+    </nav>
+
+    <div class="nav-group">
+      <div class="nav-head">
+        <span>Playlists</span>
+        <button class="icon-btn icon-btn--sm" id="new-playlist" title="New playlist"><svg class="ic"><use href="#i-plus"/></svg></button>
+      </div>
+      <div class="nav" id="nav-playlists"></div>
+    </div>
+
+    <div class="nav-group nav-group--grow">
+      <div class="nav-head">
+        <div class="mini-seg" id="side-switch" role="tablist" aria-label="Browse by">
+          <button data-side="eras" role="tab">Eras</button>
+          <button data-side="sessions" role="tab">Sessions</button>
+        </div>
+      </div>
+      <div class="nav nav--scroll" id="nav-sessions"></div>
+    </div>
+
+    <div class="sidebar-foot">
+      <button class="ghost-btn" id="btn-rescan"><svg class="ic"><use href="#i-refresh"/></svg><span>Rescan library</span></button>
+      <button class="ghost-btn" id="btn-settings" title="Choose speakers or headphones (,)"><svg class="ic"><use href="#i-settings"/></svg><span>Settings</span></button>
+      <button class="ghost-btn" id="btn-shortcuts"><svg class="ic"><use href="#i-kbd"/></svg><span>Shortcuts</span></button>
+      <button class="ghost-btn" id="btn-quit" hidden><svg class="ic"><use href="#i-power"/></svg><span>Quit jusic</span></button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <button class="icon-btn only-narrow" id="btn-menu" title="Menu"><svg class="ic"><use href="#i-list"/></svg></button>
+      <div class="search">
+        <svg class="ic search-ic"><use href="#i-search"/></svg>
+        <input id="search" type="search" placeholder="Search titles, eras, features, sessions…" autocomplete="off" spellcheck="false">
+        <button class="search-clear" id="search-clear" title="Clear" hidden><svg class="ic"><use href="#i-x"/></svg></button>
+        <kbd class="search-kbd">/</kbd>
+      </div>
+      <div class="topbar-right">
+        <div class="seg" id="sort-seg" role="group" aria-label="Sort">
+          <button data-sort="title" class="is-active">A–Z</button>
+          <button data-sort="era">Era</button>
+          <button data-sort="added">Added</button>
+          <button data-sort="duration">Length</button>
+          <button data-sort="plays">Plays</button>
+        </div>
+        <button class="icon-btn toggle" id="btn-dupes" title="Hide duplicate copies"><svg class="ic"><use href="#i-grid"/></svg></button>
+        <button class="icon-btn toggle" id="btn-rail" title="Toggle now-playing panel"><svg class="ic"><use href="#i-queue"/></svg></button>
+      </div>
+    </header>
+
+    <div class="scroller" id="scroller">
+      <section class="hero" id="hero">
+        <div class="hero-art" id="hero-art"></div>
+        <div class="hero-text">
+          <div class="hero-kicker" id="hero-kicker">Library</div>
+          <h1 class="hero-title" id="hero-title">All Tracks</h1>
+          <div class="hero-meta" id="hero-meta"></div>
+          <div class="hero-actions">
+            <button class="pill pill--primary" id="hero-play"><svg class="ic"><use href="#i-play"/></svg><span>Play</span></button>
+            <button class="pill" id="hero-shuffle"><svg class="ic"><use href="#i-shuffle"/></svg><span>Shuffle</span></button>
+            <button class="pill pill--icon" id="hero-queue" title="Queue all"><svg class="ic"><use href="#i-queue"/></svg></button>
+          </div>
+        </div>
+      </section>
+
+      <div id="board"></div>
+    </div>
+  </main>
+
+  <aside class="rail" id="rail">
+    <div class="rail-tabs">
+      <button class="rail-tab is-active" data-tab="now">Now Playing</button>
+      <button class="rail-tab" data-tab="queue">Up Next <em id="queue-count"></em></button>
+    </div>
+
+    <div class="rail-pane is-active" id="pane-now">
+      <div class="np-art-wrap" data-beat>
+        <div class="np-art" id="np-art"><div class="np-art-empty"><svg class="ic"><use href="#i-disc"/></svg></div></div>
+        <canvas class="np-viz" id="viz"></canvas>
+      </div>
+      <div class="np-info">
+        <h2 class="np-title" id="np-title">Nothing playing</h2>
+        <p class="np-sub" id="np-sub">Pick something from your library</p>
+        <div class="np-chips" id="np-chips"></div>
+      </div>
+      <div class="np-actions">
+        <button class="icon-btn" id="np-fav" title="Favorite (F)"><svg class="ic"><use href="#i-heart-o"/></svg></button>
+        <button class="icon-btn" id="np-add" title="Add to playlist"><svg class="ic"><use href="#i-plus"/></svg></button>
+        <button class="icon-btn" id="np-reveal" title="Show file in folder"><svg class="ic"><use href="#i-folder"/></svg></button>
+        <button class="icon-btn" id="np-download" title="Save a copy"><svg class="ic"><use href="#i-down"/></svg></button>
+      </div>
+      <dl class="np-facts" id="np-facts"></dl>
+    </div>
+
+    <div class="rail-pane" id="pane-queue">
+      <div class="queue-head">
+        <span id="queue-source">Queue</span>
+        <button class="ghost-btn ghost-btn--sm" id="queue-clear">Clear</button>
+      </div>
+      <div class="queue-list" id="queue-list"></div>
+    </div>
+  </aside>
+</div>
+
+<footer class="playbar" id="playbar" data-beat>
+  <div class="pb-seek" id="pb-seek">
+    <div class="pb-seek-buffer" id="pb-buffer"></div>
+    <div class="pb-seek-fill" id="pb-fill"><i class="pb-seek-knob"></i></div>
+    <div class="pb-seek-ghost" id="pb-ghost"></div>
+    <div class="pb-seek-tip" id="pb-tip">0:00</div>
+  </div>
+
+  <div class="pb-row">
+    <div class="pb-track">
+      <div class="pb-art" id="pb-art"></div>
+      <div class="pb-text">
+        <div class="pb-title" id="pb-title">—</div>
+        <div class="pb-sub" id="pb-sub"></div>
+      </div>
+      <button class="icon-btn pb-fav" id="pb-fav" title="Favorite (F)"><svg class="ic"><use href="#i-heart-o"/></svg></button>
+    </div>
+
+    <div class="pb-controls">
+      <div class="pb-buttons">
+        <button class="icon-btn toggle" id="btn-shuffle" title="Shuffle (S)"><svg class="ic"><use href="#i-shuffle"/></svg></button>
+        <button class="icon-btn" id="btn-prev" title="Previous (Shift+←)"><svg class="ic"><use href="#i-prev"/></svg></button>
+        <button class="play-btn" id="btn-play" title="Play / pause (Space)"><svg class="ic ic-play"><use href="#i-play"/></svg><svg class="ic ic-pause"><use href="#i-pause"/></svg></button>
+        <button class="icon-btn" id="btn-next" title="Next (Shift+→)"><svg class="ic"><use href="#i-next"/></svg></button>
+        <button class="icon-btn toggle" id="btn-repeat" title="Repeat (R)"><svg class="ic"><use href="#i-repeat"/></svg></button>
+      </div>
+      <div class="pb-times"><span id="pb-cur">0:00</span><span class="pb-dash">/</span><span id="pb-dur">0:00</span></div>
+    </div>
+
+    <div class="pb-extras">
+      <button class="icon-btn toggle" id="btn-eq" title="Equalizer (.)"><svg class="ic"><use href="#i-eq"/></svg></button>
+      <button class="icon-btn toggle" id="btn-viz" title="Visualizer"><svg class="ic"><use href="#i-wave"/></svg></button>
+      <div class="vol">
+        <button class="icon-btn" id="btn-mute" title="Mute (M)"><svg class="ic"><use href="#i-vol"/></svg></button>
+        <div class="vol-track" id="vol-track"><div class="vol-fill" id="vol-fill"><i></i></div><span class="vol-tip" id="vol-tip">85%</span></div>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<div class="menu" id="context-menu" hidden></div>
+
+<div class="modal" id="modal" hidden>
+  <div class="modal-scrim" data-close></div>
+  <div class="modal-card" id="modal-card"></div>
+</div>
+
+<div class="toasts" id="toasts"></div>
+
+<div class="boot" id="boot">
+  <div class="boot-inner">
+    <span class="brand-mark brand-mark--lg"><span class="brand-bar"></span><span class="brand-bar"></span><span class="brand-bar"></span><span class="brand-bar"></span></span>
+    <p id="boot-msg">Reading your library…</p>
+  </div>
+</div>
+
+<audio id="audio" preload="metadata" crossorigin="anonymous"></audio>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
