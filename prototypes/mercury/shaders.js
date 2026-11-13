@@ -328,13 +328,17 @@ vec3 env(vec3 r) {
   // The lamps stand well off to the sides, so only steep liquid shows them: the outer
   // face of the lip, the rims of the buttons, the walls of the dishes.
   // Overhead: one long bank, brighter at its left end. The line along edges that face up the screen.
+  // Overhead: a glow that fills the upper half of the room, brightest at the upper left and
+  // dying away to the right and toward the viewer. It has no edge, so the whole outer face
+  // of an upper lip takes a broad graded light from it, and the inner face of a lower lip a
+  // faint one. Inside it, a short bright bank over the left half only: the crisp line.
   float left = smoothstep(1.1, -.9, r.x);
-  c += cool * (.2 + .75 * left) * softbox(r, normalize(vec3(0., .93, .36)), vec3(1, 0, 0), vec2(1.5, .27), .12);
-  c += cool * (.3 + 1.5 * left) * softbox(r, normalize(vec3(0., .95, .31)), vec3(1, 0, 0), vec2(1.3, .05), .03);
+  c += cool * (.1 + .5 * left) * smoothstep(.22, .95, r.y) * smoothstep(-.75, .1, r.z);
+  c += cool * (.2 + 1.6 * left) * softbox(r, normalize(vec3(-.3, .9, .31)), vec3(1, 0, 0), vec2(.85, .05), .03);
   // Key: a panel up and to the left. The broad light on the upper-left edges.
   c += warm * 1.5 * softbox(r, normalize(vec3(-.62, .56, .55)), normalize(vec3(.66, 0., .75)), vec2(.42, .3), .09);
-  // A narrow panel to the right, a little behind: the crisp light on the right end.
-  c += cool * 2.1 * softbox(r, normalize(vec3(.86, .2, -.46)), normalize(vec3(.47, 0., .88)), vec2(.2, .5), .06);
+  // A narrow panel to the right, a little behind: the crisp light on the right end only.
+  c += cool * 1.5 * softbox(r, normalize(vec3(.86, .2, -.46)), normalize(vec3(.47, 0., .88)), vec2(.13, .42), .05);
   // A weaker one behind on the left.
   c += cool * 1.1 * softbox(r, normalize(vec3(-.8, .42, -.42)), normalize(vec3(.46, 0., -.89)), vec2(.16, .36), .06);
 
@@ -412,9 +416,8 @@ void main() {
   // shape reads as a plate behind it.
   // How much of the drop hangs over this stretch of floor: all of it under the lobes, less
   // under the lifted waist, fading out past either end.
-  float over = smoothstep(30., -44., outline(vec2(pw.x, 292.)));
-  float fy = pw.y - 360.;
-  float pool = over * (exp(-fy * fy / 200.) + .28 * exp(-fy * fy / 1400.)) * smoothstep(0., 14., dU);
+  vec2 f1 = (pw - vec2(196., 358.)) / vec2(150., 17.), f2 = (pw - vec2(640., 354.)) / vec2(165., 17.);
+  float pool = (exp(-dot(f1, f1)) + .85 * exp(-dot(f2, f2))) * smoothstep(0., 16., dU);
   vec3 halo = hotA * .3 * pool * (life + .9 * uAudio.w) * window * loud;
   // The shadow falls straight down, so it shows only beneath the drop. On a light desktop
   // it is what lifts the drop off the page.
@@ -488,7 +491,9 @@ void main() {
     float smoke = fbm2(p * .011 + vec2(uTime * .02, 0.) + flow * .0006);
     float lensMask = uTip.z * smoothstep(1.5, -1.5, sdRBox(pw - uTip.xy, TIP_HALF, TIP_HALF.y));
     float under = ink(qWord + vec2(1.5, 3.5), 5.) * (1. - lensMask) * born;
-    vec3 inner = (uPalC * (.05 + .06 * depth) * (.6 + .8 * smoke) + lumen * (.7 + .4 * depth)) * (1. - .5 * under) * (1. - .75 * clamp(calm, 0., 1.));
+    // The glass itself: smoked, with the album's deep tone in it. It no longer borrows its
+    // colour from the desktop, so it has to have one.
+    vec3 inner = (uPalC * (.3 + .25 * depth) * (.6 + .8 * smoke) + lumen * (.7 + .4 * depth)) * (1. - .5 * under) * (1. - .75 * clamp(calm, 0., 1.));
 
     col = inner * (1. - .5 * F) + refl * F;
 
@@ -537,10 +542,10 @@ void main() {
     /* ---- the spectral surface glowing through the fold ---- */
     float along = clamp((pw.x - (BASIN_C.x - BASIN_B.x)) / (2. * BASIN_B.x), 0., 1.);
     float sp = spectrumAt(along * .85);
-    float seamW = 3.2 + 2.6 * uGap + 4.5 * sp;
-    vec3 specCol = mix(mix(uPalA, vec3(1.), .25), mix(uPalB, vec3(1.), .15), along);
-    vec3 emis = specCol * fw * exp(-pow((bs.x + 1.5) / seamW, 2.)) * (.45 + 3.6 * sp + 1.3 * uAudio.w) * (.35 + .65 * uPlaying);
-    col += specCol * fw * exp(-pow((bs.x + 9.) / 13., 2.)) * (.04 + .45 * sp) * (.35 + .65 * uPlaying);
+    float seamW = 2.2 + 1.6 * uGap + 2.2 * sp;
+    vec3 specCol = mix(mix(uPalA, vec3(1.), .12), mix(uPalB, vec3(1.), .08), along);
+    vec3 emis = specCol * fw * exp(-pow((bs.x + 1.5) / seamW, 2.)) * (.16 + 1.25 * sp + .5 * uAudio.w) * (.35 + .65 * uPlaying);
+    col += specCol * fw * exp(-pow((bs.x + 9.) / 13., 2.)) * (.02 + .16 * sp) * (.35 + .65 * uPlaying);
 
     /* ---- the time-preview lens darkens what is under it ---- */
     col = mix(col, col * .3 + uPalC * .03, lensMask * .85);
@@ -570,7 +575,7 @@ void main() {
       vec2 fringe = wordBend * .3;
       vec3 word = vec3(ink(qi - fringe, 0.), ink(qi, 0.), ink(qi + fringe, 0.));
       float glow = ink(qi, 3.4);
-      col += (word * 1.4 + mix(hotA, vec3(1.), .55) * glow * .34) * gain * born * (1. - .35 * F);
+      col += (word * 1.02 + mix(hotA, vec3(1.), .55) * glow * .1) * gain * born * (1. - .35 * F);
     }
 
     /* ---- timeline ---- */
@@ -580,7 +585,7 @@ void main() {
     float dl = length(vec2(q.x - xc, q.y - seekLine(xc)));
     float played = smoothstep(sx + 1., sx - 1., q.x);
     float core = smoothstep(2.5 + .6 * uSeek.w, 1.1, dl);
-    emis += mix(vec3(.8, .8, .84) * .7, warmWhite * 1.6, played) * core;
+    emis += mix(vec3(.8, .8, .84) * .62, warmWhite * 1.3, played) * core;
     emis += hotA * played * (.8 * exp(-dl * dl / 30.) + .16 * exp(-dl * dl / 380.)) * (.7 + .5 * uAudio.w + .25 * uSeek.z);
     // The bead stretches the way it is being pulled and thins as it does.
     float st = clamp(uSeekPull.x, -1., 1.);
@@ -596,7 +601,7 @@ void main() {
     float dv = length(vec2(q.x - vxc, q.y - volY(vxc)));
     float vplayed = smoothstep(vx + 1., vx - 1., q.x) * (1. - uVol.w);
     float vcore = smoothstep(3. + .5 * uVol.z, 1.5, dv);
-    emis += mix(vec3(.82, .82, .86) * 1.05, warmWhite * 2.1, vplayed) * vcore;
+    emis += mix(vec3(.82, .82, .86) * .8, warmWhite * 1.35, vplayed) * vcore;
     emis += hotA * vplayed * .6 * exp(-dv * dv / 24.);
     float dvb = length(q - vec2(vx, volY(vx)));
     float vr = 5.6 * (1. + .5 * uVol.y);
@@ -613,17 +618,14 @@ void main() {
     col += vec3(1., .98, .96) * glint * uCursor.z * near;
 
     /* ---- how much it holds back of what is behind the window ----
-       Clear glass by default: a light smoky tint, more where the liquid is deep
-       or turns away, where ink has gathered, in the control pod, and just
-       behind the words so they read on any desktop. */
-    glass = .44 + .2 * depth
-          + .4 * pl.x + .3 * pl.y + .42 * pl.z
-          + .34 * smoothstep(10., -14., bs.x) + .2 * dish
-          + .5 * pow(1. - ndv, 2.)
-          + .42 * dyeAmt + .5 * tshadow + .8 * lensMask;
-    glass = clamp(glass, 0., .96);
-    // Experiment: a nearly opaque body, clear only toward its thin edge.
-    glass = mix(glass, max(glass, uGlassFloor), smoothstep(0., 26., -d));
+       Nearly everything. The drop is dark glass with a colour of its own, so it looks the
+       same over a white page, a photograph or a game. Seen straight through, whatever was
+       behind it collided with the words on it and washed it out on a light desktop (88%
+       was tried and still let sharp words through). Only the outermost of the rolled
+       edge, where the liquid is thin, lets a little more by. */
+    glass = .945 + .02 * depth + .03 * max(pl.x, max(pl.y, pl.z)) + .03 * tshadow + .03 * lensMask;
+    glass = mix(.86, glass, smoothstep(0., 6., -d));
+    glass = clamp(max(glass, uGlassFloor), 0., .975);
   }
 
   /* ================================ the underside ================================ */
@@ -643,7 +645,7 @@ void main() {
     vec3 dyeW = texture(uDye, (pw - uWall * .6) / STAGE).rgb;
     vec3 wall = env(Rw) * Fw + (uPalC * .06 + dyeW * .4) * (1. - Fw);
     wall *= 1. - .35 * wt;                                                           // falling into shadow lower down
-    float wallGlass = .78 + .16 * wt;
+    float wallGlass = .9 + .07 * wt;
     // Refraction (experiment): through the side of the drop, what is behind is drawn far up under the top face.
     if (uBackPx.y > 0.) wall += behind(pw - normalize(uWall) * 22. * (1. - .5 * wt), 4.5) * vec3(.9, .94, 1.) * (1. - wallGlass) * .8 * uBackPx.y;
     col = mix(wall, col, covTop);

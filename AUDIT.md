@@ -1,8 +1,8 @@
 # Mercury visual audit
 
-Round 8 (13 November 2026): the first look at the prototype on the real PC. Round 9 (same day): the same build in a real transparent window. Round 10 (same day): the screen-capture refraction experiment, which settles item 2. Round 11 (same day): the first round of work on the look itself, items 1 and 3, judged with real covers as well as the generated one.
+Round 8 (13 November 2026): the first look at the prototype on the real PC. Round 9 (same day): the same build in a real transparent window. Round 10 (same day): the screen-capture refraction experiment, which settles item 2. Round 11 (same day): the first round of work on the look itself, items 1 and 3, judged with real covers as well as the generated one. Round 12 (same day): items 2 and 4.
 
-**Verdict after round 11: closer, and still short of all three references.** The two worst faults of round 8 are gone: nothing is outlined any more, and there is no plate or fog of glow behind the widget. It now reads as an object with a rolled glass edge, a shaded underside, a shadow and light on the floor beneath it. What still separates it from the references, worst first: the see-through body and the muddy pigment in it (items 2 and 5), the white glare round the buttons and the thin, even highlights where the references have broad varied ones (items 4 and 8), and the outline's character (item 7). The round-8 verdict, for the record: "it does not beat any of the three references yet, and it is not close"; it read as a flat shape traced in neon with a glow plate behind it.
+**Verdict after round 12: it is now the same kind of object as the references, and still not as good as any of them.** It reads as a solid drop of dark glass with a rolled edge, lit from the upper left, with the album's colour along its lower edge and on the floor under it, and it holds over a dark desktop, a pale wallpaper and a white window alike, which the references are never asked to do. Nothing is outlined, nothing glows as a plate, nothing shows through. What the references still have that it does not, worst first: pigment as a few long luminous threads where ours is smoke that drifts over the words and the timeline (item 5); a body that twists and folds like liquid where ours is a tidy shape with a lip (item 7); single smooth buttons where ours are ringed (item 8); broad liquid highlights that wander across the lobes where ours keep to the edge (items 1 and 4); and a quieter timeline (item 10). The round-8 verdict, for the record: "it does not beat any of the three references yet, and it is not close"; it read as a flat shape traced in neon with a glow plate behind it.
 
 ## How it was captured
 
@@ -15,7 +15,7 @@ Round 8 (13 November 2026): the first look at the prototype on the real PC. Roun
 
 - Round 11 on: `npx electron tools/capture/mercury-shots.js out=design/captures/raw/round11 real=1` (it starts its own server now). `real=1` adds shots with real covers, listed in `data/real-covers.json`, which is not in git. **The repository is public, so no picture that shows a real cover or a real title is committed**: those shots and their sheet stay in `design/captures/raw/` and are sent to the owner directly. The committed sheet of each round uses the generated cover.
 
-Images: `design/captures/mercury-audit-round8.png` (side by side with all three references), `mercury-audit-round8-zoom.png` (details at 200%, hover, small size), `mercury-window-round9.png` (the real window over dark, light and colourful windows), `mercury-refraction-round10.png` (today's body, the refracting body and the nearly opaque body over the same window, then refraction over stripes, colour and dark), `mercury-still-round11.png` (round 11 beside the three references, with round 8 beneath for comparison).
+Images: `design/captures/mercury-audit-round8.png` (side by side with all three references), `mercury-audit-round8-zoom.png` (details at 200%, hover, small size), `mercury-window-round9.png` (the real window over dark, light and colourful windows), `mercury-refraction-round10.png` (today's body, the refracting body and the nearly opaque body over the same window, then refraction over stripes, colour and dark), `mercury-still-round11.png` (round 11 beside the three references, with round 8 beneath for comparison), `mercury-still-round12.png` (round 12 beside the references, round 11 beneath).
 
 ## What the real window showed (round 9)
 
@@ -67,6 +67,16 @@ Run it with `npx electron tools/widget-proto/main.js refract=live` (add `shots=<
 - Seen with six real covers (pink, dark red, blue, white, many-coloured, near black) on dark, gradient and near-white backdrops. The near-black cover, which leaves almost no pigment in the body, is the closest to the references. The white cover floods the left lobe with white pigment and on a white window that half of the widget, and the first letter of the title, disappear: item 5 has to deal with white and very light covers. A long title is cut short with an ellipsis after about eleven letters, because the title has 190 units; item 6.
 - The first launch after the shaders change now spends about two and a half seconds compiling them before anything is drawn (it was about two). Later launches read them from Chromium's cache.
 
+## What round 12 changed (items 2 and 4)
+
+- **The body is nearly opaque dark glass**: it holds back 94 to 97% of what is behind it, 86% at the very edge (`glass`, end of the top-face block), and has a colour of its own, the album's deep tone, smoked (`inner`). It was 44% and up, and near black, which only worked because the desktop showed through. On a white window it is now a dark object with a shadow instead of a pale ghost. The underside follows (90 to 97%). Refraction still works as a switch on top (`refract=live`): it takes the opacity to 100% and adds the bent picture as light.
+- **The glare round the buttons is gone.** The light let through the fold (the spectrum) is a thin line of the album's colour instead of a white tube: about a third as strong, narrower, less white in it.
+- **Almost nothing clips.** Words are drawn at white, not 40% over it, with a third of the glow, so bloom leaves them alone and they are crisper. The played part of the timeline and the volume line come down (1.6 to 1.3 and 2.1 to 1.35). Bloom is 0.42, was 0.5.
+- **Broader light on the lip.** The overhead light is now a glow that fills the upper half of the room, brightest at the upper left and dying away to the right, with a short crisp bank inside it over the left half only. The upper lips take a broad graded light from it instead of one thin line of even brightness, and the right end is lit by its own small panel alone.
+- **The floor light is two soft pools** under the lobes, where it was a bar.
+- GPU load is unchanged by rounds 11 and 12: 0.87% idle and 7.5% playing with the card otherwise idle (0.93% and 7.9% before), 57 W.
+- With real covers: every cover now gives a readable widget on every backdrop. The white cover still floods the left lobe with white smoke that hides the elapsed time and half the artist's name. The near-black cover is still the cleanest.
+
 ## The gaps, worst first
 
 Line numbers are `prototypes/mercury/shaders.js` at commit `62869cb` unless another file is named. Items 1 and 3 were worked on in round 11; their line numbers are of historical interest only.
@@ -79,7 +89,9 @@ A white line of even width runs round the silhouette, round the cover tile, roun
 
 Fix: remove the explicit rim line (the `lit` floor of .28 and the `pow(1 - ndv, 16)` term, 443–449), the bright line on the underside's lower edge (577) and the tile strokes (589, 608). Give the edge a real profile about 40 units wide whose normal sweeps from up to sideways, so a broad light makes a highlight with width that varies along the contour. Give the underside its own curved normal and shade it from the room instead of a flat colour plus a line. Make the wall's height vary round the contour (deep at the front, none at the back) so it reads as a view from slightly above, as in the references, instead of a copy of the outline shifted down 14 units.
 
-### 2. Whatever is behind it shows through the body (glass transparency)
+### 2. Whatever is behind it shows through the body (glass transparency): fixed in round 12
+
+The original finding and the decision follow.
 
 The body is see-through and tinted but does not bend or blur anything. In the real window, text and pictures behind the widget read straight through it and collide with the title, the timeline and the times; on a light desktop the body washes to pink-white and loses its form. The three dark pools only dim what is behind them. The references are dark smoked glass that mostly reflects.
 
@@ -97,7 +109,9 @@ Cause, measured: the glow is drawn by adding light where the canvas's alpha is l
 
 Fix: give the glow its own alpha, equal to its brightness (a screen blend rather than an add). Every pixel is then an ordinary premultiplied colour that every path treats the same way: no cut-off, and a light desktop can no longer be pushed past white. Then stop spreading the glow evenly all round: pool it under the lower edge like the floor light in the references. On light desktops let a real soft, offset drop shadow carry the form; today the shadow peaks at 26% and is buried under the glow.
 
-### 4. Highlights are blown out and colourless (chrome material)
+### 4. Highlights are blown out and colourless (chrome material): mostly fixed in rounds 11 and 12
+
+Left to do: the highlights keep to the lip. The references have broad sheens lying across the lobes and the pod as well; ours has only the faint wash there. The original finding follows.
 
 The control pod has two large, flat, near-white patches above and below the buttons, and on a light desktop most of the right lobe is solid white. In the references almost nothing clips: highlights are thin to medium, graded, cool white from above and coral from below, on a dark body. Our chrome is neutral grey and white; the album's colour shows only in the glow, the underside and the pigment.
 
@@ -164,4 +178,4 @@ At 100% and at 200% (pixels doubled), on dark and on light, the body's silhouett
 
 ## Order of work for step 3
 
-~~1 and 3 first, together~~ (round 11). Then 2 and 4 (opacity and material; the refraction experiment has said 2 goes nearly opaque), and with 4 the glare round the buttons, which is now the first thing the eye lands on. Then real covers, and 5, 6, 9 with them. Then 7 and 8 (shape work, which moves hit areas, so the hit-test check gets re-run). 10 and 11 last; they are small once the rest is right.
+~~1 and 3 first, together~~ (round 11). ~~Then 2 and 4~~ (round 12). Then real covers, and 5, 6, 9 with them. Then 7 and 8 (shape work, which moves hit areas, so the hit-test check gets re-run). 10 and 11 last; they are small once the rest is right.

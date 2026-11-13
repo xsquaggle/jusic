@@ -1,0 +1,12 @@
+{ "out": "design/captures/mercury-still-round12.png", "width": 1616,
+  "title": "Mercury still, round 12: a nearly opaque dark-glass body, broader light on the lip, the glare round the buttons cut (generated test cover; RTX 3070, 125%)",
+  "rows": [
+  [ { "label": "reference: widget-mercury.png", "src": "design/references/widget-mercury.png", "crop": [0, 110, 1586, 797] },
+    { "label": "round 12: dark desktop", "src": "design/captures/raw/round12/dark.png", "crop": [90, 50, 1022, 513] } ],
+  [ { "label": "reference: widget-mercury-flow.png", "src": "design/references/widget-mercury-flow.png", "crop": [0, 130, 1586, 797] },
+    { "label": "round 12: light desktop (gradient wallpaper)", "src": "design/captures/raw/round12/light.png", "crop": [90, 50, 1022, 513] } ],
+  [ { "label": "reference: widget-mercury-split.png", "src": "design/references/widget-mercury-split.png", "crop": [0, 60, 1586, 797] },
+    { "label": "round 12: near-white window behind it", "src": "design/captures/raw/round12/window.png", "crop": [90, 50, 1022, 513] } ],
+  [ { "label": "round 11, for comparison: dark desktop", "src": "design/captures/raw/round11/dark.png", "crop": [90, 50, 1022, 513] },
+    { "label": "round 11, for comparison: near-white window", "src": "design/captures/raw/round11/window.png", "crop": [90, 50, 1022, 513] } ]
+] }

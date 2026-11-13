@@ -786,7 +786,7 @@ export function createMercury(canvas, { reducedMotion = false, family, maxRender
     sampler(u.uAura, scene.tex[1]);
     sampler(u.uGlass, scene.tex[2]);
     sampler(u.uBloom, bloom[0].tex[0]);
-    gl.uniform1f(u.uBloomAmt, 0.5);
+    gl.uniform1f(u.uBloomAmt, 0.42);
     gl.uniform2f(u.uCanvasTexel, 1 / canvas.width, 1 / canvas.height);
     draw();
   }
