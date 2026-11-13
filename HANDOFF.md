@@ -4,9 +4,20 @@
 
 ## Current status
 
-Updated 13 November 2026, at the end of stage 2e (the refraction experiment). **Step 2 of the owner's order of work is complete.** Step 3 (polish the still) is next and starts at `AUDIT.md` items 1 and 3. A new session did 2e and carries on; the session that did stages 1 to 2d no longer touches the repository.
+Updated 13 November 2026, at the end of stage 3a (round 11 of the still). Step 2 of the owner's order of work is complete; **step 3 (polish the still) is under way.** One session has done everything since stage 2e and is the only one writing here.
 
-**Stage 2e: screen-capture refraction. It works; recommended as an option, not as the default look.**
+**Stage 3a: round 11 of the still, `AUDIT.md` items 1 and 3. Done.**
+
+- What changed and how it compares: `AUDIT.md`, "What round 11 changed", and `design/captures/mercury-still-round11.png` (round 11 beside the three references, round 8 beneath). In short: no outlines, a rolled lip, a room whose lamps differ round the outline, a shaded underside, the glow as a pool on the floor with alpha of its own, a real shadow. Closer, still short of the references.
+- **Real covers.** `data/real-covers.json` (not in git) names the owner's cover folder and six tracks: pink, dark red, blue, white, many-coloured, near black. `npx electron tools/capture/mercury-shots.js out=<folder> real=1` photographs them through a read-only route in `prototypes/serve.js` (`/real-art/<file>`, the folder comes from `JUSIC_REAL_ART`). Nothing is copied out of the owner's folder. The page takes `?cover=<url>&title=&artist=&dur=`.
+- **The repository on GitHub is public** (it can be read without signing in). So nothing that shows a real cover or a real title is committed: those shots and their sheet stay in `design/captures/raw/` (ignored) and go to the owner with `SendUserFile`. The sheet committed for each round uses the generated cover.
+- The capture tool starts its own server now (port 5191), takes `warm=N` for quick looks and `q=<query>` for extra page options, and no longer takes its first photo at the wrong scale.
+- `test=passthrough` passes, 8 of 8. It now waits for the drop to form instead of a fixed time: the larger shader takes about two and a half seconds to compile on the first launch after a change.
+- The owner has been sent the round-11 sheet and the real-cover sheet.
+
+**Exact next step: round 12, `AUDIT.md` items 2 and 4, with the glare round the buttons.** Make the body nearly opaque dark glass (93–96% away from the edge, the album's deep tone in it; `glass` near the end of the top-face block in `shaders.js`, and `inner`), so it holds on a light desktop without the desktop showing through; keep the refraction switch working on top of it. Set exposure so almost nothing clips, tint the chrome with the palette, and cut the white band above the buttons (the light let through the fold, `emis`, and the bloom on it), which is now the first thing the eye lands on. Then real covers again and the side by side. After that: 5, 6 and 9 (pigment, text, tile), then 7 and 8 (shape and buttons), then 10 and 11.
+
+**Stage 2e (step 2, complete): screen-capture refraction. It works; recommended as an option, not as the default look.**
 
 - Run it: `npx electron tools/widget-proto/main.js refract=live` (also with `shots=<folder>` or `test=gpu dsf=1.25`; `rfps=N` and `rmax=N` set the capture's rate and longest side). `glass=0.88` is the other branch tried the quick way: a nearly opaque body, nothing captured.
 - How it is built: `main.js` calls `setContentProtection(true)` so the window is left out of screen captures, and answers `widget:backdrop` with the capture source of the monitor the window is on and where the window sits on it (sent again on every move). `demo.js` opens that source with `getUserMedia` (`chromeMediaSource: 'desktop'`; Electron 45 needs no prompt and no click for it), reads frames with `MediaStreamTrackProcessor` and hands them to `mercury.setBackdropFrame`; the capture stops while the page is hidden. `mercury.js` uploads the newest frame when it next draws. In `shaders.js`, `behind()` reads it and the top face adds it as light, moved by the surface slope, blurred and dimmed; `uBackPx.y` eases it in and takes the window's own see-through to nothing.
@@ -43,13 +54,11 @@ Updated 13 November 2026, at the end of stage 2e (the refraction experiment). **
 3. Dragging by the body moves it, and it reopens where it was left.
 4. Clicking it does not take keyboard focus from a game or FL Studio.
 
-**Rules from these stages:** assume the owner may be using either screen. Test windows go on the second monitor (`display=other` in `widget-proto`, the default for its shots and tests; `mercury-shots.js` opens there too, still drawn at 125%). `tools/capture/mercury-fps.js` still opens on the main monitor. Never move or click the real mouse while the owner is active (`powerMonitor.getSystemIdleTime()` says). Never save a grab of the screen that has not been checked to show the test backdrop (point 2 above).
+**Rules from these stages:** assume the owner may be using either screen. Test windows go on the second monitor (`display=other` in `widget-proto`, the default for its shots and tests; `mercury-shots.js` opens there too, still drawn at 125%). `tools/capture/mercury-fps.js` still opens on the main monitor. Never move or click the real mouse while the owner is active (`powerMonitor.getSystemIdleTime()` says). Never save a grab of the screen that has not been checked to show the test backdrop (point 2 above). Never commit a picture that shows a real cover or a real title: the repository is public.
 
 **From stage 1:** the audit (`AUDIT.md`, `design/captures/mercury-audit-round8.png` and `-zoom.png`); the cap the owner asked for, 120 draws a second and 1920×1080 (`MAX_RENDER` in `mercury.js`, the limiter at the top of `loop` in `demo.js`; `?fps=N` and `?uncapped` override); capture tools in `tools/capture/`; Electron 45.3.2 pinned (`npm install`, then `node node_modules/electron/install.js` if `node_modules/electron/dist/electron.exe` is missing). The machine: RTX 3070 (not 3060), main monitor 2560×1440 at 125% and 360 Hz, second monitor 1920×1080 at 100% and 120 Hz, to the left of the main one.
 
 **Half-finished:** nothing in code.
-
-**Exact next step: step 3, round 1 of the still.** `AUDIT.md` items 1 and 3 together, which do not depend on the owner's answer about refraction: take out the drawn outlines and give the edge a real rolled profile and the underside a shaded wall (item 1); give the glow alpha of its own, pool it under the lower edge, and let a real drop shadow carry the form on light desktops (item 3). Use real covers from `C:\Users\g8rla\OneDrive\Documents\Claudington\jusic-player\data\art` (read only; do not copy them into the repository). After the round, re-run the side by side against the three references (`tools/capture/mercury-shots.js`, then `tools/capture/sheet.js`) and update `AUDIT.md`.
 
 **The owner's instructions for these sessions**
 
@@ -196,7 +205,7 @@ Section 6a is out of date on three points and needs correcting: the cover is a f
 | Real refraction through screen capture | **Tried and working** (`refract=live`): about 2 points of GPU and half a percent of a core extra, no border found. It takes the widget out of every screenshot and screen share and needs the screen captured while the widget is visible, so it is kept as an option, off by default (`AUDIT.md` item 2). Not tried on the monitor a game is running on. |
 | Always on top, drag, remembered position, not stealing focus from a game or FL Studio | Built in `tools/widget-proto`. Electron's default on-top level fell behind other windows while a full-screen game had the foreground; the 'screen-saver' level stays on top (`onTop()` in `main.js`). Drag, position and focus need a real mouse and have not been tried by hand. |
 | Audio glitches under load | Not testable without the engine. |
-| Real covers and palettes from `data/art` and `data/colors.json` | Only generated covers have been used. |
+| Real covers and palettes from `data/art` and `data/colors.json` | Six real covers are photographed each round (`real=1`). The palettes are still worked out by the prototype's own `palette.js`, not read from `data/colors.json`. A white cover floods the body with white pigment (`AUDIT.md`, round 11). |
 
 ## Checks that were run
 

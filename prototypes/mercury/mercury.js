@@ -569,7 +569,7 @@ export function createMercury(canvas, { reducedMotion = false, family, maxRender
 
   // The body has a visible thickness, and the cursor tilts it: the underside
   // slides out from under the top face as the pointer moves across.
-  const wall = () => (st.reducedMotion ? [0, 14] : [-5 * sp.lean.x, 14 + 5 * sp.lean.y]);
+  const wall = () => (st.reducedMotion ? [0, 11] : [-4 * sp.lean.x, 11 + 4 * sp.lean.y]);
   // The cover tile floats, so it shifts a little against the body.
   const tile = () => (st.reducedMotion ? L.cover.c : [L.cover.c[0] - 2.5 * sp.lean.x, L.cover.c[1] - 2.5 * sp.lean.y]);
   const hit = (x, y) => (formed()

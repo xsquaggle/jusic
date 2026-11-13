@@ -27,6 +27,14 @@ const TRACKS = [
   { title: 'Amber Drift', artist: 'Lawson', cover: 'covers/amber-drift.jpg', duration: 241, bpm: 90, root: 38 },
 ];
 
+// ?cover=<url>&title=&artist=&dur= put a real cover and its words in place of the first test track.
+if (params.get('cover')) {
+  Object.assign(TRACKS[0], {
+    cover: params.get('cover'), title: params.get('title') || TRACKS[0].title,
+    artist: params.get('artist') || '', duration: Number(params.get('dur')) || TRACKS[0].duration,
+  });
+}
+
 const fmt = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
 /* ------------------------------------------------------------------ setup --- */
@@ -122,6 +130,7 @@ if (REFRACT) {
 const player = { index: 0, playing: false, time: 88, volume: 0.72, muted: false, track: TRACKS[0] };
 const images = new Map();
 
+/** A cover as the tile wants it: the middle square of the picture, no larger than 1024 px. */
 function loadImage(src) {
   if (images.has(src)) return images.get(src);
   const promise = new Promise((resolve, reject) => {
@@ -129,6 +138,12 @@ function loadImage(src) {
     img.onload = () => resolve(img);
     img.onerror = reject;
     img.src = src;
+  }).then((img) => {
+    const side = Math.min(img.naturalWidth, img.naturalHeight);
+    if (side <= 1024 && img.naturalWidth === img.naturalHeight) return img;
+    const to = Math.min(side, 1024);
+    return createImageBitmap(img, (img.naturalWidth - side) / 2, (img.naturalHeight - side) / 2, side, side,
+      { resizeWidth: to, resizeHeight: to, resizeQuality: 'high' });
   });
   images.set(src, promise);
   return promise;

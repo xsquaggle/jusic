@@ -306,7 +306,10 @@ async function runPassThroughTest() {
   widget.moveTop();
   const run = (js) => widget.webContents.executeJavaScript(js, true);
   for (let i = 0; i < 200 && !(await run('Boolean(window.__mercury && window.__mercury.ready)')); i++) await sleep(50);
-  await sleep(1500);      // let it finish forming
+  // Let it finish forming. The first launch after the shaders change spends a couple of
+  // seconds compiling them before anything moves, so wait for the drop itself, not the clock.
+  for (let i = 0; i < 100 && !(await run('window.__mercury.mercury.springs.form.x > 0.97')); i++) await sleep(100);
+  await sleep(500);
 
   const names = new Map([[handleOf(widget), 'the widget'], [handleOf(backdrop), 'the window behind']]);
   // label, where the pretend pointer goes (stage units), where Windows is asked, what should be there

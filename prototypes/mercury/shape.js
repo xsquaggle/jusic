@@ -19,8 +19,12 @@ export const L = {
   tail: { a: [704, 214], b: [796, 242], ra: 48, rb: 9 },   // the right end draws out into a tapering tail
   blend: 64,
 
-  edgeR: 44,          // how far the rolled edge reaches in
-  edgeH: 30,          // how high it stands
+  // The lip: a rounded tube running round the whole outline. It rises steeply from the
+  // silhouette to a crest, then falls gently into the body, which lies a little lower.
+  edgeR: 17,          // from the silhouette to the crest
+  edgeH: 14,          // how high the crest stands
+  edgeDip: 5.5,       // how far the body lies below the crest
+  edgeIn: 46,         // where the inner face of the lip has levelled out
 
   // The cover is a glass tile floating just above the body, overlapping its upper-left edge.
   cover: { c: [172, 152], half: 74, r: 19, rot: -0.07 },
@@ -135,9 +139,9 @@ export const SEEK_N = 33;
 export const VOL_N = 9;
 
 // The timeline follows the ribbon's lower edge: wide of it under the cover,
-// closing to almost touch it where the waist lifts, easing away again.
+// closing on it where the waist lifts (but staying clear of the lip), easing away again.
 const SEEK_TAB = table(SEEK_N, L.seek.x0, L.seek.x1, (x, t) =>
-  edgeY(x, 1) - (mix(46, 14, smoothstep(0, 0.62, t)) + 19 * smoothstep(0.62, 1, t)));
+  edgeY(x, 1) - (mix(46, 22, smoothstep(0, 0.62, t)) + 11 * smoothstep(0.62, 1, t)));
 
 // Volume rides the middle of the lip, between the outline and the fold.
 const foldY = (x) => {
@@ -172,7 +176,7 @@ export function tileSdf(x, y, cx = L.cover.c[0], cy = L.cover.c[1]) {
  */
 export function hit(x, y, f = {}) {
   const swell = f.swell || 0;
-  const wall = f.wall || [0, 14];
+  const wall = f.wall || [0, 11];
   const tile = f.tile || L.cover.c;
   const dTop = bodySdf(x, y, swell);
   const dTile = tileSdf(x, y, tile[0], tile[1]);
@@ -210,6 +214,8 @@ export const SHAPE_GLSL = /* glsl */`
 const vec2 STAGE = vec2(${f1(STAGE.w)}, ${f1(STAGE.h)});
 const float EDGE_R = ${f1(L.edgeR)};
 const float EDGE_H = ${f1(L.edgeH)};
+const float EDGE_DIP = ${f1(L.edgeDip)};
+const float EDGE_IN = ${f1(L.edgeIn)};
 const vec2 COVER_C = ${v2(L.cover.c)};
 const float COVER_HALF = ${f1(L.cover.half)};
 const float COVER_R = ${f1(L.cover.r)};

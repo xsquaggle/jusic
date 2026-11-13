@@ -2,8 +2,15 @@
 /**
  * Photographs the Mercury prototype on the real GPU, through Electron.
  *
- *   node prototypes/serve.js                         (in another terminal)
  *   npx electron tools/capture/mercury-shots.js out=design/captures/raw/round8 [only=dark,light] [dsf=1.25]
+ *   ... real=1      also photograph real covers: data/real-covers.json (not in git) names a folder
+ *                   of covers and a few tracks; shots are called real1-dark, real1-light, ...
+ *                   Pictures that show real covers stay in design/captures/raw/, which is not
+ *                   committed: the repository is public.
+ *   ... warm=240    fewer frames before each photo, for quick looks (the default 720 keeps rounds comparable)
+ *   ... q=<query>   extra options for the page on every shot, for trying things
+ *
+ * It starts its own copy of the prototype server (port 5191), so nothing else has to be running.
  *
  * The window opens on the second monitor when there is one, so it stays out of the way of whatever
  * is on the main screen, and is drawn at the main monitor's 125% scale (dsf) wherever it is.
@@ -19,7 +26,9 @@ const path = require('path');
 const args = Object.fromEntries(process.argv.slice(2).filter((a) => a.includes('=')).map((a) => a.split(/=(.*)/s).slice(0, 2)));
 const OUT = path.resolve(args.out || 'design/captures/raw/latest');
 const ONLY = args.only ? args.only.split(',') : null;
-const BASE = args.base || 'http://127.0.0.1:5190/prototypes/mercury/';
+const PORT = 5191;
+const BASE = args.base || `http://127.0.0.1:${PORT}/prototypes/mercury/`;
+const REPO = path.resolve(__dirname, '..', '..');
 app.commandLine.appendSwitch('force-device-scale-factor', args.dsf || '1.25');
 
 // Where the reference images have their cursor: on the lower edge, right of the middle.
@@ -43,6 +52,20 @@ const SHOTS = [
   { name: 'dark-t3', q: 'bg=studio&play&scale=1&track=3', w: 960, h: 480, warm: 720 },
 ];
 
+// Real covers, if asked for and the local list exists.
+if (args.real) {
+  try {
+    const real = JSON.parse(fs.readFileSync(path.join(REPO, 'data', 'real-covers.json'), 'utf8'));
+    process.env.JUSIC_REAL_ART = real.art;
+    real.tracks.forEach((t, i) => {
+      const q = `play&scale=1&cover=${encodeURIComponent('/real-art/' + t.cover)}&title=${encodeURIComponent(t.title)}&artist=${encodeURIComponent(t.artist || '')}&dur=${t.duration}`;
+      SHOTS.push({ name: `real${i + 1}-dark`, q: 'bg=studio&' + q, w: 960, h: 480, warm: 720 });
+      SHOTS.push({ name: `real${i + 1}-light`, q: 'bg=wallpaper&' + q, w: 960, h: 480, warm: 720 });
+      SHOTS.push({ name: `real${i + 1}-window`, q: 'bg=window&' + q, w: 960, h: 480, warm: 720 });
+    });
+  } catch (err) { console.log('real covers: ' + err.message); }
+}
+
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 let win = null;
@@ -62,11 +85,19 @@ async function shoot(shot) {
   const wc = win.webContents;
   const run = (js) => wc.executeJavaScript(js, true);
   messages.length = 0;
-  win.setContentSize(shot.w, shot.h);
   const primary = screen.getPrimaryDisplay();
   const display = screen.getAllDisplays().find((d) => d.id !== primary.id) || primary;
+  if (!win.isVisible()) {
+    // Put it on its monitor before it is sized: a window sized on one monitor and then moved to
+    // another with a different scale is photographed at the wrong size the first time.
+    win.setPosition(display.workArea.x + 20, display.workArea.y + 20);
+    win.showInactive();
+    await sleep(300);
+  }
+  win.setContentSize(shot.w, shot.h);
   win.setPosition(display.workArea.x + 20, display.workArea.y + 20);
-  const url = `${BASE}?capture=1&${shot.q}`;
+  const url = `${BASE}?capture=1&${shot.q}${args.q ? '&' + args.q : ''}`;
+  const warm = Number(args.warm) || shot.warm;
   for (let attempt = 0; ; attempt++) {
     try { await win.loadURL(url); break; } catch (err) { if (attempt >= 3) throw err; await sleep(400); }
   }
@@ -77,10 +108,10 @@ async function shoot(shot) {
   }
   // Let the liquid run. In chunks, with a finish between them, so commands cannot pile up.
   const t0 = Date.now();
-  for (let done = 0; done < shot.warm; done += 30) {
+  for (let done = 0; done < warm; done += 30) {
     await run('window.__mercury.step(30, 1 / 60, true); window.__mercury.mercury.gl.finish(); 0');
   }
-  const stepMs = (Date.now() - t0) / shot.warm;
+  const stepMs = (Date.now() - t0) / warm;
   if (shot.after) await run(shot.after);
   await run('window.__mercury.step(2, 1 / 60, true); window.__mercury.mercury.gl.finish(); 0');
   await sleep(250);             // two or three compositor frames
@@ -98,6 +129,7 @@ async function shoot(shot) {
 
 app.whenReady().then(async () => {
   fs.mkdirSync(OUT, { recursive: true });
+  if (!args.base) await require(path.join(REPO, 'prototypes', 'serve.js')).start(PORT);
   const d = screen.getPrimaryDisplay();
   console.log(`display ${d.size.width}x${d.size.height} at scale ${d.scaleFactor}, ${d.displayFrequency} Hz`);
   let info = null;

@@ -203,13 +203,16 @@ float base(vec2 p0) {
   vec2 p = warp(p0);
   float d = outline(p);
 
-  // Rolled edge: vertical at the silhouette, easing into the crown with no kink.
-  float t = clamp(-d / EDGE_R, 0., 1.);
-  float h = EDGE_H * sqrt(max(1. - pow(1. - t, 2.5), 0.));
-  // The crown: the body keeps curving well past the edge, like a full drop of
-  // liquid rather than a slab with rounded corners.
-  float t2 = clamp(-d / 78., 0., 1.);
-  h += 17. * (1. - (1. - t2) * (1. - t2));
+  // The lip: a rounded tube all the way round. Its outer face is vertical at the silhouette
+  // and rolls over to a crest; its inner face falls gently to the body, which lies lower.
+  // Each face mirrors a different part of the room, which is what gives the edge its width.
+  float x = max(-d, 0.);
+  float t = clamp(x / EDGE_R, 0., 1.);
+  float h = EDGE_H * sqrt(max(1. - pow(1. - t, 2.2), 0.));
+  h -= EDGE_DIP * smoothstep(EDGE_R * .9, EDGE_IN, x);
+  // The body itself is only slightly domed.
+  float t2 = clamp(x / 110., 0., 1.);
+  h += 5. * (1. - (1. - t2) * (1. - t2));
   // Keep falling away outside, so the very edge still faces sideways.
   h -= max(d, 0.) * 3.;
 
@@ -306,23 +309,44 @@ float softbox(vec3 r, vec3 dir, vec3 right, vec2 size, float soft) {
 }
 
 // The room the liquid mirrors. r: x right, y up, z toward the viewer.
-// It is dim and has no hard lines in it: light gathers smoothly toward the top
-// of the screen and the album's colour toward the bottom, so the body shades
-// as one form. On top of that sit three broad lights and two thin strips that
-// draw the single bright line along the upper and lower edges.
+// A dark studio with a few large lamps in it and the album's colour lying on the
+// floor. Nothing in it is the same all the way round: as an edge turns, the lamp it
+// was mirroring slides out of view and the edge goes dark until it finds the next.
+// That is what makes a highlight swell, thin and vanish along a lip, where a room
+// that is evenly bright above and evenly coloured below draws a line of even width.
 vec3 env(vec3 r) {
   vec3 warm = vec3(1., .955, .91), cool = vec3(.86, .93, 1.);
   vec3 hot = mix(uPalA, vec3(1.), .16);
-  float tilt = r.y * (1. - .3 * max(r.z, 0.));
-
   vec3 c = vec3(.010, .011, .014);
-  c += cool * .55 * smoothstep(.42, 1., tilt);
-  c += hot * 1.05 * smoothstep(-.22, -1., tilt);
 
-  c += warm * 1.25 * softbox(r, normalize(vec3(-.38, .6, .7)), vec3(1, 0, 0), vec2(.6, .32), .17);
-  c += cool * .85 * softbox(r, normalize(vec3(.34, .62, .7)), vec3(1, 0, 0), vec2(.44, .22), .2);
-  c += cool * 4.2 * softbox(r, normalize(vec3(0., .96, .28)), vec3(1, 0, 0), vec2(1.8, .03), .02);
-  c += mix(hot, vec3(1.), .25) * 3. * softbox(r, normalize(vec3(.05, -.95, .3)), vec3(1, 0, 0), vec2(1.6, .03), .022);
+  // Toward the viewer the room holds nothing with an edge, only a slow wash of light from
+  // the upper left. Gently sloping liquid (the body, the inside of the lip, the swells and
+  // the waves the music sends) mirrors this part, and a lamp's edge there would be torn
+  // into blotches by every ripple. The wash gives those parts a sheen that slides instead.
+  c += cool * .2 * pow(max(dot(r, normalize(vec3(-.36, .46, .81))), 0.), 5.);
+
+  // The lamps stand well off to the sides, so only steep liquid shows them: the outer
+  // face of the lip, the rims of the buttons, the walls of the dishes.
+  // Overhead: one long bank, brighter at its left end. The line along edges that face up the screen.
+  float left = smoothstep(1.1, -.9, r.x);
+  c += cool * (.2 + .75 * left) * softbox(r, normalize(vec3(0., .93, .36)), vec3(1, 0, 0), vec2(1.5, .27), .12);
+  c += cool * (.3 + 1.5 * left) * softbox(r, normalize(vec3(0., .95, .31)), vec3(1, 0, 0), vec2(1.3, .05), .03);
+  // Key: a panel up and to the left. The broad light on the upper-left edges.
+  c += warm * 1.5 * softbox(r, normalize(vec3(-.62, .56, .55)), normalize(vec3(.66, 0., .75)), vec2(.42, .3), .09);
+  // A narrow panel to the right, a little behind: the crisp light on the right end.
+  c += cool * 2.1 * softbox(r, normalize(vec3(.86, .2, -.46)), normalize(vec3(.47, 0., .88)), vec2(.2, .5), .06);
+  // A weaker one behind on the left.
+  c += cool * 1.1 * softbox(r, normalize(vec3(-.8, .42, -.42)), normalize(vec3(.46, 0., -.89)), vec2(.16, .36), .06);
+
+  // The floor: the album's colour, brightest straight below and a little behind, falling
+  // away toward the horizon in front, toward the back and to either side. A lower lip
+  // turning through it shows a glow that rises and dies, not a band.
+  // Its hot core lies behind the drop as well as below it: the last of the lip above the
+  // lower silhouette and the first of the underside beneath it both look that way, so the
+  // two light up together as one rounded edge instead of two bands with a seam between.
+  vec3 fc = normalize(vec3(.1, -.62, -.78));
+  float fd = length((r - fc) * vec3(.7, 1., 1.));
+  c += hot * (.05 * smoothstep(.1, -.5, r.y) + .16 * exp(-fd * fd / .9) + 1.5 * exp(-fd * fd / .11));
   return c;
 }
 
@@ -379,13 +403,22 @@ void main() {
   float covFace = smoothstep(.75 * px, -.75 * px, dT) * born;
   float covTile = smoothstep(.75 * px, -.75 * px, min(dT, dTw)) * born;
 
-  /* ---- outside it: a soft coloured shadow, kept close ---- */
+  /* ---- outside it: the album's colour on the ground beneath, and a soft shadow ---- */
   vec2 border = min(p, STAGE - p);
-  float window = smoothstep(0., 40., min(border.x, border.y));
-  float below = outline(pw - uWall - vec2(0., 12.));
-  float shadow = .26 * smoothstep(34., -26., below) * window * uForm;
-  vec3 halo = hotA * (.02 * exp(-max(min(d, dU), 0.) / 9.) + .1 * exp(-max(below, 0.) / 15.) * smoothstep(-30., 20., d))
-            * (life + .9 * uAudio.w) * window * loud;
+  float window = smoothstep(0., 36., min(border.x, border.y));
+  // The floor lies a little way under the drop and is seen from above and in front, so the
+  // pool of light on it is the drop's own outline flattened, showing below the lower edge
+  // and standing clear of it. Nothing hugs the outline: light drawn all the way round the
+  // shape reads as a plate behind it.
+  // How much of the drop hangs over this stretch of floor: all of it under the lobes, less
+  // under the lifted waist, fading out past either end.
+  float over = smoothstep(30., -44., outline(vec2(pw.x, 292.)));
+  float fy = pw.y - 360.;
+  float pool = over * (exp(-fy * fy / 200.) + .28 * exp(-fy * fy / 1400.)) * smoothstep(0., 14., dU);
+  vec3 halo = hotA * .3 * pool * (life + .9 * uAudio.w) * window * loud;
+  // The shadow falls straight down, so it shows only beneath the drop. On a light desktop
+  // it is what lifts the drop off the page.
+  float shadow = (.3 * smoothstep(34., -22., outline(pw - vec2(0., 30.))) + .16 * smoothstep(9., -3., dU)) * window * uForm;
   oAura = vec4(halo, shadow);
 
   if (covBody <= 0. && covTile <= 0.) {
@@ -398,7 +431,6 @@ void main() {
   vec3 col = vec3(0.);
   float glass = 0.;
   vec2 flow = texture(uVel, p / STAGE).xy;
-  vec3 rimCol = vec3(1.);
 
   /* ================================ the top face ================================ */
   if (covTop > 0.) {
@@ -415,7 +447,7 @@ void main() {
     // In a pool the standing form is all but level; ripples and presses still cross it.
     vec3 pl = pools(pw) * born;
     float still = max(pl.x, max(.72 * pl.y, .78 * pl.z));
-    slopeB *= 1. - .93 * still;
+    slopeB *= 1. - .93 * still * smoothstep(4., 20., -d);      // ...but the outer face of the lip keeps its roll
     slopeD *= 1. - .45 * still;
     vec2 slope = slopeB + slopeD;
 
@@ -472,13 +504,8 @@ void main() {
       col += behind(pw + lens, soft) * vec3(.9, .94, 1.) * (1. - F) * clear * uBackPx.y;
     }
 
-    // The rim: one continuous bright edge, white where it faces up and the
-    // album's colour where it faces down, brightest toward the key light and
-    // along the underside. A lit edge, not an outline drawn round the shape.
-    rimCol = mix(mix(hotA, vec3(1.), .25), vec3(.93, .96, 1.), smoothstep(-.35, .45, N.y));
-    vec2 nxy = normalize(N.xy + 1e-4);
-    float lit = .28 + .72 * pow(max(dot(nxy, normalize(vec2(-.45, .9))), 0.), 1.5) + .75 * smoothstep(.15, .9, -nxy.y);
-    col += rimCol * (2.3 * pow(1. - ndv, 16.) * lit + .12 * pow(1. - ndv, 3.));
+    // No rim is drawn. The edge is lit only by what its roll mirrors, so it is bright where
+    // it faces a lamp and dark where it does not, as a real edge is.
 
     // Occlusion: under the lip, inside the dishes.
     float ao = 1.;
@@ -601,15 +628,22 @@ void main() {
 
   /* ================================ the underside ================================ */
   if (covTop < 1. && covBody > 0.) {
-    // How far down the wall this point is: 0 just under the top face's edge, 1 at the bottom.
-    float wt = clamp(d / max(length(uWall), 1.), 0., 1.);
-    vec3 dyeW = texture(uDye, (pw - uWall * .5) / STAGE).rgb;
-    // Dark under the overhang, then the album's colour gathering toward the lower edge,
-    // where the light that came down through the body leaves it.
-    vec3 wall = uPalC * .1 + hotA * (.1 + .85 * pow(wt, 1.6)) + dyeW * .8;
-    wall *= .55 + .45 * smoothstep(0., .25, wt);
-    wall += mix(hotA, vec3(1.), .45) * 1.5 * exp(-pow((dU + 1.6) / 1.4, 2.));       // the lower edge catches the light
-    float wallGlass = .62 + .26 * wt;
+    // The lip carrying on round and under, seen from a little above. Across it (wt: 0 under
+    // the top face's edge, 1 at its own lower edge) the surface turns from facing outward to
+    // facing down and toward the viewer, so what it mirrors is the floor: dark right under
+    // the overhang, the album's colour gathering lower down, and never the same for long
+    // along the outline, because the room is not.
+    float wt = clamp(d / max(d - dU, 1e-3), 0., 1.);
+    vec2 gO = vec2(outline(pw + vec2(1.5, 0.)) - d, outline(pw + vec2(0., 1.5)) - d) / 1.5;
+    vec2 nO = gO / max(length(gO), 1e-3);
+    vec3 Nw = normalize(vec3(nO.x, -nO.y, .06 + 1.5 * wt));
+    gSoft = .09;
+    vec3 Rw = rotY(uLean.x * .26) * rotX(uLean.y * -.2) * reflect(-V, Nw);
+    float Fw = mix(.34, .9, pow(1. - max(dot(Nw, V), 0.), 2.5));
+    vec3 dyeW = texture(uDye, (pw - uWall * .6) / STAGE).rgb;
+    vec3 wall = env(Rw) * Fw + (uPalC * .06 + dyeW * .4) * (1. - Fw);
+    wall *= 1. - .35 * wt;                                                           // falling into shadow lower down
+    float wallGlass = .78 + .16 * wt;
     // Refraction (experiment): through the side of the drop, what is behind is drawn far up under the top face.
     if (uBackPx.y > 0.) wall += behind(pw - normalize(uWall) * 22. * (1. - .5 * wt), 4.5) * vec3(.9, .94, 1.) * (1. - wallGlass) * .8 * uBackPx.y;
     col = mix(wall, col, covTop);
@@ -620,28 +654,31 @@ void main() {
   if (covTile > 0.) {
     vec2 tq = turn(pw - uTile.xy, -COVER_ROT);
     vec2 cuv = tq / (2. * COVER_HALF) + .5;
-    // Its side: the picture's edge drawn out through thick glass, with a bright lower corner.
-    vec3 side = pow(coverColor(clamp(cuv, .02, .98), pw, flow), vec3(2.2)) * .9 + vec3(.1, .1, .11);
-    side += vec3(1.) * .9 * exp(-pow((dTw + 1.4) / 1.3, 2.));
+    // Which way the tile's edge faces here.
+    float e2 = .7;
+    vec2 gT = vec2(sdRBox(tq + vec2(e2, 0.), vec2(COVER_HALF), COVER_R) - sdRBox(tq - vec2(e2, 0.), vec2(COVER_HALF), COVER_R),
+                   sdRBox(tq + vec2(0., e2), vec2(COVER_HALF), COVER_R) - sdRBox(tq - vec2(0., e2), vec2(COVER_HALF), COVER_R)) / (2. * e2);
+    gT = turn(gT, COVER_ROT);
+    // Its side: thick glass seen edge-on, mirroring the room below over the picture's own
+    // colour drawn out through it. No line is drawn on it.
+    gSoft = .06;
+    vec3 side = pow(coverColor(clamp(cuv, .02, .98), pw, flow), vec3(2.2)) * .5 + vec3(.03, .03, .035)
+              + env(reflect(-V, normalize(vec3(gT.x, -gT.y, .55)))) * .5;
     vec3 tile = side;
     if (covFace > 0.) {
-      // A bevel round the edge so the glass catches light like a cut tile.
-      float e2 = .7;
-      vec2 gT = vec2(sdRBox(tq + vec2(e2, 0.), vec2(COVER_HALF), COVER_R) - sdRBox(tq - vec2(e2, 0.), vec2(COVER_HALF), COVER_R),
-                     sdRBox(tq + vec2(0., e2), vec2(COVER_HALF), COVER_R) - sdRBox(tq - vec2(0., e2), vec2(COVER_HALF), COVER_R)) / (2. * e2);
-      gT = turn(gT, COVER_ROT);
-      float bevel = smoothstep(-6., -.5, dT);
-      vec3 Nt = normalize(vec3(-gT.x * bevel * 1.1 + uLean.x * .05, gT.y * bevel * 1.1 - uLean.y * .05, 1.));
+      // A bevel round the edge. Cut glass shows light only where a facet faces a lamp: the
+      // upper and left edges catch the lamps, the lower edge the colour off the floor.
+      float bevel = smoothstep(-6.5, -.4, dT);
+      vec3 Nt = normalize(vec3(gT.x * bevel * 1.25 + uLean.x * .05, -gT.y * bevel * 1.25 - uLean.y * .05, 1.));
       float ndt = max(dot(Nt, V), 0.);
       vec3 Rt = rotY(uLean.x * .3) * rotX(uLean.y * -.24) * reflect(-V, Nt);
       gSoft = .03;
-      float Ft = mix(.05, 1., pow(1. - ndt, 3.));
-      vec3 art = pow(coverColor(cuv, pw, flow), vec3(2.2)) * 1.55;
+      float Ft = mix(mix(.05, .55, bevel), 1., pow(1. - ndt, 3.));
+      vec3 art = pow(coverColor(cuv, pw, flow), vec3(2.2)) * 1.15;
       vec3 face = art * (1. - Ft) + env(Rt) * Ft;
       // One soft sheen lying across the glass; it slides as the cursor moves.
       float sweep = (tq.x - tq.y) / (2. * COVER_HALF) - uLean.x * .35 + uLean.y * .2;
       face += vec3(1.) * .07 * smoothstep(.35, .0, abs(sweep + .25));
-      face += vec3(1., .99, .97) * 1.1 * exp(-pow((dT + 1.3) / 1.2, 2.)) * (.5 + .5 * smoothstep(-.6, .6, -gT.x + gT.y * -1.));
       tile = mix(side, face, covFace);
     }
     col = mix(col, tile, covTile);
@@ -953,21 +990,33 @@ vec3 encode(vec3 lin) { return pow(tonemap(lin), vec3(1. / 2.2)); }
 
 void main() {
   vec3 bloom = texture(uBloom, vUv).rgb * uBloomAmt;
+  // Nothing may reach the canvas's own edge, or the widget would show its rectangle.
+  vec2 margin = min(vUv, 1. - vUv);
+  float inside = smoothstep(0., .03, min(margin.x * 2.15, margin.y));
   vec4 acc = vec4(0.);
   for (int i = 0; i < 4; i++) {
     vec2 uv = vUv + vec2(i % 2 == 0 ? -.25 : .25, i < 2 ? -.25 : .25) * uCanvasTexel;
     vec4 body = texture(uBody, uv);
     vec4 aura = texture(uAura, uv);
+    // The glow outside the drop is light with nothing of its own behind it. Light with no
+    // alpha at all is kept by one monitor's compositor and thrown away by another's, and
+    // where it is kept it clips a light desktop to white. So it is given alpha: as much as
+    // its weakest channel, which makes the white in it an ordinary premultiplied colour (a
+    // screen blend, which cannot pass white) and leaves only its colour to be added; and
+    // never none at all where there is any light, so every compositor treats it alike.
+    vec3 glow = encode(aura.rgb + bloom) * inside;
+    float gmax = max(glow.r, max(glow.g, glow.b));
+    float ga = max(min(glow.r, min(glow.g, glow.b)), min(gmax, .012));
     // Encode each side of the outline on its own, then blend by coverage.
     // Blending first would brighten or darken every edge pixel into a fringe.
-    acc.rgb += encode(body.rgb + bloom) * body.a + encode(aura.rgb + bloom) * (1. - body.a);
-    // The liquid's light is added to the desktop; only its smoky tint holds the desktop back.
-    acc.a += body.a * texture(uGlass, uv).r + aura.a * (1. - body.a);
+    acc.rgb += encode(body.rgb + bloom) * body.a + glow * (1. - body.a);
+    // Inside the drop its light is added to the desktop and only its smoky tint holds the
+    // desktop back; outside, the glow lies over the shadow.
+    acc.a += body.a * texture(uGlass, uv).r + (ga + aura.a * inside * (1. - ga)) * (1. - body.a);
   }
   acc *= .25;
-  // Dither: eight bits would band in the soft gradients.
+  // Dither: eight bits would band in the soft gradients. Not where there is nothing at all.
   float n = fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453);
-  acc.rgb += (n - .5) / 255.;
-  // Premultiplied. Where alpha is low the glow adds onto whatever is behind.
+  acc.rgb += (n - .5) / 255. * step(.002, acc.a);
   o = vec4(max(acc.rgb, 0.), acc.a);
 }`;
