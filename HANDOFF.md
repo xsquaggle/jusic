@@ -4,29 +4,38 @@
 
 ## Current status
 
-Updated 13 November 2026, at the end of stage 2b (click-through and drag).
+Updated 13 November 2026, at the end of stage 2d (GPU load).
 
 **Step 2 so far**
 
 - **2a done: the prototype runs in a real widget window.** `tools/widget-proto/main.js` is a throwaway shell, not the app: transparent, frameless, always on top, never focused, no taskbar entry, tray icon to quit. The page has a `?widget` mode (clear page, no test panel). Run it with `npx electron tools/widget-proto/main.js` (options `size=0.8`, `display=other`). It starts the prototype server itself if one is not running.
 - **Transparency works:** per-pixel, no rectangle. Photographed from the real screen over test windows on the second monitor: `design/captures/mercury-window-round9.png` (`... main.js shots=<folder>`; it puts windows of its own behind the widget so nothing of the owner's desktop is recorded). The first run happened to land on a full-screen game on the main monitor, and the widget stayed on top of it.
 - **The glow depends on the monitor** (`tools/capture/premul-probe.js`, table in `AUDIT.md`): on the main monitor (125%) light with alpha 0 is discarded, on the second (100%) it is kept. The fix is `AUDIT.md` item 3. `AUDIT.md` was updated for round 9: the see-through body moved up to second.
-- **2b done in code: click-through, drag, remembered position, close.** In `demo.js`, `passThrough()` tells the window to let the mouse through whenever the pointer is not over the shape (`host.setIgnore`, which is `setIgnoreMouseEvents(on, { forward: true })`); dragging the body or cover moves the window (`host.drag`); the position is saved in `data/widget-proto/position.json`; the hide dish quits.
-- **Checked without the real mouse:** `npx electron tools/widget-proto/main.js test=passthrough` moves a pretend pointer in the page and asks Windows (`WindowFromPhysicalPoint`) which window a click would reach. 8 of 8: the window behind when the pointer is in the notch, the corner or below the edge; the widget on the button, body, cover and timeline. Neither window took focus.
+- **2b done in code: click-through, drag, remembered position, close.** In `demo.js`, `passThrough()` tells the window to let the mouse through whenever the pointer is not over the shape (`host.setIgnore`, which is `setIgnoreMouseEvents(on, { forward: true })`); dragging the body or cover moves the window (`host.drag`); the position is saved in `data/widget-proto/position.json`; the hide dish quits. Checked without the real mouse: `... main.js test=passthrough` moves a pretend pointer in the page and asks Windows (`WindowFromPhysicalPoint`) which window a click would reach. 8 of 8 correct, and neither window took focus.
+- **2d done: GPU load** (`... main.js test=gpu dsf=1.25`, code in `tools/widget-proto/gpu-test.js`). The widget's own share of the card, from Windows' per-process GPU counters, at the main monitor's pixel size (1075×500 on screen, liquid drawn at 1920×893), second monitor, 120 Hz:
 
-**Not verified: needs a real mouse.** The owner was using the PC during this stage (input every second, a game on the main monitor), so the mouse was not taken over. Still to confirm by hand, with `npx electron tools/widget-proto/main.js`:
+  | State | Draws a second | Own share of the RTX 3070 | CPU, all its processes |
+  |---|---|---|---|
+  | Window not shown | 0 | 0.06% | 0.1% of one core |
+  | Idle: paused, pointer away | 15 | 0.36% (0.45% at worst) | 0.4% of one core |
+  | Playing | 113 | 2.1% to 3.0% over two runs | 1.5% to 1.7% of one core |
+  | Hidden (`window.hide()`) | 0 | 0.00% | under 0.1% of one core |
+
+  Memory, all processes of the prototype: about 440–455 MB working set (summed, so shared memory is counted more than once). **Taken while the owner's game was using 88–99% of the card**, so repeat once with nothing else running. It reaches the idle cadence about 10 s after launch. Hidden is truly zero only because the widget window leaves Chromium's background throttling on; the capture tools switch it off, the widget must not.
+
+**Not verified: needs a real mouse.** The owner was using the PC throughout (input every second, a game on the main monitor), so the mouse was not taken over. Still to confirm by hand, with `npx electron tools/widget-proto/main.js`:
 1. Moving the real cursor from outside onto the shape makes it take clicks. This is the one piece the test cannot reach: the window has to keep reporting mouse moves while it is letting clicks through.
 2. Clicks just outside the shape, inside the window's rectangle, reach what is behind.
 3. Dragging by the body moves it, and it reopens where it was left.
 4. Clicking it does not take keyboard focus from a game or FL Studio.
 
-**Rule from this stage:** assume the owner may be using the main screen. Test windows go on the second monitor (`display=other` in `widget-proto`, the default for its shots and tests; `mercury-shots.js` now opens there too, still drawn at 125%). `tools/capture/mercury-fps.js` still opens on the main monitor. Never move or click the real mouse while the owner is active (`powerMonitor.getSystemIdleTime()` says).
+**Rule from these stages:** assume the owner may be using the main screen. Test windows go on the second monitor (`display=other` in `widget-proto`, the default for its shots and tests; `mercury-shots.js` opens there too, still drawn at 125%). `tools/capture/mercury-fps.js` still opens on the main monitor. Never move or click the real mouse while the owner is active (`powerMonitor.getSystemIdleTime()` says).
 
-**From stage 1:** the audit (`AUDIT.md`, `design/captures/mercury-audit-round8.png` and `-zoom.png`); the cap the owner asked for, 120 draws a second and 1920×1080 (`MAX_RENDER` in `mercury.js`, the limiter at the top of `loop` in `demo.js`; `?fps=N` and `?uncapped` override); capture tools in `tools/capture/`; Electron 45.3.2 pinned (`npm install`, then `node node_modules/electron/install.js` if `node_modules/electron/dist/electron.exe` is missing). The machine: RTX 3070 (not 3060), main monitor 2560×1440 at 125% and 360 Hz, second monitor 1920×1080 at 100%.
+**From stage 1:** the audit (`AUDIT.md`, `design/captures/mercury-audit-round8.png` and `-zoom.png`); the cap the owner asked for, 120 draws a second and 1920×1080 (`MAX_RENDER` in `mercury.js`, the limiter at the top of `loop` in `demo.js`; `?fps=N` and `?uncapped` override); capture tools in `tools/capture/`; Electron 45.3.2 pinned (`npm install`, then `node node_modules/electron/install.js` if `node_modules/electron/dist/electron.exe` is missing). The machine: RTX 3070 (not 3060), main monitor 2560×1440 at 125% and 360 Hz, second monitor 1920×1080 at 100% and 120 Hz.
 
 **Half-finished:** nothing in code.
 
-**Exact next step (2d):** GPU load of the widget window, idle (paused, pointer away, 15 fps breathing) and playing, per process so the owner's own programs do not count: find the Electron GPU process with `app.getAppMetrics()` and read `\GPU Engine(pid_<pid>_*engtype_3D)\Utilization Percentage` with `Get-Counter` for 10–15 s each, plus `nvidia-smi --query-gpu=utilization.gpu,power.draw --format=csv -l 1` for the whole card. Say in the report whether a game was running, because that changes the numbers. Then (2e) the screen-capture refraction experiment (`setContentProtection(true)` plus `desktopCapturer`), which the owner has asked to try.
+**Exact next step (2e): the screen-capture refraction experiment,** which the owner asked to try. In `tools/widget-proto`: call `widget.setContentProtection(true)` so the widget is left out of screen captures; in the main process pick the screen source with `desktopCapturer.getSources({ types: ['screen'] })` and hand its id to the page through the preload; in the page open it with `getUserMedia` (`chromeMediaSource: 'desktop'`), put the video in a texture each frame, and have the surface shader sample it at the pixel behind each point, offset by the surface slope (the `bend` already computed for the pigment), with a little blur. Needs the window's screen position (send it on move). Measure the extra GPU and CPU cost with `test=gpu`, and look for a capture border or indicator that Windows may draw. It decides which way `AUDIT.md` item 2 goes. After that step 2 is complete and step 3 (the still, with real covers) starts at `AUDIT.md` items 1 and 3.
 
 **The owner's instructions for these sessions**
 
@@ -165,12 +174,12 @@ Section 6a is out of date on three points and needs correcting: the cover is a f
 
 | Test | Why it is open |
 |---|---|
-| Frame rate while playing | **Pacing measured** (RTX 3070, 125% scaling, 360 Hz): capped at 120 draws a second, gaps 8.3 ms median, 8.7 ms worst, at 100% size. The owner reports it smooth. GPU load while playing is still unmeasured. |
-| Idle GPU and CPU (paused, pointer away, 15 fps breathing) | Target is near zero. If it is not, cut the idle rate, the supersampling or the pressure iterations. Unmeasured. |
+| Frame rate and GPU load while playing | **Measured** (RTX 3070, at the main monitor's pixel size): capped at 120 draws a second, gaps 8.3 ms median, 8.7 ms worst; the widget's own share of the card is 2.1–3.0%, against a target of 5%. Taken while a game was using the card; repeat with nothing else running. |
+| Idle GPU and CPU (paused, pointer away, 15 fps breathing) | **Measured:** 0.36% of the card and 0.4% of one CPU core; exactly 0 when the window is hidden. Same caveat about the game. Whether 0.36% counts as "near zero" is the owner's call; stopping the breathing after a minute would make it 0. |
 | Transparency | **Answered.** Inside an ordinary window the compositor adds the glow where alpha is at least 1/255 and discards it where alpha is exactly 0, which is what gives the glow its hard border. In a transparent window the main monitor (125%) behaves the same way and the second monitor (100%) keeps the light even at alpha 0 (`AUDIT.md` item 3, `tools/capture/premul-probe.js`). Per-pixel transparency itself works. |
-| Click-through outside the shape | Planned with `setIgnoreMouseEvents(true, { forward: true })` driven by `hit()`. Not tried. This is the main technical risk. |
+| Click-through outside the shape | **Half proven.** The page, the message to the window and Windows' own answer to "which window gets a click here" all agree (`test=passthrough`, 8 of 8). Not yet tried with a real mouse: whether moves keep arriving while the window lets clicks through. |
 | Real refraction through screen capture | Idea only: `win.setContentProtection(true)` to keep the widget out of the capture, `desktopCapturer` for the screen, pass the region behind the widget in as a backdrop texture to bend. Unknown cost, and it means the app captures the screen, which the owner should agree to first. |
-| Always on top, drag, remembered position, not stealing focus from a game or FL Studio | Not built. |
+| Always on top, drag, remembered position, not stealing focus from a game or FL Studio | Built in `tools/widget-proto`. It stayed on top of a full-screen game. Drag, position and focus need a real mouse and have not been tried by hand. |
 | Audio glitches under load | Not testable without the engine. |
 | Real covers and palettes from `data/art` and `data/colors.json` | Only generated covers have been used. |
 

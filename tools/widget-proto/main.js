@@ -10,6 +10,7 @@
  *   npx electron tools/widget-proto/main.js shots=<folder>  photograph it over test backdrops, then quit
  *   npx electron tools/widget-proto/main.js test=passthrough   check that the window lets the mouse through outside the
  *                                                           shape and takes it inside, without touching the real mouse
+ *   npx electron tools/widget-proto/main.js test=gpu           GPU load idle, playing and hidden (see gpu-test.js)
  *   display=primary|other                                   which monitor (shots and tests default to the other one, to
  *                                                           stay out of the way of whatever is on the main screen)
  */
@@ -24,6 +25,8 @@ const args = Object.fromEntries(process.argv.slice(2).filter((a) => a.includes('
 const SIZE = Number(args.size) || 1;
 const SHOTS = args.shots ? path.resolve(args.shots) : null;
 const TEST = args.test || null;
+// Draw at a given display scale wherever the window is (the main monitor is 125%).
+if (args.dsf) app.commandLine.appendSwitch('force-device-scale-factor', args.dsf);
 const PORT = 5190;
 const STAGE = { w: 860, h: 400 };
 
@@ -78,7 +81,9 @@ function createWidget({ query = 'play', x, y } = {}) {
     backgroundColor: '#00000000',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
-      contextIsolation: true, sandbox: true, nodeIntegration: false, backgroundThrottling: false,
+      // Background throttling stays on (the default): when the window is hidden the page is
+      // told so and stops drawing. The capture tools turn it off; the widget must not.
+      contextIsolation: true, sandbox: true, nodeIntegration: false,
     },
   });
   widget.setAlwaysOnTop(true, 'floating');
@@ -246,6 +251,10 @@ app.whenReady().then(async () => {
   await ensureServer();
   if (SHOTS) { await runShots(); return; }
   if (TEST === 'passthrough') { await runPassThroughTest(); return; }
+  if (TEST === 'gpu') {
+    await require('./gpu-test.js').runGpuTest({ app, screen, createWidget, getWidget: () => widget, pickDisplay, seconds: Number(args.seconds) || 12 });
+    return;
+  }
 
   await createWidget({ x: args.x && Number(args.x), y: args.y && Number(args.y) });
   widget.showInactive();
