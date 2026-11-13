@@ -409,7 +409,7 @@ export function createMercury(canvas, { reducedMotion = false, family } = {}) {
     const speed = lerp(rand(70, 120), rand(190, 300), Math.min(1, kick));
     drop(x, y, {
       radius: lerp(rand(8, 12), rand(12, 17), Math.min(1, kick)),
-      amount: lerp(0.5, 0.8, Math.min(1, kick)),
+      amount: lerp(0.42, 0.66, Math.min(1, kick)),
       coverUv: [0.5 + dx / m * 0.4, 0.5 + dy / m * 0.4],
       outgoing: fromOutgoing,
     });
@@ -626,7 +626,7 @@ export function createMercury(canvas, { reducedMotion = false, family } = {}) {
     sampler(u.uCover, st.trans < 0.5 ? coverA : coverB);
     gl.uniform2fv(u.uTexel, sim.dye.read.texel);
     gl.uniform1f(u.uDt, dt);
-    gl.uniform1f(u.uFade, st.transActive ? 9 : 15);
+    gl.uniform1f(u.uFade, st.transActive ? 8 : 12);
     gl.uniform1f(u.uSeep, st.reducedMotion ? 0.08 : lerp(0.02, 0.1, sp.playing.x));
     gl.uniform1f(u.uBurst, st.burst);
     gl.uniform1f(u.uTime, st.time);
@@ -734,7 +734,7 @@ export function createMercury(canvas, { reducedMotion = false, family } = {}) {
       st.lastKick = st.time;
       const power = Math.min(1, st.pulse);
       sp.thump.kick(9 * power);
-      const n = 1 + Math.round(power * 2);
+      const n = power > 0.8 ? 2 : 1;
       for (let i = 0; i < n; i++) rimDrop({ kick: power });
       const s = (Math.random() < 0.5 ? 1 : -1) * (260 + 520 * power);
       swirl(rand(300, 480), rand(205, 255), s, rand(34, 52));
@@ -746,12 +746,12 @@ export function createMercury(canvas, { reducedMotion = false, family } = {}) {
     // Between kicks the cover still lets a drop go now and then.
     if (st.time >= st.nextDrop) {
       rimDrop({ kick: 0.15 * st.mid });
-      st.nextDrop = st.time + rand(0.45, 0.95) / (0.6 + st.mid + st.bass);
+      st.nextDrop = st.time + rand(1.0, 1.8) / (0.6 + st.mid + st.bass);
     }
     // The bead leaves a thread of colour behind it as the song moves on.
     if (st.time >= st.nextTrail) {
       const bx = seekX(sp.seekBead.x);
-      drop(bx, seekY(bx), { radius: 6, amount: 0.22, color: st.pal.a });
+      drop(bx, seekY(bx) + 6, { radius: 8, amount: 0.4, color: st.pal.a });
       push(bx, seekY(bx) - 4, rand(-20, 20), -34, 12);
       st.nextTrail = st.time + rand(0.9, 1.5);
     }

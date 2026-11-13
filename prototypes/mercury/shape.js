@@ -157,7 +157,7 @@ export const volValue = (x) => clamp01((x - L.vol.x0) / (L.vol.x1 - L.vol.x0));
 L.vol.icon[1] = volY(L.vol.x0) - 0.5;
 
 /** Baseline for the title: it settles down the shoulder of the left lobe, then runs along the waist. */
-export const titleY = (x) => mix(198, edgeY(Math.min(x, 500), -1) + 42, 0.7);
+export const titleY = (x) => mix(199, edgeY(Math.min(x, 500), -1) + 42, 0.5);
 
 /* --------------------------------------------------------------- hit test --- */
 

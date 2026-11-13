@@ -466,7 +466,7 @@ if (params.get('bg')) $('desk').dataset.bg = params.get('bg');
 
 /* ------------------------------------------------------------------- boot --- */
 
-await Promise.all([document.fonts.load('600 24px Montserrat'), document.fonts.load('300 16px Montserrat'), document.fonts.load('500 13px Montserrat')]);
+await Promise.all([document.fonts.load('600 24px Montserrat'), document.fonts.load('400 16px Montserrat'), document.fonts.load('500 13px Montserrat')]);
 layout();
 setVolume(player.volume);
 await setTrack(Number(params.get('track')) || 0, { immediate: true });

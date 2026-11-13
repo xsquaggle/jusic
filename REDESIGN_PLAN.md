@@ -212,6 +212,69 @@ Everything that follows the cursor or responds to touch runs on **springs** (sem
 
 **Reduced motion** (OS setting or the in-app switch): no parallax, tilt, wobble, ripples or travelling waves; springs become 120 ms fades; the basin and widget draw a calm, slowly breathing state; the pigment fades between covers instead of flowing; the palette still changes. Every control works the same.
 
+### 6a. Mercury motion spec (revised after the prototype reviews)
+
+This replaces the short widget list above. It is what the prototype in `prototypes/mercury/` is built to. One material, one set of physics: every value below is a spring from the table (or one added here), never a timed tween, except the three places marked as timed.
+
+Extra springs used only by the widget:
+
+| Spring | k | c | ζ | Used for |
+|---|---|---|---|---|
+| `form` | 95 | 12 | 0.62 | The drop coalescing. Overshoots about 4%, settles in about 0.9 s. |
+| `unform` | 150 | 25 | 1.02 | Letting go. No bounce. |
+| `thump` | 520 | 20 | 0.44 | The whole body jumping on a kick or on play. |
+| `swell` | 180 | 14 | 0.52 | Lobes breathing with the bass. |
+| `glyph` | 300 | 21 | 0.61 | Play melting into pause. |
+| `tip` | 320 | 24 | 0.67 | The time-preview lens rising. |
+| `playing` | 30 | 11 | 1.0 | Waking and settling: flow, glow and seam ease over about 0.6 s. |
+
+**Sound → liquid**
+
+| Input | Response | Amount |
+|---|---|---|
+| Bass (bands 0–2, smoothed) | Lobes swell (`swell`); a wave runs along the lower body and the timeline rides it; the fold opens; circulation speeds up | swell up to 2.6 units; wave up to 3 units high, 285 units long, 100 units/s; flow 1150 → 2650 |
+| Kick (pulse crossing 0.5, 160 ms refractory) | Body jumps outward about 1% (`thump`); one drop of pigment jets off the cover (two above 0.8); two counter-rotating vortices; above 0.7 one soft ripple | jet 190–300 units/s; vortices ±260–780 |
+| Mids | Second, shorter wave; drops fall more often | 1.1 units; one drop every 1.0–1.8 s ÷ (0.6 + mid + bass) |
+| Highs | Fine shiver across the surface; small eddies in the pigment | 0.35 units at about 30-unit wavelength |
+| Overall level | Reflections brighten and wander slightly | +16% on a kick; ±1° |
+| Silence / quiet passages | All of the above fall to their floor; only the slow drift remains | — |
+
+**Pigment (ink in water)**
+
+- Velocity grid 384×180, pigment 688×320, 16 pressure iterations. Pigment is carried with a corrected (MacCormack) step so plumes keep fine edges.
+- Colour enters as discrete **drops** on the cover's rim, each with a jet behind it; in still liquid a jet rolls up into a mushroom, which is the curl of ink. Between drops the rim seeps in threads.
+- A slow **circulation** carries it through the whole body: two opposite gyres in the lobes, drifting large-scale turbulence, and a current that follows the walls all the way round, which has to squeeze through the neck and so runs faster there.
+- The cover and the three button dishes are **solid**: the flow goes round them.
+- Thin pigment is drawn clear; only where it gathers does it glow, brighter than white at the core, with an out-of-focus halo. It fades over about 12 s.
+- **Song change** (timed, 1.7 s): the outgoing cover lets go as a ring of 14 jets and two large vortices; from 0.75 s ten drops of the new cover fall in at 220 ms intervals; pigment fade shortens to 8 s during the change so the old colour swirls away rather than snapping off. The palette glides over 1.2 s (timed, ease-out cubic).
+
+**Pointer → liquid**
+
+| Action | Response |
+|---|---|
+| Approach | The surface notices from 46 units out: the dimple and the travelling reflection ramp in with distance (`glide`). The whole room the liquid mirrors turns up to 15° toward the cursor. |
+| Move across it | Dimple 13 units wide, 5 deep, follows on `glide`. Every 30 units of travel it leaves a ripple and a push on the pigment, both scaled by speed. |
+| Press a button | Dish deepens 8 units and its rim spreads 6% (`press`); the body squashes 3.5% around the point; a ripple leaves at 185 units/s and fades over 2.4 s; a puff of pigment. Release is `jelly`. The glyph squashes with the dish. |
+| Play / pause | The two halves of the play triangle draw up into the pause bars (`glyph`). Play: body jumps, a ring leaves the button, four drops fall, one vortex. Pause: one slow ring, the body lets its breath out, flow and glow settle over 0.6 s. |
+| Seek drag | Bead chases the pointer (`bead`), stretches up to 75% along the line by its own velocity and thins 22%; the line is pulled up to 8 units toward the pointer under it (`jelly`); the time lens rises 13 units out of the surface (`tip`) showing the time under the pointer, not under the bead. On release the bead snaps home and the liquid rings once. |
+| Volume | Same bead physics. The glow around the body, the floor light and every emissive scale with the level (0.5× to 1.2×). |
+| Skip | The body shears toward the direction of the skip and springs back (`lean`), the pigment is shoved the same way at 520 units/s, the body jumps. |
+| Drag the widget | The body lags and shears (`lean`); the pigment is pushed against the acceleration; both settle when the window stops. |
+| Hover anywhere on it | Two small dishes for *open app* and *hide* press into the lip at the right end (k 170, c 17). They are flush with the surface otherwise. |
+
+**The window**
+
+- **Appear:** the outline grows out of its thickest parts (`form`): two beads swell where the lobes will be, meet through the neck, overshoot slightly and settle; contents surface over the last quarter; one ripple at 420 ms.
+- **Close:** the same in reverse on `unform`: the neck parts, the beads draw in and are gone.
+- **Idle** (paused, pointer away, 2.5 s after the last disturbance): drops to a 15 fps breathing cadence with a lighter simulation step. Surface still drifts, pigment still turns. To be measured on the PC; if it is not near zero it gets cheaper until it is.
+- **Reduced motion:** no jump, squash, shear, ripples, drops or vortices; pigment seeps only; forming and closing are instant; idle is a still frame at 0 fps.
+
+**Readability rules**
+
+- Words and glyphs are drawn inside the liquid but may shift by at most 1.5 units, with at most 0.45 units of colour fringing. Lines and beads bend freely.
+- The liquid lies level in three pools (under the words, along the timeline, along the volume strip), so highlights break around them and text is always white on dark, on any desktop.
+- Hit areas come from the same numbers the shader draws with (verified: 0 mismatches across 86,000 sample points outside a 1.5-unit edge band).
+
 ---
 
 ## 7. Performance targets and how they are measured
@@ -272,16 +335,27 @@ To make that quick for you, the app ships with `npm run measure` and `npm run do
    - From *Flow*: the cover as a glass slab that leans toward the cursor, and visible pigment streams in the lower body.
    - From *Split*: the fold between the upper lip and the body opens slightly, and the spectral surface glows through that gap. The lip leans; the controls don't.
 5. **Mercury's glass can't refract your real desktop.** A web page can't see what is behind its window. The chrome reflects a studio environment lit in the album's colours instead, and the body is nearly opaque so it reads the same on any wallpaper.
-6. **Text on the widget is not distorted by the surface.** In the renders the type sits perfectly still on moving metal; I keep that literally by drawing text above the shader.
+6. ~~Text on the widget is drawn above the shader.~~ **Reversed at your request:** words and glyphs are now inside the liquid, curved to the form, with reflections passing around them. Section 6a has the readability rules that keep them crisp.
 7. **Additions you didn't ask for but that follow from the design:** widget sizes S / M / L, the droplet buttons for open and hide, a non-focusable widget window (clicking it won't take keyboard focus from a game or FL Studio), and the saved-device re-match.
 8. **The icon stays** for now. If a Mercury-style icon turns out better I'll show it to you before changing anything.
 
 ---
 
+## Where things stand (for whoever picks this up next)
+
+Phase 1 is in progress and gated on the still look. The rule from the owner: **do not continue with interactions until the still capture looks better than `widget-mercury-flow.png`**, and send a reference-vs-current side-by-side (dark and light desktop) every round.
+
+- Run it: `node prototypes/serve.js`, then open `http://127.0.0.1:5190/prototypes/mercury/`. `?capture=1` stops the clock for frame-stepped captures; `?bg=wallpaper` is the light desktop; `?ss=2` forces 2× supersampling.
+- Latest side-by-side: `design/captures/mercury-still-round5.png`. Before/after of this pass: `design/captures/mercury-before-after.png`.
+- Honest state of the still, round 5. Fixed: one continuous body, legible words on both desktops, one timeline, visible volume, clean edges at 100% and 200%, no black outline on light desktops. **Not yet better than the reference:** the reference still has more depth (it is drawn in perspective with a visible underside), broader and more varied highlights, a brighter cover, and longer flowing pigment streams.
+- Everything here has only been rendered in software (no GPU in the cloud sandbox). Frame times, the 15 fps idle cost, transparency and click-through are unmeasured and need the PC.
+- The interaction list in section 6a is built as a first pass and smoke-tested once for errors; none of it has been tuned or recorded yet.
+- The test covers are generated fixtures, not real artwork.
+
 ## Progress
 
 - [x] Phase 0 — plan
-- [ ] Phase 1 — Mercury prototype
+- [ ] Phase 1 — Mercury prototype (still look in review; interactions first pass built, untuned)
 - [ ] Phase 2 — shell and engine
 - [ ] Phase 3 — Midnight Glass
 - [ ] Phase 4 — Mercury in the shell

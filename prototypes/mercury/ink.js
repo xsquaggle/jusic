@@ -136,23 +136,23 @@ export function createInk(gl, { family = 'Montserrat' } = {}) {
     ctx.font = font(600, L.title.size);
     ctx.globalAlpha = 1;
     along(fit(labels.title, L.title.maxW), L.title.x, titleY);
-    ctx.font = font(300, L.artist.size);
-    ctx.globalAlpha = 0.66;
+    ctx.font = font(400, L.artist.size);
+    ctx.globalAlpha = 0.8;
     along(fit(labels.artist, L.title.maxW - 8), L.title.x + 1, (x) => titleY(x) + L.artist.drop, { tracking: 0.15 });
 
     // Times sit at the two ends of the timeline, turned to its slope.
     ctx.font = font(500, 13.5);
-    ctx.globalAlpha = 0.92;
+    ctx.globalAlpha = 1;
     along(labels.cur, L.seek.x0 - 13, (x) => seekY(L.seek.x0) + 4.6 + (x - L.seek.x0) * (seekY(L.seek.x0 + 8) - seekY(L.seek.x0)) / 8, { align: 'right' });
     along(labels.rem, L.seek.x1 + 14, (x) => seekY(L.seek.x1) + 4.6 + (x - L.seek.x1) * (seekY(L.seek.x1) - seekY(L.seek.x1 - 8)) / 8);
 
     // The lip: speaker, and VOLUME set along the slider's own curve.
-    ctx.font = font(500, 8.5);
-    ctx.globalAlpha = 0.8;
+    ctx.font = font(600, 8.5);
+    ctx.globalAlpha = 1;
     along('VOLUME', L.vol.x0 + 1, (x) => volY(x) - 9.5, { tracking: 1.4 });
-    ctx.globalAlpha = 0.95;
-    icon('speaker', L.vol.icon[0], L.vol.icon[1], 20);
-    icon(labels.muted ? 'muted' : 'waves', L.vol.icon[0], L.vol.icon[1], 20);
+    ctx.globalAlpha = 1;
+    icon('speaker', L.vol.icon[0], L.vol.icon[1], 22);
+    icon(labels.muted ? 'muted' : 'waves', L.vol.icon[0], L.vol.icon[1], 22);
 
     // Transport.
     ctx.globalAlpha = 1;
