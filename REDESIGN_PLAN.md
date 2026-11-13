@@ -346,8 +346,10 @@ To make that quick for you, the app ships with `npm run measure` and `npm run do
 Phase 1 is in progress and gated on the still look. The rule from the owner: **do not continue with interactions until the still capture looks better than `widget-mercury-flow.png`**, and send a reference-vs-current side-by-side (dark and light desktop) every round.
 
 - Run it: `node prototypes/serve.js`, then open `http://127.0.0.1:5190/prototypes/mercury/`. `?capture=1` stops the clock for frame-stepped captures; `?bg=wallpaper` is the light desktop; `?ss=2` forces 2× supersampling.
-- Latest side-by-side: `design/captures/mercury-still-round5.png`. Before/after of this pass: `design/captures/mercury-before-after.png`.
-- Honest state of the still, round 5. Fixed: one continuous body, legible words on both desktops, one timeline, visible volume, clean edges at 100% and 200%, no black outline on light desktops. **Not yet better than the reference:** the reference still has more depth (it is drawn in perspective with a visible underside), broader and more varied highlights, a brighter cover, and longer flowing pigment streams.
+- **`HANDOFF.md` has the current state and what is left.** Read that first.
+- Latest side-by-side: `design/captures/mercury-still-round7.png`. Earlier: `mercury-still-round5.png`, and `mercury-before-after.png` for the first still pass.
+- Round 6 changed direction on three things in section 6a: the body is see-through glass with a visible underside, the cover is a glass tile floating above the body rather than set into it, and text is upright. Section 6a has not been updated for those yet.
+- **Not yet better than the reference.** `HANDOFF.md` lists the gaps.
 - Everything here has only been rendered in software (no GPU in the cloud sandbox). Frame times, the 15 fps idle cost, transparency and click-through are unmeasured and need the PC.
 - The interaction list in section 6a is built as a first pass and smoke-tested once for errors; none of it has been tuned or recorded yet.
 - The test covers are generated fixtures, not real artwork.

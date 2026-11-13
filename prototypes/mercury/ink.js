@@ -7,7 +7,7 @@
  * White on black; the shader reads coverage from the red channel.
  */
 
-import { STAGE, L, seekY, volY, titleY } from './shape.js';
+import { STAGE, L, seekY, volY } from './shape.js';
 
 const ICONS = {
   prev: 'M6 5.2a1.1 1.1 0 0 1 2.2 0v5.3l9.2-5.9A1.1 1.1 0 0 1 19 5.5v13a1.1 1.1 0 0 1-1.6.9l-9.2-5.9v5.3a1.1 1.1 0 0 1-2.2 0Z',
@@ -132,24 +132,24 @@ export function createInk(gl, { family = 'Montserrat' } = {}) {
     ctx.setTransform(scale, 0, 0, scale, 0, 0);
     ctx.fillStyle = '#fff';
 
-    // Title and artist follow the shoulder of the left lobe down into the waist.
+    // Title and artist: upright and plain. The liquid does the rest.
     ctx.font = font(600, L.title.size);
     ctx.globalAlpha = 1;
-    along(fit(labels.title, L.title.maxW), L.title.x, titleY);
+    along(fit(labels.title, L.title.maxW), L.title.x, () => L.title.y);
     ctx.font = font(400, L.artist.size);
     ctx.globalAlpha = 0.8;
-    along(fit(labels.artist, L.title.maxW - 8), L.title.x + 1, (x) => titleY(x) + L.artist.drop, { tracking: 0.15 });
+    along(fit(labels.artist, L.title.maxW - 8), L.artist.x, () => L.artist.y, { tracking: 0.15 });
 
-    // Times sit at the two ends of the timeline, turned to its slope.
+    // Times sit at the two ends of the timeline, level with it.
     ctx.font = font(500, 13.5);
     ctx.globalAlpha = 1;
-    along(labels.cur, L.seek.x0 - 13, (x) => seekY(L.seek.x0) + 4.6 + (x - L.seek.x0) * (seekY(L.seek.x0 + 8) - seekY(L.seek.x0)) / 8, { align: 'right' });
-    along(labels.rem, L.seek.x1 + 14, (x) => seekY(L.seek.x1) + 4.6 + (x - L.seek.x1) * (seekY(L.seek.x1) - seekY(L.seek.x1 - 8)) / 8);
+    along(labels.cur, L.seek.x0 - 13, () => seekY(L.seek.x0) + 4.6, { align: 'right' });
+    along(labels.rem, L.seek.x1 + 14, () => seekY(L.seek.x1) + 4.6);
 
-    // The lip: speaker, and VOLUME set along the slider's own curve.
+    // The lip: speaker, slider, and a small label above its start.
     ctx.font = font(600, 8.5);
     ctx.globalAlpha = 1;
-    along('VOLUME', L.vol.x0 + 1, (x) => volY(x) - 9.5, { tracking: 1.4 });
+    along('VOLUME', L.vol.x0 + 1, () => volY(L.vol.x0) - 9.5, { tracking: 1.4 });
     ctx.globalAlpha = 1;
     icon('speaker', L.vol.icon[0], L.vol.icon[1], 22);
     icon(labels.muted ? 'muted' : 'waves', L.vol.icon[0], L.vol.icon[1], 22);

@@ -12,20 +12,20 @@ export const STAGE = { w: 860, h: 400 };
 export const L = {
   // Silhouette primitives.
   lobeL: { c: [186, 196], b: [118, 124], r: 106 },
-  lobeR: { c: [654, 190], b: [146, 102], r: 98, rot: -0.04 },
+  lobeR: { c: [648, 190], b: [140, 102], r: 98, rot: -0.07 },
   spine: { a: [190, 228], b: [650, 226], ra: 78, rb: 62 },
   pinch: { c: [430, -150], r: 312 },        // presses the top of the waist flat
   lift: { c: [482, 508], r: 230 },          // lifts the lower edge at the waist
-  tip: { c: [786, 224], r: 17 },            // the crest at the right end
-  notch: { c: [806, 262], r: 30 },          // ...and the hollow under it
+  tail: { a: [704, 214], b: [796, 242], ra: 48, rb: 9 },   // the right end draws out into a tapering tail
   blend: 64,
 
   edgeR: 44,          // how far the rolled edge reaches in
   edgeH: 30,          // how high it stands
 
-  cover: { c: [190, 175], half: 72, r: 24 },
-  title: { x: 294, maxW: 188, size: 24 },
-  artist: { size: 15.5, drop: 25 },
+  // The cover is a glass tile floating just above the body, overlapping its upper-left edge.
+  cover: { c: [172, 152], half: 74, r: 19, rot: -0.07 },
+  title: { x: 292, y: 197, maxW: 190, size: 24 },
+  artist: { x: 293, y: 222, size: 15.5 },
 
   buttons: [
     { c: [566, 201], r: 24 },     // previous
@@ -40,8 +40,8 @@ export const L = {
   // Two small dishes set into the lip where it wraps round the right end.
   // They only press in while the pointer is over the widget.
   utils: [
-    { c: [781, 170], r: 9.5 },    // open the full app
-    { c: [782, 197], r: 9.5 },    // hide the widget
+    { c: [777, 186], r: 8.5 },    // open the full app
+    { c: [774, 212], r: 8.5 },    // hide the widget
   ],
 
   // The time preview is drawn in a parked corner of the label sheet and shown
@@ -86,7 +86,7 @@ function sdCapsule(px, py, ax, ay, bx, by, ra, rb) {
  * @param {number} swell how far the lobes are breathing out with the bass
  */
 export function bodySdf(x, y, swell = 0) {
-  const { lobeL, lobeR, spine, pinch, lift, tip, notch, blend } = L;
+  const { lobeL, lobeR, spine, pinch, lift, tail, blend } = L;
 
   let d = sdRBox(x - lobeL.c[0], y - lobeL.c[1], lobeL.b[0] + swell, lobeL.b[1] + swell, lobeL.r);
   d = smin(d, sdCapsule(x, y, spine.a[0], spine.a[1], spine.b[0], spine.b[1], spine.ra, spine.rb), blend);
@@ -95,8 +95,7 @@ export function bodySdf(x, y, swell = 0) {
   const rx = x - lobeR.c[0], ry = y - lobeR.c[1];
   d = smin(d, sdRBox(cr * rx - sr * ry, sr * rx + cr * ry, lobeR.b[0] + swell, lobeR.b[1] + swell, lobeR.r), blend);
 
-  d = smin(d, Math.hypot(x - tip.c[0], y - tip.c[1]) - tip.r, 30);
-  d = smax(d, -(Math.hypot(x - notch.c[0], y - notch.c[1]) - notch.r), 18);
+  d = smin(d, sdCapsule(x, y, tail.a[0], tail.a[1], tail.b[0], tail.b[1], tail.ra, tail.rb), 26);
   d = smax(d, -(Math.hypot(x - pinch.c[0], y - pinch.c[1]) - pinch.r), 54);
   d = smax(d, -(Math.hypot(x - lift.c[0], y - lift.c[1]) - lift.r), 44);
   return d;
@@ -156,20 +155,32 @@ export const volX = (v) => mix(L.vol.x0, L.vol.x1, clamp01(v));
 export const volValue = (x) => clamp01((x - L.vol.x0) / (L.vol.x1 - L.vol.x0));
 L.vol.icon[1] = volY(L.vol.x0) - 0.5;
 
-/** Baseline for the title: it settles down the shoulder of the left lobe, then runs along the waist. */
-export const titleY = (x) => mix(199, edgeY(Math.min(x, 500), -1) + 42, 0.5);
+/** Signed distance to the cover tile, negative inside. (cx, cy) lets the caller pass its floating position. */
+export function tileSdf(x, y, cx = L.cover.c[0], cy = L.cover.c[1]) {
+  const c = Math.cos(-L.cover.rot), s = Math.sin(-L.cover.rot);
+  const dx = x - cx, dy = y - cy;
+  return sdRBox(c * dx - s * dy, s * dx + c * dy, L.cover.half, L.cover.half, L.cover.r);
+}
 
 /* --------------------------------------------------------------- hit test --- */
 
 /**
- * What is under a point.
- * @param {{swell?:number}} f live state
+ * What is under a point. The visible drop is three things: the top face, the
+ * underside showing below it, and the cover tile floating over one end.
+ * @param {{swell?:number, wall?:number[], tile?:number[]}} f live state: lobe swell, where the underside sits, where the tile is
  * @returns {{inside:boolean, d:number, target:string|null, index?:number}}
  */
 export function hit(x, y, f = {}) {
-  const d = bodySdf(x, y, f.swell || 0);
+  const swell = f.swell || 0;
+  const wall = f.wall || [0, 14];
+  const tile = f.tile || L.cover.c;
+  const dTop = bodySdf(x, y, swell);
+  const dTile = tileSdf(x, y, tile[0], tile[1]);
+  const d = Math.min(dTop, bodySdf(x - wall[0], y - wall[1], swell), dTile);
   const out = { inside: d < 0, d, target: null };
   if (!out.inside) return out;
+  if (dTile < 0) return { ...out, target: 'cover' };
+  if (dTop >= 0) return { ...out, target: 'body' };          // the underside: grab it to drag
 
   for (let i = 0; i < L.buttons.length; i++) {
     const b = L.buttons[i];
@@ -182,8 +193,6 @@ export function hit(x, y, f = {}) {
   if (x > L.seek.x0 - 14 && x < L.seek.x1 + 14 && Math.abs(y - seekY(x)) < 13) return { ...out, target: 'seek' };
   if (x > L.vol.x0 - 12 && x < L.vol.x1 + 12 && Math.abs(y - volY(x)) < 13) return { ...out, target: 'volume' };
   if (Math.hypot(x - L.vol.icon[0], y - L.vol.icon[1]) < 13) return { ...out, target: 'mute' };
-  const c = L.cover;
-  if (Math.abs(x - c.c[0]) < c.half && Math.abs(y - c.c[1]) < c.half) return { ...out, target: 'cover' };
   return { ...out, target: 'body' };
 }
 
@@ -204,6 +213,7 @@ const float EDGE_H = ${f1(L.edgeH)};
 const vec2 COVER_C = ${v2(L.cover.c)};
 const float COVER_HALF = ${f1(L.cover.half)};
 const float COVER_R = ${f1(L.cover.r)};
+const float COVER_ROT = ${f1(L.cover.rot)};
 const vec2 BASIN_C = ${v2(L.basin.c)};
 const vec2 BASIN_B = ${v2(L.basin.b)};
 const float BASIN_R = ${f1(L.basin.r)};
@@ -261,8 +271,7 @@ float bodySdf(vec2 p, float swell) {
   vec2 r = p - ${v2(L.lobeR.c)};
   float cr = ${f1(Math.cos(L.lobeR.rot))}, sr = ${f1(Math.sin(L.lobeR.rot))};
   d = smin(d, sdRBox(vec2(cr * r.x - sr * r.y, sr * r.x + cr * r.y), ${v2(L.lobeR.b)} + swell, ${f1(L.lobeR.r)}), ${f1(L.blend)});
-  d = smin(d, length(p - ${v2(L.tip.c)}) - ${f1(L.tip.r)}, 30.);
-  d = smax(d, -(length(p - ${v2(L.notch.c)}) - ${f1(L.notch.r)}), 18.);
+  d = smin(d, sdCapsule(p, ${v2(L.tail.a)}, ${v2(L.tail.b)}, ${f1(L.tail.ra)}, ${f1(L.tail.rb)}), 26.);
   d = smax(d, -(length(p - ${v2(L.pinch.c)}) - ${f1(L.pinch.r)}), 54.);
   d = smax(d, -(length(p - ${v2(L.lift.c)}) - ${f1(L.lift.r)}), 44.);
   return d;

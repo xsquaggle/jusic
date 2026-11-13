@@ -247,7 +247,7 @@ export function createMercury(canvas, { reducedMotion = false, family } = {}) {
     scale = sw / STAGE.w;
     dispose(scene);
     bloom.forEach(dispose);
-    scene = target(sw, sh, 2);
+    scene = target(sw, sh, 3);
     bloom = [];
     let bw = w, bh = h;
     for (let i = 0; i < BLOOM_LEVELS; i++) {
@@ -514,7 +514,14 @@ export function createMercury(canvas, { reducedMotion = false, family } = {}) {
     lastDragVel = [vx, vy];
   }
 
-  const hit = (x, y) => (formed() ? hitShape(x, y, { swell: sp.swell.x }) : { inside: false, d: 999, target: null });
+  // The body has a visible thickness, and the cursor tilts it: the underside
+  // slides out from under the top face as the pointer moves across.
+  const wall = () => (st.reducedMotion ? [0, 14] : [-5 * sp.lean.x, 14 + 5 * sp.lean.y]);
+  // The cover tile floats, so it shifts a little against the body.
+  const tile = () => (st.reducedMotion ? L.cover.c : [L.cover.c[0] - 2.5 * sp.lean.x, L.cover.c[1] - 2.5 * sp.lean.y]);
+  const hit = (x, y) => (formed()
+    ? hitShape(x, y, { swell: sp.swell.x, wall: wall(), tile: tile() })
+    : { inside: false, d: 999, target: null });
 
   /* ----------------------------------------------------------- simulation --- */
 
@@ -680,6 +687,10 @@ export function createMercury(canvas, { reducedMotion = false, family } = {}) {
     sampler(u.uInk, ink.tex);
     gl.uniform1f(u.uInkScale, ink.scale);
     gl.uniform1f(u.uForm, sp.form.x);
+    const [wx, wy] = wall();
+    gl.uniform2f(u.uWall, wx, wy);
+    const [tx, ty] = tile();
+    gl.uniform4f(u.uTile, tx, ty, 2.5 - 2 * sp.lean.x * quiet, 6.5 + 2 * sp.lean.y * quiet);
     const span = L.seek.x1 - L.seek.x0;
     gl.uniform3f(u.uSeekPull, Math.max(-1, Math.min(1, sp.seekBead.v * span / 520)) * quiet, sp.seekPull.x, sp.muted.x > 0.5 ? 0 : sp.level.x);
     draw();
@@ -715,6 +726,7 @@ export function createMercury(canvas, { reducedMotion = false, family } = {}) {
     bind(null);
     sampler(u.uBody, scene.tex[0]);
     sampler(u.uAura, scene.tex[1]);
+    sampler(u.uGlass, scene.tex[2]);
     sampler(u.uBloom, bloom[0].tex[0]);
     gl.uniform1f(u.uBloomAmt, 0.5);
     gl.uniform2f(u.uCanvasTexel, 1 / canvas.width, 1 / canvas.height);
