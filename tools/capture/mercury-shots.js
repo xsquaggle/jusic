@@ -5,6 +5,9 @@
  *   node prototypes/serve.js                         (in another terminal)
  *   npx electron tools/capture/mercury-shots.js out=design/captures/raw/round8 [only=dark,light] [dsf=1.25]
  *
+ * The window opens on the second monitor when there is one, so it stays out of the way of whatever
+ * is on the main screen, and is drawn at the main monitor's 125% scale (dsf) wherever it is.
+ *
  * Every shot runs the page in ?capture=1 mode: the clock is stopped, the test
  * audio is scripted, and the liquid is stepped a fixed number of frames, so
  * two runs of the same code give the same picture.
@@ -17,7 +20,7 @@ const args = Object.fromEntries(process.argv.slice(2).filter((a) => a.includes('
 const OUT = path.resolve(args.out || 'design/captures/raw/latest');
 const ONLY = args.only ? args.only.split(',') : null;
 const BASE = args.base || 'http://127.0.0.1:5190/prototypes/mercury/';
-if (args.dsf) app.commandLine.appendSwitch('force-device-scale-factor', args.dsf);
+app.commandLine.appendSwitch('force-device-scale-factor', args.dsf || '1.25');
 
 // Where the reference images have their cursor: on the lower edge, right of the middle.
 const HOVER = `(() => { const m = window.__mercury; m.pointer('move', 300, 300); m.step(6); m.pointer('move', 400, 262); m.step(6);
@@ -60,7 +63,9 @@ async function shoot(shot) {
   const run = (js) => wc.executeJavaScript(js, true);
   messages.length = 0;
   win.setContentSize(shot.w, shot.h);
-  win.center();
+  const primary = screen.getPrimaryDisplay();
+  const display = screen.getAllDisplays().find((d) => d.id !== primary.id) || primary;
+  win.setPosition(display.workArea.x + 20, display.workArea.y + 20);
   const url = `${BASE}?capture=1&${shot.q}`;
   for (let attempt = 0; ; attempt++) {
     try { await win.loadURL(url); break; } catch (err) { if (attempt >= 3) throw err; await sleep(400); }

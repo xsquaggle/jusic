@@ -251,6 +251,18 @@ let dragStart = null;
 let lastPointer = null;
 let dragVel = [0, 0];
 
+// In the real widget window, a click outside the liquid belongs to whatever is behind it.
+// The window is told to let the mouse through whenever the pointer is not over the shape.
+// It still reports mouse moves, so the page takes the mouse back the moment the pointer returns.
+let passing = null;
+function passThrough(on) {
+  if (!host || on === passing) return;
+  passing = on;
+  host.setIgnore(on);
+}
+// Dragging the body moves the window itself there, so distances have to be measured on the screen.
+const dragPoint = (event) => (host && event.screenX !== undefined ? [event.screenX, event.screenY] : [event.clientX, event.clientY]);
+
 function toStage(event) {
   const rect = widget.getBoundingClientRect();
   return [(event.clientX - rect.left) / rect.width * STAGE.w, (event.clientY - rect.top) / rect.height * STAGE.h];
@@ -259,6 +271,7 @@ function toStage(event) {
 function onMove(event) {
   const [x, y] = toStage(event);
   const h = mercury.pointerMove(x, y);
+  passThrough(!h.inside && !dragging);
   wake();
 
   if (dragging === 'seek') {
@@ -273,19 +286,24 @@ function onMove(event) {
     return;
   }
   if (dragging === 'body' || (downTarget && dragStart && (downTarget.target === 'body' || downTarget.target === 'cover'))) {
-    const dx = event.clientX - dragStart.cx, dy = event.clientY - dragStart.cy;
-    if (dragging !== 'body' && Math.hypot(dx, dy) > 5) { dragging = 'body'; mercury.release(); }
+    const [sx, sy] = dragPoint(event);
+    const dx = sx - dragStart.cx, dy = sy - dragStart.cy;
+    if (dragging !== 'body' && Math.hypot(dx, dy) > 5) { dragging = 'body'; mercury.release(); if (host) host.drag('start'); }
     if (dragging === 'body') {
-      view.x = dragStart.vx + dx;
-      view.y = dragStart.vy + dy;
-      applyTransform();
+      if (host) {
+        host.drag('move');                      // the window follows the cursor
+      } else {
+        view.x = dragStart.vx + dx;
+        view.y = dragStart.vy + dy;
+        applyTransform();
+      }
       const now = performance.now();
       if (lastPointer) {
         const dt = Math.max(1, now - lastPointer.t) / 1000;
-        dragVel = [(event.clientX - lastPointer.x) / dt, (event.clientY - lastPointer.y) / dt];
+        dragVel = [(sx - lastPointer.x) / dt, (sy - lastPointer.y) / dt];
         mercury.setDragVelocity(dragVel[0] / view.scale, dragVel[1] / view.scale);
       }
-      lastPointer = { x: event.clientX, y: event.clientY, t: now };
+      lastPointer = { x: sx, y: sy, t: now };
       return;
     }
   }
@@ -308,7 +326,8 @@ function onDown(event) {
   event.preventDefault();
   try { widget.setPointerCapture(event.pointerId); } catch { /* synthetic events have no capture */ }
   downTarget = h;
-  dragStart = { cx: event.clientX, cy: event.clientY, vx: view.x, vy: view.y };
+  const [sx, sy] = dragPoint(event);
+  dragStart = { cx: sx, cy: sy, vx: view.x, vy: view.y };
   lastPointer = null;
   wake();
 
@@ -354,6 +373,7 @@ function onUp(event) {
     if (h.target === 'util' && h.index === downTarget.index) {
       $('hint').textContent = h.index === 0 ? 'Would open the full app' : 'Would hide the widget';
       $('hint').style.opacity = 1;
+      if (host && h.index === 1) host.close();
     }
   } else if (dragging === 'seek') {
     player.time = dragProgress * player.track.duration;
@@ -366,19 +386,21 @@ function onUp(event) {
     tipState = null;
   } else if (dragging === 'body') {
     mercury.setDragVelocity(0, 0);
+    if (host) host.drag('end');
   } else if (downTarget) {
     if (downTarget.target === 'mute' && h.target === 'mute') setVolume(player.volume, !player.muted);
   }
   dragging = null;
   downTarget = null;
   dragStart = null;
+  passThrough(!h.inside);
 }
 
 widget.addEventListener('pointermove', onMove);
 widget.addEventListener('pointerdown', onDown);
 widget.addEventListener('pointerup', onUp);
 widget.addEventListener('pointercancel', onUp);
-widget.addEventListener('pointerleave', () => { if (!dragging) { mercury.pointerLeave(); tipState = null; wake(); } });
+widget.addEventListener('pointerleave', () => { if (!dragging) { mercury.pointerLeave(); tipState = null; passThrough(true); wake(); } });
 widget.addEventListener('wheel', (event) => {
   const [x, y] = toStage(event);
   if (!mercury.hit(x, y).inside) return;
@@ -490,6 +512,7 @@ mercury.setProgress(player.time / player.track.duration);
 mercury.springs.seekBead.snap(player.time / player.track.duration);
 mercury.springs.volBead.snap(player.volume);
 if (params.has('play')) setPlaying(true);
+passThrough(true);        // until the pointer is seen over the liquid, the mouse belongs to the desktop
 // It forms like a droplet. Capture scripts can ask for it already formed.
 if (params.has('unformed')) mercury.springs.form.snap(0);
 else if (CAPTURE) mercury.springs.form.snap(1);

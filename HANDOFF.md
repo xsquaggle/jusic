@@ -4,21 +4,29 @@
 
 ## Current status
 
-Updated 13 November 2026, at the end of stage 2a (the real widget window).
+Updated 13 November 2026, at the end of stage 2b (click-through and drag).
 
 **Step 2 so far**
 
 - **2a done: the prototype runs in a real widget window.** `tools/widget-proto/main.js` is a throwaway shell, not the app: transparent, frameless, always on top, never focused, no taskbar entry, tray icon to quit. The page has a `?widget` mode (clear page, no test panel). Run it with `npx electron tools/widget-proto/main.js` (options `size=0.8`, `display=other`). It starts the prototype server itself if one is not running.
-- **Transparency works:** per-pixel, no rectangle. Photographed from the real screen over test windows on the second monitor: `design/captures/mercury-window-round9.png`. `npx electron tools/widget-proto/main.js shots=<folder>` makes the raw shots; it puts windows of its own behind the widget so nothing of the owner's desktop is recorded.
-- **Seen by accident:** a full-screen game was on the main monitor during the first run, and the widget stayed on top of it. Assume the owner may be using the main screen: keep test windows on the second monitor (`display=other`, the default for shots) unless a test needs the main one, and say so first.
-- **The glow depends on the monitor** (`tools/capture/premul-probe.js`, table in `AUDIT.md`): on the main monitor (125%) light with alpha 0 is discarded, on the second (100%) it is kept. The fix is `AUDIT.md` item 3.
-- **`AUDIT.md` updated for round 9:** the see-through body moved up to second, because what is behind the window reads straight through it; the glow is now item 3.
+- **Transparency works:** per-pixel, no rectangle. Photographed from the real screen over test windows on the second monitor: `design/captures/mercury-window-round9.png` (`... main.js shots=<folder>`; it puts windows of its own behind the widget so nothing of the owner's desktop is recorded). The first run happened to land on a full-screen game on the main monitor, and the widget stayed on top of it.
+- **The glow depends on the monitor** (`tools/capture/premul-probe.js`, table in `AUDIT.md`): on the main monitor (125%) light with alpha 0 is discarded, on the second (100%) it is kept. The fix is `AUDIT.md` item 3. `AUDIT.md` was updated for round 9: the see-through body moved up to second.
+- **2b done in code: click-through, drag, remembered position, close.** In `demo.js`, `passThrough()` tells the window to let the mouse through whenever the pointer is not over the shape (`host.setIgnore`, which is `setIgnoreMouseEvents(on, { forward: true })`); dragging the body or cover moves the window (`host.drag`); the position is saved in `data/widget-proto/position.json`; the hide dish quits.
+- **Checked without the real mouse:** `npx electron tools/widget-proto/main.js test=passthrough` moves a pretend pointer in the page and asks Windows (`WindowFromPhysicalPoint`) which window a click would reach. 8 of 8: the window behind when the pointer is in the notch, the corner or below the edge; the widget on the button, body, cover and timeline. Neither window took focus.
 
-**From stage 1:** the audit itself (`AUDIT.md`, `design/captures/mercury-audit-round8.png` and `-zoom.png`); the cap the owner asked for, 120 draws a second and 1920×1080 (`MAX_RENDER` in `mercury.js`, the limiter at the top of `loop` in `demo.js`; `?fps=N` and `?uncapped` override); capture tools in `tools/capture/`; Electron 45.3.2 pinned (`npm install`, then `node node_modules/electron/install.js` if `node_modules/electron/dist/electron.exe` is missing). The machine: RTX 3070 (not 3060), main monitor 2560×1440 at 125% and 360 Hz, second monitor 1920×1080 at 100%.
+**Not verified: needs a real mouse.** The owner was using the PC during this stage (input every second, a game on the main monitor), so the mouse was not taken over. Still to confirm by hand, with `npx electron tools/widget-proto/main.js`:
+1. Moving the real cursor from outside onto the shape makes it take clicks. This is the one piece the test cannot reach: the window has to keep reporting mouse moves while it is letting clicks through.
+2. Clicks just outside the shape, inside the window's rectangle, reach what is behind.
+3. Dragging by the body moves it, and it reopens where it was left.
+4. Clicking it does not take keyboard focus from a game or FL Studio.
 
-**Half-finished:** click-through and drag. `main.js` and `preload.js` already give the page `widgetHost.setIgnore`, `.drag` and `.close`, and `demo.js` reads them into `host`, but nothing calls them yet. Until 2b lands the whole 860×400 window swallows clicks.
+**Rule from this stage:** assume the owner may be using the main screen. Test windows go on the second monitor (`display=other` in `widget-proto`, the default for its shots and tests; `mercury-shots.js` now opens there too, still drawn at 125%). `tools/capture/mercury-fps.js` still opens on the main monitor. Never move or click the real mouse while the owner is active (`powerMonitor.getSystemIdleTime()` says).
 
-**Exact next step (2b):** in `demo.js`, when `host` is set: in `onMove`, call `host.setIgnore(!h.inside && !dragging)` whenever the answer changes (start ignored); in the body and cover drag branch, replace the `view.x` / `view.y` transform with `host.drag('start' | 'move' | 'end')` and feed `mercury.setDragVelocity` from `event.screenX` / `screenY` deltas; make the hide dish (`util` index 1) call `host.close()`. Then test with real mouse input on the second monitor: clicks outside the shape must reach the window behind, clicks inside must not, and the window must never take focus. After that: (2d) GPU load idle and playing, per process, against a baseline; (2e) the screen-capture refraction experiment (`setContentProtection(true)` plus `desktopCapturer`), which the owner has asked to try.
+**From stage 1:** the audit (`AUDIT.md`, `design/captures/mercury-audit-round8.png` and `-zoom.png`); the cap the owner asked for, 120 draws a second and 1920×1080 (`MAX_RENDER` in `mercury.js`, the limiter at the top of `loop` in `demo.js`; `?fps=N` and `?uncapped` override); capture tools in `tools/capture/`; Electron 45.3.2 pinned (`npm install`, then `node node_modules/electron/install.js` if `node_modules/electron/dist/electron.exe` is missing). The machine: RTX 3070 (not 3060), main monitor 2560×1440 at 125% and 360 Hz, second monitor 1920×1080 at 100%.
+
+**Half-finished:** nothing in code.
+
+**Exact next step (2d):** GPU load of the widget window, idle (paused, pointer away, 15 fps breathing) and playing, per process so the owner's own programs do not count: find the Electron GPU process with `app.getAppMetrics()` and read `\GPU Engine(pid_<pid>_*engtype_3D)\Utilization Percentage` with `Get-Counter` for 10–15 s each, plus `nvidia-smi --query-gpu=utilization.gpu,power.draw --format=csv -l 1` for the whole card. Say in the report whether a game was running, because that changes the numbers. Then (2e) the screen-capture refraction experiment (`setContentProtection(true)` plus `desktopCapturer`), which the owner has asked to try.
 
 **The owner's instructions for these sessions**
 
