@@ -1,0 +1,14 @@
+{ "out": "design/captures/mercury-still-round16.png", "width": 1616,
+  "title": "Mercury still, round 16: wider rims on the lobes, a crowned bulb, light carried through the glass, the album's colour off the floor in front (generated test cover; RTX 3070, 125%)",
+  "rows": [
+  [ { "label": "reference: widget-mercury.png", "src": "design/references/widget-mercury.png", "crop": [0, 110, 1586, 797] },
+    { "label": "round 16: dark desktop", "src": "design/captures/raw/round16/dark.png", "crop": [90, 50, 1022, 513] } ],
+  [ { "label": "reference: widget-mercury-flow.png", "src": "design/references/widget-mercury-flow.png", "crop": [0, 130, 1586, 797] },
+    { "label": "round 16: light desktop (gradient wallpaper)", "src": "design/captures/raw/round16/light.png", "crop": [90, 50, 1022, 513] } ],
+  [ { "label": "reference: widget-mercury-split.png", "src": "design/references/widget-mercury-split.png", "crop": [0, 60, 1586, 797] },
+    { "label": "round 16: near-white window behind it", "src": "design/captures/raw/round16/window.png", "crop": [90, 50, 1022, 513] } ],
+  [ { "label": "reference: the bulb", "src": "design/references/widget-mercury.png", "crop": [20, 190, 640, 590] },
+    { "label": "round 16: the bulb", "src": "design/captures/raw/round16/dark.png", "crop": [110, 105, 420, 387] } ],
+  [ { "label": "round 15, before this round: dark desktop", "src": "design/captures/raw/round15/dark.png", "crop": [90, 50, 1022, 513] },
+    { "label": "round 15, before this round: near-white window", "src": "design/captures/raw/round15/window.png", "crop": [90, 50, 1022, 513] } ]
+] }

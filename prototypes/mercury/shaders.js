@@ -206,10 +206,15 @@ float base(vec2 p0) {
   // The lip: a rounded tube all the way round. Its outer face is vertical at the silhouette
   // and rolls over to a crest; its inner face falls gently to the body, which lies lower.
   // Each face mirrors a different part of the room, which is what gives the edge its width.
+  // On the two lobes the tube is half as wide again as through the waist, where the body is
+  // thin: a wide roll turns slowly, so the light it mirrors lies across it as a broad band
+  // instead of a line.
+  float lobe = 1. - smoothstep(300., 380., p.x) * smoothstep(600., 520., p.x);
+  float eR = mix(EDGE_R, EDGE_R_LOBE, lobe), eH = mix(EDGE_H, EDGE_H_LOBE, lobe), eIn = mix(EDGE_IN, EDGE_IN_LOBE, lobe);
   float x = max(-d, 0.);
-  float t = clamp(x / EDGE_R, 0., 1.);
-  float h = EDGE_H * sqrt(max(1. - pow(1. - t, 2.2), 0.));
-  h -= EDGE_DIP * smoothstep(EDGE_R * .9, EDGE_IN, x);
+  float t = clamp(x / eR, 0., 1.);
+  float h = eH * sqrt(max(1. - pow(1. - t, 2.2), 0.));
+  h -= EDGE_DIP * smoothstep(eR * .9, eIn, x);
   // The body itself is only slightly domed.
   float t2 = clamp(x / 110., 0., 1.);
   h += 5. * (1. - (1. - t2) * (1. - t2));
@@ -232,7 +237,10 @@ float base(vec2 p0) {
 
   // Broad swells, drifting slowly.
   vec2 a = p - vec2(186., 196.), b = p - vec2(646., 196.), c = p - vec2(420., 240.);
-  h += 7. * exp(-dot(a, a) / 21000.) + 6. * exp(-dot(b, b) / 24000.) + 4. * exp(-dot(c, c) / 9000.);
+  // The bulb is crowned: full in the middle and falling away to its rim all round, so the
+  // part of it toward the lamps carries a sheen and the part toward the floor its colour.
+  h += BULB_CROWN * pow(max(1. - dot(a, a) / (BULB.z * BULB.z), 0.), 1.5);
+  h += 6. * exp(-dot(b, b) / 24000.) + 4. * exp(-dot(c, c) / 9000.);
   h += 1.1 * sin(p.x * .017 + uTime * .36 + .8 * sin(p.y * .015 - uTime * .17));
   h += .7 * sin(p.x * .009 - p.y * .022 - uTime * .26 + 2.);
 
@@ -301,6 +309,9 @@ float detail(vec2 p0) {
 
 /* ----------------------------------------------------------- environment --- */
 
+// How much of the lamps' light the glass rim carries through to its inner side.
+const float THROUGH = .27;
+
 // How blurred the room looks from this point: reflections soften where they
 // turn faster than a pixel can show, and on tightly curved rims.
 float gSoft;
@@ -332,7 +343,10 @@ vec3 env(vec3 r) {
   // the upper left. Gently sloping liquid (the body, the inside of the lip, the swells and
   // the waves the music sends) mirrors this part, and a lamp's edge there would be torn
   // into blotches by every ripple. The wash gives those parts a sheen that slides instead.
-  c += cool * .2 * pow(max(dot(r, normalize(vec3(-.36, .46, .81))), 0.), 5.);
+  c += cool * .3 * pow(max(dot(r, normalize(vec3(-.36, .46, .81))), 0.), 4.);
+  // ...and, as soft and as edgeless, the album's colour coming up off the floor in front:
+  // liquid that leans toward the viewer's feet carries it as a glow, not a line.
+  c += hot * .22 * pow(max(dot(r, normalize(vec3(.06, -.62, .78))), 0.), 7.);
 
   // The lamps stand well off to the sides, so only steep liquid shows them: the outer
   // face of the lip, the rims of the buttons, the walls of the dishes.
@@ -517,6 +531,21 @@ void main() {
     vec3 inner = (uPalC * (.3 + .25 * depth) * (.6 + .8 * smoke) + lumen * (.7 + .4 * depth)) * (1. - .5 * under) * (1. - .75 * clamp(calm, 0., 1.));
 
     col = inner * (1. - .5 * F) + refl * F;
+
+    // Light that came in through the edge: thick glass shows it again as a broad soft band
+    // just inside the roll, on the side toward the lamps (upper left), brightest where the
+    // outline faces them and gone where it faces away. The outer face of the roll carries the
+    // lamps' own reflection; this band inside it is what makes the edge read as a thick tube
+    // of glass and not as a line. It gives way wherever something has to be read.
+    {
+      vec2 gO = vec2(outline(pw + vec2(1.5, 0.)) - d, outline(pw + vec2(0., 1.5)) - d) / 1.5;
+      float toward = max(dot(gO / max(length(gO), 1e-3), vec2(-.74, -.67)), 0.);
+      float lobe = 1. - smoothstep(300., 380., pw.x) * smoothstep(600., 520., pw.x);
+      float eR = mix(EDGE_R, EDGE_R_LOBE, lobe);
+      float band = exp(-pow((-d - eR * 1.55) / (eR * .46), 2.));
+      col += mix(vec3(1., .97, .94), hotA, .2) * THROUGH * band * toward * toward
+           * (1. - clamp(calm, 0., 1.)) * (1. - .7 * podIn) * born;
+    }
 
     // Refraction (experiment): the body holds back everything behind the window, and shows
     // instead what a capture says is there, bent the way the surface above it slopes (a drop

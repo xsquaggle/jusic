@@ -42,10 +42,16 @@ export const L = {
 
   // The outer edge: a rounded tube running round the whole outline. It rises steeply from the
   // silhouette to a crest, then falls gently into the body, which lies a little lower.
+  // (Through the waist, where the body is thin and the words and the timeline lie close to
+  // the outline. On the two lobes the same tube is half as wide again: the 'Lobe' numbers.)
   edgeR: 17,          // from the silhouette to the crest
   edgeH: 14,          // how high the crest stands
   edgeDip: 5.5,       // how far the body lies below the crest
   edgeIn: 46,         // where the inner face of the lip has levelled out
+  edgeRLobe: 25,
+  edgeHLobe: 19,
+  edgeInLobe: 58,
+  bulbCrown: 15,      // how far the middle of the bulb stands above its rim's foot
 
   // The cover is a glass tile floating just above the bulb, inside its rim all the way round.
   cover: { c: [180, 170], half: 74, r: 19, rot: -0.07 },
@@ -246,6 +252,11 @@ const float EDGE_R = ${f1(L.edgeR)};
 const float EDGE_H = ${f1(L.edgeH)};
 const float EDGE_DIP = ${f1(L.edgeDip)};
 const float EDGE_IN = ${f1(L.edgeIn)};
+const float EDGE_R_LOBE = ${f1(L.edgeRLobe)};
+const float EDGE_H_LOBE = ${f1(L.edgeHLobe)};
+const float EDGE_IN_LOBE = ${f1(L.edgeInLobe)};
+const float BULB_CROWN = ${f1(L.bulbCrown)};
+const vec3 BULB = vec3(${f1(L.lobeL.c[0])}, ${f1(L.lobeL.c[1])}, ${f1(L.lobeL.r)});
 const vec2 COVER_C = ${v2(L.cover.c)};
 const float COVER_HALF = ${f1(L.cover.half)};
 const float COVER_R = ${f1(L.cover.r)};
