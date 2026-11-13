@@ -1,0 +1,10 @@
+{ "out": "design/captures/mercury-audit-round8.png", "width": 1616,
+  "title": "Mercury audit, round 8: first captures on the real GPU (RTX 3070, 2560x1440 at 125%), widget at 100% size, generated test cover",
+  "rows": [
+  [ { "label": "reference: widget-mercury.png", "src": "design/references/widget-mercury.png", "crop": [0, 110, 1586, 797] },
+    { "label": "current: dark desktop", "src": "design/captures/raw/round8/dark.png", "crop": [90, 50, 1022, 513] } ],
+  [ { "label": "reference: widget-mercury-flow.png", "src": "design/references/widget-mercury-flow.png", "crop": [0, 130, 1586, 797] },
+    { "label": "current: light desktop (gradient wallpaper)", "src": "design/captures/raw/round8/light.png", "crop": [90, 50, 1022, 513] } ],
+  [ { "label": "reference: widget-mercury-split.png", "src": "design/references/widget-mercury-split.png", "crop": [0, 60, 1586, 797] },
+    { "label": "current: near-white window behind it", "src": "design/captures/raw/round8/window.png", "crop": [90, 50, 1022, 513] } ]
+] }

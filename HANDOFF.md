@@ -1,13 +1,41 @@
 # Handoff: Jusic redesign
 
-Written at the end of the cloud session, for the session that continues on the PC. `REDESIGN_PLAN.md` is the full plan; this is where things actually stand.
+`REDESIGN_PLAN.md` is the full plan; this is where things actually stand. Work now happens on the owner's PC. **"Current status" is rewritten at the end of every stage**; the rest of the file is background from the cloud session, corrected where the PC has shown otherwise.
 
-## Current state
+## Current status
+
+Updated 13 November 2026, at the end of stage 1 (the visual audit).
+
+**Done in this stage**
+
+- **Visual audit on the real GPU:** `AUDIT.md`, 13 gaps ranked by how much they hurt, each with a fix. Side by side with all three references: `design/captures/mercury-audit-round8.png`. Details at 200%, hover and the small size: `design/captures/mercury-audit-round8-zoom.png`. Verdict: not better than any reference yet. The top three are outlines instead of form, the glow plate behind the widget, and blown-out colourless highlights.
+- **Cap the owner asked for mid-audit:** the liquid is never drawn above 1920×1080 (`MAX_RENDER` in `mercury.js`; supersampling gives way first) and never more often than 120 times a second (the limiter at the top of `loop` in `demo.js`). Measured at 100% size: 120 draws a second, gaps 8.3 ms median and 8.7 ms at worst. Before, it free-ran at about 340 a second with uneven gaps, which the owner saw as lag. `?fps=N` and `?uncapped` override both.
+- **Capture tools** in `tools/capture/` (see the file map). Electron 45.3.2 is a pinned dev dependency: `npm install`, then `node node_modules/electron/install.js` if `node_modules/electron/dist/electron.exe` is missing.
+- **Why the glow has a hard border** (measured, `tools/capture/premul-probe.js`): the compositor keeps light added by the canvas where alpha is at least 1/255 and discards it where alpha is exactly 0. `AUDIT.md` item 2 has the fix.
+- **The machine:** RTX 3070 (not 3060), 2560×1440 at 125% scaling, 360 Hz.
+
+**Half-finished:** nothing. The working tree is clean.
+
+**Waiting on the owner:** they asked to see the audit before anything else happens. Do not start step 2 until they reply.
+
+**Exact next step once they reply (step 2, stage 2a):** a throwaway Electron script, `tools/widget-proto.js`, that opens the prototype in a real widget window: `transparent: true`, `frame: false`, `alwaysOnTop: true`, `focusable: false`, `resizable: false`, sized to the 860×400 stage. It needs a transparent page, so add a `bg=none` backdrop to `index.html` that leaves the body clear and hides the panel and hint. Then, one stage each: (2b) click-through with `setIgnoreMouseEvents(true, { forward: true })` switched by `hit()` on every mouse move; (2c) run `premul-probe.js` logic inside the transparent window and photograph the widget over the real desktop, dark and light; (2d) idle and playing GPU load with `nvidia-smi --query-gpu=utilization.gpu,power.draw --format=csv -l 1` against a baseline with the widget closed; (2e) the screen-capture refraction experiment (`setContentProtection(true)` plus `desktopCapturer`), which the owner has asked to try.
+
+**The owner's instructions for these sessions**
+
+1. Audit first (done), then stop for their reply.
+2. Real transparent, frameless, always-on-top window; test transparency and click-through on the real desktop; try screen-capture refraction; check idle GPU use.
+3. Polish the still, working down `AUDIT.md`, with real covers from `C:\Users\g8rla\OneDrive\Documents\Claudington\jusic-player\data\art` (119 files). **That `jusic-player` folder is the app they use every day: read only, never modify anything in it.** Re-run the side by side after each round, update `AUDIT.md`, and correct section 6a of the plan.
+4. Only when the still beats the references: tune and record the interactions.
+5. After the widget is approved: the full-app glass redesign.
+
+Working rules: stages of 20–30 minutes; at the end of each, commit, push to `redesign` and rewrite this section. If the owner says "wrap up", finish or shelve the current stage, checkpoint, summarise and stop. They are usually on their phone: short updates with a screenshot or clip. They are on a 5-hour usage limit, so do not start a stage that might not fit.
+
+## State at the end of the cloud session
 
 - **Branch:** `redesign`. `main` is untouched.
 - **Done:** the plan, and a standalone prototype of the Mercury widget in `prototypes/mercury/`.
 - **Not started:** the Electron shell, the engine split, the Midnight Glass app, the widget window. No app code has been changed. `public/fonts/` (Outfit, Manrope, Montserrat, OFL) is the only addition outside `prototypes/` and `design/`.
-- **Everything was rendered in software.** The cloud sandbox has no GPU and could not reach the PC. Nothing about frame rate, GPU cost, transparency or click-through has been measured.
+- **Everything up to round 7 was rendered in software.** The cloud sandbox has no GPU and could not reach the PC. Round 8 is the first on the real GPU; frame pacing has been measured there, GPU load, transparency in a real window and click-through have not.
 - **The owner's rule for the widget:** do not go on to interactions until the still looks better than `design/references/widget-mercury-flow.png`, and send a reference-vs-current side-by-side (dark and light desktop) every round. It does not look better yet.
 
 ## Run the prototype
@@ -18,7 +46,7 @@ node prototypes/serve.js
 
 Open `http://127.0.0.1:5190/prototypes/mercury/`. Press play to start the built-in test synth. Buttons at the bottom left: backdrop, size, close/appear, reduced motion.
 
-URL options: `?bg=wallpaper` (light desktop), `?bg=window`, `?bg=black`, `?track=0..4`, `?scale=1`, `?dpr=2`, `?ss=2` (supersampling per axis), `?still` (reduced motion), `?play`, `?unformed`, `?capture=1` (clock stopped: step with `window.__mercury.step(n, dt, paint)`; `paint=false` advances the liquid without drawing).
+URL options: `?bg=wallpaper` (light desktop), `?bg=window`, `?bg=black`, `?track=0..4`, `?scale=1`, `?dpr=2`, `?ss=2` (supersampling per axis), `?still` (reduced motion), `?play`, `?unformed`, `?fps=N` (drawing cap, default 120), `?uncapped` (lifts the 1920×1080 render cap), `?capture=1` (clock stopped: step with `window.__mercury.step(n, dt, paint)`; `paint=false` advances the liquid without drawing).
 
 ## File map (`prototypes/mercury/`)
 
@@ -35,9 +63,20 @@ URL options: `?bg=wallpaper` (light desktop), `?bg=window`, `?bg=black`, `?track
 | `covers/` | Generated stand-in covers. Not real artwork. |
 | `../serve.js` | Static server for the repo root on 127.0.0.1:5190. |
 
-Captures: `design/captures/mercury-still-round7.png` (latest side-by-side), `mercury-still-round5.png`, `mercury-before-after.png`.
+Capture tools (`tools/capture/`, all run with `npx electron <script>` while `serve.js` is running):
+
+| File | What it is |
+|---|---|
+| `mercury-shots.js` | Photographs the prototype in a real composited window with the clock stepped, so rounds are comparable. `out=<folder>`, `only=<names>`. Raw shots go to `design/captures/raw/`, which is not committed. |
+| `sheet.js` | Lays captures and references out on one labelled image from a JSON spec in `sheets/`. This makes the side by side. |
+| `mercury-fps.js` | Runs the prototype live and muted for a few seconds and reports real draws per second, frame gaps and render size. |
+| `premul-probe.js` | Tests whether the compositor keeps light added where alpha is low. |
+
+Captures: `design/captures/mercury-audit-round8.png` (latest side by side, first on the GPU), `mercury-audit-round8-zoom.png`, and from the cloud `mercury-still-round7.png`, `mercury-still-round5.png`, `mercury-before-after.png`.
 
 ## Where it still falls short of the reference
+
+`AUDIT.md` replaces this list: it is ranked, measured on the PC, and has fixes. The list below is the cloud session's own view, kept for the record.
 
 1. **Light desktop.** The body washes toward white and the volume strip is low-contrast. The glass has only been judged against a CSS gradient, never a real desktop.
 2. **No refraction.** The body is see-through and tinted, but it does not bend what is behind it. See PC-only tests.
@@ -118,9 +157,9 @@ Section 6a is out of date on three points and needs correcting: the cover is a f
 
 | Test | Why it is open |
 |---|---|
-| Frame rate while playing, at 100% and 150% display scale | Target is a locked 60 fps on the RTX 3060; never run on a GPU. Supersampling defaults to 2× per axis at 100% scale; lower it first if it misses. |
-| Idle GPU and CPU (paused, pointer away, 15 fps breathing) | Target is near zero. If it is not, cut the idle rate, the supersampling or the pressure iterations. |
-| Transparency | The page outputs premultiplied alpha with glow added where alpha is low. Whether Windows composites that as intended on a real desktop is untested. |
+| Frame rate while playing | **Pacing measured** (RTX 3070, 125% scaling, 360 Hz): capped at 120 draws a second, gaps 8.3 ms median, 8.7 ms worst, at 100% size. The owner reports it smooth. GPU load while playing is still unmeasured. |
+| Idle GPU and CPU (paused, pointer away, 15 fps breathing) | Target is near zero. If it is not, cut the idle rate, the supersampling or the pressure iterations. Unmeasured. |
+| Transparency | **Half answered.** Inside an ordinary window the compositor adds the glow where alpha is at least 1/255 and discards it where alpha is exactly 0, which is what gives the glow its hard border (`AUDIT.md` item 2). Whether Windows does the same for a transparent window on the real desktop is untested. |
 | Click-through outside the shape | Planned with `setIgnoreMouseEvents(true, { forward: true })` driven by `hit()`. Not tried. This is the main technical risk. |
 | Real refraction through screen capture | Idea only: `win.setContentProtection(true)` to keep the widget out of the capture, `desktopCapturer` for the screen, pass the region behind the widget in as a backdrop texture to bend. Unknown cost, and it means the app captures the screen, which the owner should agree to first. |
 | Always on top, drag, remembered position, not stealing focus from a game or FL Studio | Not built. |
@@ -134,8 +173,8 @@ Section 6a is out of date on three points and needs correcting: the cover is a f
 
 ## What's left, in order
 
-1. On the PC: run the prototype on the real GPU and desktop. Frame rate and idle cost first.
-2. Finish the still against the list above, with real covers.
+1. ~~On the PC: run the prototype on the real GPU.~~ Done: `AUDIT.md`. Idle cost moves to the widget-window step.
+2. Prove the widget window in Electron first (the owner's order): transparency, click-through, refraction experiment, idle GPU. Then finish the still against `AUDIT.md`, with real covers.
 3. Tune and record each interaction; correct section 6a.
 4. Prove the widget window in Electron (transparency, click-through, on top, drag, position).
 5. Phases 2 to 6 of the plan: shell and engine, Midnight Glass, widget in the shell, verification, README.

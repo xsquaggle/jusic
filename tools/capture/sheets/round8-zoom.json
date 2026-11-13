@@ -1,0 +1,153 @@
+{
+ "out": "design/captures/mercury-audit-round8-zoom.png",
+ "width": 1616,
+ "title": "Mercury audit, round 8: details at 200% (each screen pixel doubled), and the small size at 100%",
+ "rows": [
+  [
+   {
+    "label": "dark: cover tile and left rim",
+    "src": "design/captures/raw/round8/dark.png",
+    "crop": [
+     130,
+     120,
+     400,
+     260
+    ],
+    "pixel": true
+   },
+   {
+    "label": "light: cover tile and left rim",
+    "src": "design/captures/raw/round8/light.png",
+    "crop": [
+     130,
+     120,
+     400,
+     260
+    ],
+    "pixel": true
+   }
+  ],
+  [
+   {
+    "label": "dark: controls and volume (note the stepped edge of the halo)",
+    "src": "design/captures/raw/round8/dark.png",
+    "crop": [
+     690,
+     160,
+     400,
+     240
+    ],
+    "pixel": true
+   },
+   {
+    "label": "light: controls and volume",
+    "src": "design/captures/raw/round8/light.png",
+    "crop": [
+     690,
+     160,
+     400,
+     240
+    ],
+    "pixel": true
+   }
+  ],
+  [
+   {
+    "label": "dark: title, waist fold, bead",
+    "src": "design/captures/raw/round8/dark.png",
+    "crop": [
+     400,
+     240,
+     400,
+     180
+    ],
+    "pixel": true
+   },
+   {
+    "label": "light: title, waist fold, bead",
+    "src": "design/captures/raw/round8/light.png",
+    "crop": [
+     400,
+     240,
+     400,
+     180
+    ],
+    "pixel": true
+   }
+  ],
+  [
+   {
+    "label": "dark: lower edge and timeline",
+    "src": "design/captures/raw/round8/dark.png",
+    "crop": [
+     240,
+     350,
+     400,
+     160
+    ],
+    "pixel": true
+   },
+   {
+    "label": "near-white window: lower edge (the halo is a solid white plate)",
+    "src": "design/captures/raw/round8/window.png",
+    "crop": [
+     240,
+     350,
+     400,
+     160
+    ],
+    "pixel": true
+   }
+  ],
+  [
+   {
+    "label": "hover: the open-app and hide dishes at the right end",
+    "src": "design/captures/raw/round8/dark-hover.png",
+    "crop": [
+     880,
+     190,
+     260,
+     200
+    ],
+    "pixel": true,
+    "w": 520
+   },
+   {
+    "label": "hover: the same on a light desktop",
+    "src": "design/captures/raw/round8/light-hover.png",
+    "crop": [
+     880,
+     190,
+     260,
+     200
+    ],
+    "pixel": true,
+    "w": 520
+   },
+   {
+    "label": "hover: the cursor dimple (pointer at the centre)",
+    "src": "design/captures/raw/round8/dark-hover.png",
+    "crop": [
+     512,
+     258,
+     276,
+     200
+    ],
+    "pixel": true,
+    "w": 552
+   }
+  ],
+  [
+   {
+    "label": "small size (60%), dark, 100%",
+    "src": "design/captures/raw/round8/dark-small.png",
+    "w": 752
+   },
+   {
+    "label": "small size (60%), light, 100%",
+    "src": "design/captures/raw/round8/light-small.png",
+    "w": 752
+   }
+  ]
+ ]
+}

@@ -20,8 +20,8 @@ const BASE = args.base || 'http://127.0.0.1:5190/prototypes/mercury/';
 if (args.dsf) app.commandLine.appendSwitch('force-device-scale-factor', args.dsf);
 
 // Where the reference images have their cursor: on the lower edge, right of the middle.
-const HOVER = `(() => { const m = window.__mercury; m.pointer('move', 300, 330); m.step(6); m.pointer('move', 420, 318); m.step(6);
-  m.pointer('move', 500, 300); m.step(40); })()`;
+const HOVER = `(() => { const m = window.__mercury; m.pointer('move', 300, 300); m.step(6); m.pointer('move', 400, 262); m.step(6);
+  m.pointer('move', 470, 246); m.step(50); })()`;
 
 /** name, query, content size in CSS px, frames to run before the photo, extra script. */
 const SHOTS = [
