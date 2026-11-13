@@ -4,7 +4,7 @@
 
 ## Current status
 
-Updated 13 November 2026, at the end of stage 2d (GPU load).
+Updated 13 November 2026, at the end of stage 2d (GPU load). The owner asked for the rest to continue in a fresh session once their usage limit resets (16:30 local time that day), because the session that did stages 1 to 2d had grown very large. That session will not touch the repository again.
 
 **Step 2 so far**
 
@@ -36,6 +36,15 @@ Updated 13 November 2026, at the end of stage 2d (GPU load).
 **Half-finished:** nothing in code.
 
 **Exact next step (2e): the screen-capture refraction experiment,** which the owner asked to try. In `tools/widget-proto`: call `widget.setContentProtection(true)` so the widget is left out of screen captures; in the main process pick the screen source with `desktopCapturer.getSources({ types: ['screen'] })` and hand its id to the page through the preload; in the page open it with `getUserMedia` (`chromeMediaSource: 'desktop'`), put the video in a texture each frame, and have the surface shader sample it at the pixel behind each point, offset by the surface slope (the `bend` already computed for the pigment), with a little blur. Needs the window's screen position (send it on move). Measure the extra GPU and CPU cost with `test=gpu`, and look for a capture border or indicator that Windows may draw. It decides which way `AUDIT.md` item 2 goes. After that step 2 is complete and step 3 (the still, with real covers) starts at `AUDIT.md` items 1 and 3.
+
+Worth knowing before starting 2e. None of this has been tried:
+
+- With content protection on, the widget is also missing from `desktopCapturer` shots, so `shots=<folder>` cannot photograph the result. Either photograph with `widget.webContents.capturePage()` laid over a grab of what is behind, or grab one frame of the backdrop before the widget is shown, use that frozen frame as the texture, and leave protection off for the photo.
+- Without content protection the capture contains the widget itself, and refracting that feeds back on itself.
+- The page is sandboxed with context isolation, so the capture source has to be arranged from the main process: either `session.setDisplayMediaRequestHandler` plus `getDisplayMedia()` in the page, or the source id passed through the preload to `getUserMedia` with `chromeMediaSource: 'desktop'`. Check what Electron 45 supports before choosing.
+- The capture is of one whole monitor. To find the pixel behind a point the page needs the window's bounds, that monitor's bounds and its scale factor (`screen.dipToScreenPoint` converts), sent again whenever the window moves.
+- The two monitors differ (125% and 100%), and the owner may be playing a game on the main one, which both loads the card and is what a capture of that monitor would contain. Keep the experiment on the second monitor over `tools/widget-proto/backdrop.html`, and never save or commit a capture of the owner's own screen.
+- If it cannot be made to work within one stage, say why and take the other branch of `AUDIT.md` item 2: a nearly opaque body.
 
 **The owner's instructions for these sessions**
 
