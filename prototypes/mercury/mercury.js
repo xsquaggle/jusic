@@ -172,6 +172,47 @@ export function createMercury(canvas, { reducedMotion = false, family, maxRender
 
   const ink = createInk(gl, { family });
 
+  /* ------------------------------------------- what is behind the window --- */
+
+  // Experiment (tools/widget-proto, refract=live): frames from a capture of the monitor the
+  // window is on, so the body can bend what is really behind it. Nothing here starts a
+  // capture; the caller hands frames in and says where the stage sits inside them.
+  const back = {
+    tex: coverTexture(),     // a dark texel until the first frame arrives
+    frame: null,             // the newest frame not yet uploaded (a VideoFrame, or anything texImage2D takes)
+    w: 1, h: 1,
+    has: false,              // a real frame has been uploaded
+    frozen: false,           // keep showing the last upload (while the result is photographed)
+    map: [0, 0, 0, 0],       // stage position -> uv in the frame: offset xy, scale zw
+    uploads: 0,
+    floor: 0,                // the opaque-body alternative: least opacity away from the edges
+  };
+
+  /** The newest frame of the capture. It is uploaded on the next draw; pass null to stop refracting. */
+  function setBackdropFrame(frame) {
+    if (back.frame && back.frame !== frame && back.frame.close) back.frame.close();
+    back.frame = frame;
+    if (!frame) back.has = false;
+  }
+  /** Where the stage sits in the capture: uv = (u0, v0) + stage position * (du, dv). */
+  function setBackdropMap(u0, v0, du, dv) { back.map = [u0, v0, du, dv]; }
+
+  function uploadBackdrop() {
+    if (!back.frame || back.frozen) return;
+    const f = back.frame;
+    back.frame = null;
+    const w = f.displayWidth || f.videoWidth || f.width, h = f.displayHeight || f.videoHeight || f.height;
+    if (w && h) {
+      gl.bindTexture(gl.TEXTURE_2D, back.tex);
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, gl.RGBA, gl.UNSIGNED_BYTE, f);
+      gl.generateMipmap(gl.TEXTURE_2D);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+      back.w = w; back.h = h; back.has = true; back.uploads++;
+    }
+    if (f.close) f.close();
+  }
+
   /* ---------------------------------------------------------------- state --- */
 
   const st = {
@@ -228,10 +269,11 @@ export function createMercury(canvas, { reducedMotion = false, family, maxRender
     form: new Spring({ k: 95, c: 12 }, 0),         // the drop coalescing: overshoots a little, then settles
     seekPull: new Spring('jelly', 0),              // the timeline bending under the bead
     level: new Spring('glide', 0.85),              // how loud: the glow follows it
+    refract: new Spring('glide', 0),               // the refraction easing in once a capture is running
   };
   const allSprings = () => [sp.cursor, sp.presence, sp.pressed, sp.lean, ...sp.btn, sp.util, ...sp.utilPress, sp.tip,
     sp.squash, sp.shear, sp.swell, sp.thump, sp.gap, sp.seekBead, sp.seekGrow, sp.seekGlow, sp.seekHover, sp.volBead,
-    sp.volGrow, sp.volHover, sp.muted, sp.playing, sp.glyph, sp.form, sp.seekPull, sp.level];
+    sp.volGrow, sp.volHover, sp.muted, sp.playing, sp.glyph, sp.form, sp.seekPull, sp.level, sp.refract];
 
   /* ------------------------------------------------------------ resizing --- */
 
@@ -661,6 +703,7 @@ export function createMercury(canvas, { reducedMotion = false, family, maxRender
     ink.set({ morph: Math.round(Math.min(1, Math.max(0, sp.glyph.x)) * 48) / 48 });
     ink.update();
     gl.disable(gl.BLEND);
+    uploadBackdrop();
 
     let u = use(P.surface);
     bind(scene);
@@ -704,6 +747,10 @@ export function createMercury(canvas, { reducedMotion = false, family, maxRender
     gl.uniform4f(u.uTile, tx, ty, 2.5 - 2 * sp.lean.x * quiet, 6.5 + 2 * sp.lean.y * quiet);
     const span = L.seek.x1 - L.seek.x0;
     gl.uniform3f(u.uSeekPull, Math.max(-1, Math.min(1, sp.seekBead.v * span / 520)) * quiet, sp.seekPull.x, sp.muted.x > 0.5 ? 0 : sp.level.x);
+    sampler(u.uBack, back.tex);
+    gl.uniform4fv(u.uBackMap, back.map);
+    gl.uniform2f(u.uBackPx, Math.max(1e-3, back.map[2] * back.w), Math.min(1, Math.max(0, sp.refract.x)));
+    gl.uniform1f(u.uGlassFloor, back.floor);
     draw();
 
     // Bloom: keep what is brighter than white, blur it down a pyramid and back up.
@@ -800,6 +847,7 @@ export function createMercury(canvas, { reducedMotion = false, family, maxRender
     sp.glyph.target = st.playing ? 1 : 0;
     sp.level.target = st.volume;
     sp.muted.target = st.muted ? 1 : 0;
+    sp.refract.target = back.has ? 1 : 0;
     sp.swell.target = st.reducedMotion ? 0 : 2.6 * st.bass + 1.6 * st.pulse;
     sp.gap.target = st.reducedMotion ? 0.3 : 0.25 + 1.3 * st.bass + 0.9 * st.pulse;
     if (!st.seekDrag) sp.seekBead.target = st.progress;
@@ -840,6 +888,7 @@ export function createMercury(canvas, { reducedMotion = false, family, maxRender
     gl, state: st, springs: sp, ink,
     resize, frame, render, destroy, hit,
     setCover, setPalette, setPlaying, setProgress, setVolume, setAudio, setLabels, setTip,
+    setBackdropFrame, setBackdropMap, backdrop: back,
     pointerMove, pointerLeave, pressAt, release, pressButton, pressUtil, ripple, lurch, appear, vanish,
     push, swirl, splash, drop,
     setSeekDrag, setVolDrag, setHover, setDragVelocity,

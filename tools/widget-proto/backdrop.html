@@ -5,7 +5,8 @@
 <title>Backdrop</title>
 <style>
 /* Something real to put behind the widget window when it is photographed:
-   ?mode=dark | light | busy. Lines and words, so see-through and bending can be judged. */
+   ?mode=dark | light | busy | stripes. Lines and words, so see-through and bending can be judged;
+   stripes is nothing but bold diagonal bars, which show bending most plainly. */
 html, body { margin: 0; height: 100%; overflow: hidden; }
 body { font: 15px/1.55 'Segoe UI', system-ui, sans-serif; }
 body.dark { background: #0b0a0c; color: #6b6b78; }
@@ -20,10 +21,17 @@ body.busy { background: linear-gradient(115deg, #0e3b6e 0%, #1c7fa6 30%, #e8563a
 .text p { margin: 0 0 10px; }
 .text b { display: block; font-size: 22px; line-height: 1.2; margin-bottom: 6px; }
 body.busy .shape { position: fixed; border-radius: 50%; }
+body.stripes { background: repeating-linear-gradient(60deg, #f2f3f5 0 26px, #20242c 26px 40px, #f2f3f5 40px 66px, #d8452f 66px 80px); }
+body.stripes .grid, body.stripes .text { display: none; }
+/* A marker in each corner. The capture tool refuses to save a picture that does not show all
+   four, because then it is not looking at this window but at something else on the screen. */
+.mark { position: fixed; width: 10px; height: 10px; background: #ff00c8; z-index: 9; }
 </style>
 </head>
 <body>
 <div class="grid"></div>
+<div class="mark" style="left:0;top:0"></div><div class="mark" style="right:0;top:0"></div>
+<div class="mark" style="left:0;bottom:0"></div><div class="mark" style="right:0;bottom:0"></div>
 <div class="text" id="text"></div>
 <script>
 const mode = new URLSearchParams(location.search).get('mode') || 'dark';

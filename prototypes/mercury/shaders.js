@@ -87,9 +87,29 @@ uniform float uForm;         // 0 nothing, 1 fully formed: the drop coalescing o
 uniform vec3 uSeekPull;      // bead stretch along the line, how far the line is pulled, volume level
 uniform vec2 uWall;          // where the underside shows: the body's thickness, leaning with the cursor
 uniform vec4 uTile;          // cover tile: xy centre (it floats), zw the offset of its own thickness
+uniform sampler2D uBack;     // experiment: what is really behind the window, from a capture of its monitor
+uniform vec4 uBackMap;       // stage position -> uv in uBack: xy offset, zw scale
+uniform vec2 uBackPx;        // x capture pixels per stage unit, y how much the refraction is in (0 = off)
+uniform float uGlassFloor;   // experiment: the least the body holds back away from its edges (0 = today's clear glass)
 
 ${SHAPE_GLSL}
 ${NOISE}
+
+/* ------------------------------------------------------------ refraction --- */
+
+// What is behind the window at a stage position, softened by 'blur' stage units. Linear light.
+// Nine taps on two rings, each read from the mip level that matches its spacing.
+vec3 behind(vec2 q, float blur) {
+  vec2 uv = uBackMap.xy + q * uBackMap.zw;
+  vec2 s = blur * uBackMap.zw;
+  float lod = max(log2(max(blur * uBackPx.x, 1e-3) * .55), 0.);
+  vec3 c = textureLod(uBack, uv, lod).rgb * 2.;
+  c += (textureLod(uBack, uv + s * vec2(.38, .38), lod).rgb + textureLod(uBack, uv + s * vec2(-.38, .38), lod).rgb
+      + textureLod(uBack, uv + s * vec2(.38, -.38), lod).rgb + textureLod(uBack, uv + s * vec2(-.38, -.38), lod).rgb) * 1.5;
+  c += textureLod(uBack, uv + s * vec2(.95, 0.), lod).rgb + textureLod(uBack, uv - s * vec2(.95, 0.), lod).rgb
+     + textureLod(uBack, uv + s * vec2(0., .95), lod).rgb + textureLod(uBack, uv - s * vec2(0., .95), lod).rgb;
+  return pow(c / 12., vec3(2.2));
+}
 
 /* ---------------------------------------------------------- deformation --- */
 
@@ -440,6 +460,18 @@ void main() {
 
     col = inner * (1. - .5 * F) + refl * F;
 
+    // Refraction (experiment): the body holds back everything behind the window, and shows
+    // instead what a capture says is there, bent the way the surface above it slopes (a drop
+    // magnifies), blurred, and dimmed to smoked glass. Calm and dimmest where words sit.
+    if (uBackPx.y > 0.) {
+      vec2 lens = clamp(slopeB, -1.6, 1.6) * 28. + clamp(slopeD, -1.5, 1.5) * 10.;
+      float rimward = smoothstep(.2, 1., length(slopeB));
+      float soft = mix(mix(5., 1.5, rimward), 11., still);
+      float clear = clamp(.5 - .1 * depth - .26 * pl.x - .12 * pl.y - .2 * pl.z
+                          - .16 * smoothstep(10., -14., bs.x) - .25 * dyeAmt, .07, .6) * (1. - .8 * lensMask);
+      col += behind(pw + lens, soft) * vec3(.9, .94, 1.) * (1. - F) * clear * uBackPx.y;
+    }
+
     // The rim: one continuous bright edge, white where it faces up and the
     // album's colour where it faces down, brightest toward the key light and
     // along the underside. A lit edge, not an outline drawn round the shape.
@@ -563,6 +595,8 @@ void main() {
           + .5 * pow(1. - ndv, 2.)
           + .42 * dyeAmt + .5 * tshadow + .8 * lensMask;
     glass = clamp(glass, 0., .96);
+    // Experiment: a nearly opaque body, clear only toward its thin edge.
+    glass = mix(glass, max(glass, uGlassFloor), smoothstep(0., 26., -d));
   }
 
   /* ================================ the underside ================================ */
@@ -576,6 +610,8 @@ void main() {
     wall *= .55 + .45 * smoothstep(0., .25, wt);
     wall += mix(hotA, vec3(1.), .45) * 1.5 * exp(-pow((dU + 1.6) / 1.4, 2.));       // the lower edge catches the light
     float wallGlass = .62 + .26 * wt;
+    // Refraction (experiment): through the side of the drop, what is behind is drawn far up under the top face.
+    if (uBackPx.y > 0.) wall += behind(pw - normalize(uWall) * 22. * (1. - .5 * wt), 4.5) * vec3(.9, .94, 1.) * (1. - wallGlass) * .8 * uBackPx.y;
     col = mix(wall, col, covTop);
     glass = mix(wallGlass, glass, covTop);
   }
@@ -614,7 +650,8 @@ void main() {
 
   float cov = max(covBody, covTile);
   oBody = vec4(col, cov);
-  oGlass = vec4(glass, 0., 0., 1.);
+  // With refraction in, nothing shows through the window itself: what is behind is drawn above, bent.
+  oGlass = vec4(mix(glass, 1., uBackPx.y), 0., 0., 1.);
 }`;
 
 /* =================================================================== sim === */

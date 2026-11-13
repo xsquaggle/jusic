@@ -1,0 +1,10 @@
+{ "out": "design/captures/mercury-refraction-round10.png", "width": 952,
+  "title": "Mercury round 10: the refraction experiment, photographed from the screen (second monitor, 100% scale)",
+  "rows": [
+  [ { "label": "1. Today: the body is see-through, and the words behind collide with its own", "src": "design/captures/raw/round9/window-light.png", "crop": [12, 12, 936, 456] } ],
+  [ { "label": "2. Refraction: the same window behind, now bent, blurred and dimmed by the body (live screen capture)", "src": "design/captures/raw/round10-refract/window-light.png", "crop": [12, 12, 936, 456] } ],
+  [ { "label": "3. The alternative: a nearly opaque body (88%), nothing captured", "src": "design/captures/raw/round10-opaque/window-light.png", "crop": [12, 12, 936, 456] } ],
+  [ { "label": "4. Refraction over bold stripes, where the bending shows most plainly", "src": "design/captures/raw/round10-refract/window-stripes.png", "crop": [12, 12, 936, 456] } ],
+  [ { "label": "5. Refraction over a colourful window", "src": "design/captures/raw/round10-refract/window-busy.png", "crop": [12, 12, 936, 456] } ],
+  [ { "label": "6. Refraction over a dark window", "src": "design/captures/raw/round10-refract/window-dark.png", "crop": [12, 12, 936, 456] } ]
+] }

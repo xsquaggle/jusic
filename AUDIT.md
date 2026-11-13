@@ -1,6 +1,6 @@
 # Mercury visual audit
 
-Round 8 (13 November 2026): the first look at the prototype on the real PC. Round 9 (same day): the same build in a real transparent window. Nothing about the look has been changed yet; the only code changes are the 120 fps and 1920×1080 cap the owner asked for and a clear page for the widget window.
+Round 8 (13 November 2026): the first look at the prototype on the real PC. Round 9 (same day): the same build in a real transparent window. Round 10 (same day): the screen-capture refraction experiment, which settles item 2. Nothing about the default look has been changed yet; the code changes are the 120 fps and 1920×1080 cap the owner asked for, a clear page for the widget window, and the refraction experiment, which is off unless asked for.
 
 **Verdict: it does not beat any of the three references yet, and it is not close.** The proportions, layout and edge anti-aliasing are sound. What is wrong is the material: it reads as a flat shape traced in neon with a glow plate behind it, where the references read as a solid object made of dark glass and chrome. In a real window a second problem joins it: whatever is behind the widget shows straight through the body.
 
@@ -13,7 +13,7 @@ Round 8 (13 November 2026): the first look at the prototype on the real PC. Roun
 - Both: `?capture=1`, clock stepped 720 frames with the scripted test audio, test cover "Silver Current" (a generated fixture, not real artwork).
 - Sheets are built with `npx electron tools/capture/sheet.js tools/capture/sheets/<name>.json`.
 
-Images: `design/captures/mercury-audit-round8.png` (side by side with all three references), `mercury-audit-round8-zoom.png` (details at 200%, hover, small size), `mercury-window-round9.png` (the real window over dark, light and colourful windows).
+Images: `design/captures/mercury-audit-round8.png` (side by side with all three references), `mercury-audit-round8-zoom.png` (details at 200%, hover, small size), `mercury-window-round9.png` (the real window over dark, light and colourful windows), `mercury-refraction-round10.png` (today's body, the refracting body and the nearly opaque body over the same window, then refraction over stripes, colour and dark).
 
 ## What the real window showed (round 9)
 
@@ -30,6 +30,29 @@ Images: `design/captures/mercury-audit-round8.png` (side by side with all three 
   So on the main monitor the glow stops dead where the shadow's alpha runs out (the plate with a hard border), and on the second monitor it has no border but spreads as a fog that whitens the words round the widget on a light window. Light with no alpha behind it cannot be relied on.
 - Not tested yet: click-through, dragging, focus, GPU load, refraction.
 
+## What the refraction experiment showed (round 10)
+
+Run it with `npx electron tools/widget-proto/main.js refract=live` (add `shots=<folder>` or `test=gpu dsf=1.25`). The window is left out of screen captures (`setContentProtection`), the page is given a capture of the monitor it is on (`getUserMedia` with a desktop source, 30 frames a second, 1920×1080), and the surface shader draws what is behind each point, moved the way the surface above it slopes, blurred and dimmed. With it on, nothing shows through the window itself.
+
+- **It works.** The body bends, blurs and dims what is really behind it; words behind the widget no longer read through it or collide with its own. Over bold stripes the bending is plain to see. The exclusion from capture holds for a transparent, click-through window. No prompt, and no code outside the prototype's own page and window.
+- **Cost, measured** (second monitor, widget at the main monitor's pixel size, card otherwise nearly idle at about 10% and 46 W, so shares read higher than in the first measurement, when a game had the card at 88–99%):
+
+  | State | Own GPU share, off | Own GPU share, refracting | CPU of one core, off → refracting |
+  |---|---|---|---|
+  | Idle: paused, pointer away (15 draws a second) | 0.93% | 2.7% (1.73% drawing + 0.97% capturing) | 0.24% → 0.72% |
+  | Playing (120 draws a second) | 7.9% | 10.3% (9.27% + 0.98%) | 1.65% → 2.03% |
+  | Hidden | 0% | 0%, the capture stops | 0.04% → 0.04% |
+
+  So about 2 points of the card and half a percent of one core, and 110 MB more memory (572 MB against 462 MB). Whole-card power was the same within a watt (57.8 W against 57.1 W playing). The capturing is done by the main process on the graphics card (the 0.97%), not by copying the screen through the CPU.
+- **No border or indicator found.** Yellow pixels along the captured monitor's four edges were counted before and during the capture: none either time. That count reads the screen through GDI; the notification area could not be looked at from here, so it is worth one glance by eye.
+- **What comes with it, whatever the tuning:**
+  1. **The widget vanishes from every picture of the screen.** It has to be left out of captures or it would bend a picture of itself, and Windows offers no way to leave it out of one capture only. Screenshots, the Snipping Tool, OBS, Discord screen share and game recordings would all show the desktop without the widget.
+  2. The player would be capturing the screen the whole time the widget is visible. Nothing is stored or sent, but it is a capture.
+  3. What is behind arrives a frame or two late, so something moving behind the widget is seen through it slightly after it is seen beside it.
+  4. Not tested, because the main monitor and the mouse were in use: capturing the monitor a full-screen game is running on (it may cost the game frames), and the mouse pointer, which Chromium draws into its screen captures, so a blurred second pointer would probably show inside the glass when the real one is near.
+  5. Protected video comes out black in any capture, so the body would go black over it.
+- **The alternative, tried the quick way** (`glass=0.88`: the body 88% opaque away from its edges, nothing captured): words behind are fainter but still sharp and still legible, and the lobes still wash out on a light window, because the liquid's light is added on top of whatever shows through. 88% is not enough; see item 2.
+
 ## The gaps, worst first
 
 Line numbers are `prototypes/mercury/shaders.js` at commit `62869cb` unless another file is named.
@@ -44,7 +67,9 @@ Fix: remove the explicit rim line (the `lit` floor of .28 and the `pow(1 - ndv, 
 
 The body is see-through and tinted but does not bend or blur anything. In the real window, text and pictures behind the widget read straight through it and collide with the title, the timeline and the times; on a light desktop the body washes to pink-white and loses its form. The three dark pools only dim what is behind them. The references are dark smoked glass that mostly reflects.
 
-Fix: depends on the refraction experiment later in step 2. If screen-capture refraction works, bend, blur and darken what is behind (about 70–85% opaque), which is the only way see-through glass stays readable. If it does not, go back to the plan's original position: body nearly opaque (85–90%), clear only at the thin edges, so it reads the same over anything.
+**Decided by the round-10 experiment: a nearly opaque body, with refraction kept as an option that is off by default.** Refraction works and is cheap (above), but it takes the widget out of every screenshot, recording and screen share, and it needs the screen captured the whole time. The look that has to be right everywhere is therefore the one that needs no capture.
+
+Fix: make the body dark glass that holds back 93–96% of what is behind it across the whole interior (88% was tried and still lets sharp words through), falling to clear only in the outer few units of the rolled edge, where the edge is thin and bright anyway. The body's own colour then has to carry it on a light desktop: dark smoked glass with the album's deep tone, not the present near-black, which only works because the desktop shows through. Refraction then becomes one switch on top of the same body: opacity goes to 100% and the bent, dimmed picture of what is behind is added as light (it is already written that way, `behind()` in `shaders.js`), so the two modes look alike by construction and only one look has to be polished. Leave the switch for the owner to try on their own desktop before deciding whether it ships.
 
 ### 3. The glow is a plate, or a fog, behind the widget
 
@@ -121,4 +146,4 @@ At 100% and at 200% (pixels doubled), on dark and on light, the body's silhouett
 
 ## Order of work for step 3
 
-1 and 3 first, together: they are the same decision about how edges and light are drawn, and they change how every later item looks. Then 2 and 4 (opacity and material, once the refraction experiment has said which way 2 goes). Then real covers, and 5, 6, 9 with them. Then 7 and 8 (shape work, which moves hit areas, so the hit-test check gets re-run). 10 and 11 last; they are small once the rest is right.
+1 and 3 first, together: they are the same decision about how edges and light are drawn, and they change how every later item looks. Then 2 and 4 (opacity and material; the refraction experiment has said 2 goes nearly opaque). Then real covers, and 5, 6, 9 with them. Then 7 and 8 (shape work, which moves hit areas, so the hit-test check gets re-run). 10 and 11 last; they are small once the rest is right.

@@ -47,12 +47,75 @@ function layout() {
   const dpr = Number(params.get('dpr')) || Math.min(window.devicePixelRatio || 1, 2);
   mercury.resize(STAGE.w * view.scale, STAGE.h * view.scale, dpr, Number(params.get('ss')) || undefined);
   applyTransform();
+  placeBackdrop();
   wake();
 }
 function applyTransform() {
   widget.style.transform = `translate(${view.x}px, ${view.y}px) scale(${view.scale})`;
 }
 addEventListener('resize', layout);
+
+/* ------------------------------------------------------------- refraction --- */
+
+// Experiment, in the widget window only (?refract=live): bend what is really behind the window.
+// The window's host keeps it out of screen captures, so a capture of its monitor shows exactly
+// what it is covering. Frames are handed to the renderer as they arrive; it uploads the newest
+// one when it next draws. ?rfps=N sets the capture rate (30), ?rmax=N the capture's longest side.
+// ?glass=0.88 is the alternative being weighed against it: a nearly opaque body, no capture.
+const REFRACT = host && host.backdropSource ? params.get('refract') : null;
+const backdrop = { track: null, sourceId: null, placement: null, frames: 0, settings: null, error: null };
+mercury.backdrop.floor = Number(params.get('glass')) || 0;
+
+/** Tell the renderer where the stage sits inside the captured monitor. Everything is in the screen's own units. */
+function placeBackdrop(placement = backdrop.placement) {
+  if (!placement) return;
+  backdrop.placement = placement;
+  const rect = widget.getBoundingClientRect();
+  const { window: win, display } = placement;
+  mercury.setBackdropMap(
+    (win.x - display.x + rect.left) / display.width, (win.y - display.y + rect.top) / display.height,
+    rect.width / STAGE.w / display.width, rect.height / STAGE.h / display.height);
+  if (backdrop.track && placement.sourceId !== backdrop.sourceId) startBackdrop();      // it was moved to another monitor
+  wake();
+}
+
+async function startBackdrop() {
+  stopBackdrop();
+  try {
+    const placement = await host.backdropSource();
+    backdrop.sourceId = placement.sourceId;
+    const mandatory = { chromeMediaSource: 'desktop', chromeMediaSourceId: placement.sourceId, maxFrameRate: Number(params.get('rfps')) || 30 };
+    const longest = Number(params.get('rmax'));
+    if (longest) { mandatory.maxWidth = longest; mandatory.maxHeight = longest; }
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: { mandatory } });
+    const track = backdrop.track = stream.getVideoTracks()[0];
+    backdrop.settings = track.getSettings();
+    backdrop.error = null;
+    placeBackdrop(placement);
+    const reader = new MediaStreamTrackProcessor({ track, maxBufferSize: 1 }).readable.getReader();
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done || backdrop.track !== track) { if (value) value.close(); break; }
+      backdrop.frames++;
+      mercury.setBackdropFrame(value);
+      if (mercury.state.reducedMotion && !raf && !CAPTURE) mercury.render();      // standing still: nothing else would redraw it
+    }
+  } catch (error) {
+    backdrop.error = String((error && error.message) || error);
+    console.error('refraction: ' + backdrop.error);
+  }
+}
+
+function stopBackdrop() {
+  if (backdrop.track) backdrop.track.stop();
+  backdrop.track = null;
+}
+
+if (REFRACT) {
+  host.onPlacement(placeBackdrop);
+  // A hidden widget must cost nothing, so the capture stops with it.
+  document.addEventListener('visibilitychange', () => { if (document.hidden) stopBackdrop(); else startBackdrop(); });
+}
 
 /* ----------------------------------------------------------------- player --- */
 
@@ -517,11 +580,12 @@ passThrough(true);        // until the pointer is seen over the liquid, the mous
 if (params.has('unformed')) mercury.springs.form.snap(0);
 else if (CAPTURE) mercury.springs.form.snap(1);
 else mercury.appear();
+if (REFRACT && !document.hidden) startBackdrop();
 wake();
 
 /** Hooks for the capture scripts. */
 window.__mercury = {
-  mercury, player, setTrack, setPlaying, setVolume, TRACKS,
+  mercury, player, setTrack, setPlaying, setVolume, TRACKS, backdrop,
   /** Advance n frames. With paint false the liquid moves but nothing is drawn, which is far quicker. */
   step(n = 1, dt = 1 / 60, paint = true) { let m = false; for (let i = 0; i < n; i++) m = tick(dt, paint); return m; },
   pointer(type, x, y) {

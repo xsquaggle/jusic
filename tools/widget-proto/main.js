@@ -11,6 +11,11 @@
  *   npx electron tools/widget-proto/main.js test=passthrough   check that the window lets the mouse through outside the
  *                                                           shape and takes it inside, without touching the real mouse
  *   npx electron tools/widget-proto/main.js test=gpu           GPU load idle, playing and hidden (see gpu-test.js)
+ *   refract=live                                            experiment: the body bends what is really behind the window.
+ *                                                           The window is left out of screen captures and the page is given
+ *                                                           a capture of the monitor it is on. Works with shots= and test=gpu.
+ *                                                           rfps=N capture rate (30), rmax=N the capture's longest side.
+ *   glass=0.88                                              the alternative: a nearly opaque body, nothing captured
  *   display=primary|other                                   which monitor (shots and tests default to the other one, to
  *                                                           stay out of the way of whatever is on the main screen)
  */
@@ -25,6 +30,9 @@ const args = Object.fromEntries(process.argv.slice(2).filter((a) => a.includes('
 const SIZE = Number(args.size) || 1;
 const SHOTS = args.shots ? path.resolve(args.shots) : null;
 const TEST = args.test || null;
+const REFRACT = args.refract || null;
+// Options that are simply handed on to the page.
+const PAGE_OPTIONS = ['refract', 'rfps', 'rmax', 'glass'].filter((k) => args[k]).map((k) => `&${k}=${encodeURIComponent(args[k])}`).join('');
 // Draw at a given display scale wherever the window is (the main monitor is 125%).
 if (args.dsf) app.commandLine.appendSwitch('force-device-scale-factor', args.dsf);
 const PORT = 5190;
@@ -47,6 +55,15 @@ async function ensureServer() {
 
 let widget = null;
 let tray = null;
+
+/**
+ * Keep a window above everything else. Not Electron's default level ('floating'): on Windows that
+ * one also parks the window just behind the taskbar, and while a full-screen game has the
+ * foreground Windows takes the taskbar out of the always-on-top band, which drags the window out
+ * with it and leaves it behind ordinary windows (seen 13 November 2026: test windows on the second
+ * monitor vanished behind the app that was open there while a game ran on the main one).
+ */
+function onTop(win) { win.setAlwaysOnTop(true, 'screen-saver'); }
 
 /** The monitor to work on. */
 function pickDisplay(fallback) {
@@ -86,11 +103,35 @@ function createWidget({ query = 'play', x, y } = {}) {
       contextIsolation: true, sandbox: true, nodeIntegration: false,
     },
   });
-  widget.setAlwaysOnTop(true, 'floating');
+  onTop(widget);
+  if (REFRACT) {
+    // Left out of every screen capture, its own included: otherwise it would bend a picture of itself.
+    widget.setContentProtection(true);
+    widget.on('move', sendPlacement);
+  }
   widget.webContents.on('console-message', (event) => {
     if (event.level === 'error') console.log('page error: ' + event.message);
   });
-  return widget.loadURL(`http://127.0.0.1:${PORT}/prototypes/mercury/?widget=1&scale=${SIZE}&${query}`);
+  return widget.loadURL(`http://127.0.0.1:${PORT}/prototypes/mercury/?widget=1&scale=${SIZE}&${query}${PAGE_OPTIONS}`);
+}
+
+/* -------------------------------------------------------------- refraction --- */
+
+let screenSources = null;      // display id -> capture source id
+
+/** Which capture shows what is behind the widget, and where the widget sits on that screen. */
+async function placement() {
+  if (!screenSources) {
+    const sources = await desktopCapturer.getSources({ types: ['screen'], thumbnailSize: { width: 0, height: 0 } });
+    screenSources = new Map(sources.map((s) => [String(s.display_id), s.id]));
+  }
+  const bounds = widget.getContentBounds();
+  const display = screen.getDisplayMatching(bounds);
+  return { window: bounds, display: display.bounds, sourceId: screenSources.get(String(display.id)) || [...screenSources.values()][0] };
+}
+ipcMain.handle('widget:backdrop', () => placement());
+function sendPlacement() {
+  placement().then((p) => { if (widget && !widget.isDestroyed()) widget.webContents.send('widget:placement', p); });
 }
 
 /* ------------------------------------------------------------ window controls --- */
@@ -133,8 +174,37 @@ async function grabScreen(rect, d) {
 }
 
 /**
+ * True if a grab of the backdrop window's area really shows the backdrop window: backdrop.html
+ * paints a small magenta square in each corner. A grab that fails this shows something else that
+ * is on the screen, which must never be saved.
+ */
+function showsBackdrop(image) {
+  const { width, height } = image.getSize();
+  const bmp = image.toBitmap();           // BGRA
+  const k = Math.max(3, Math.round(width / 960 * 4));
+  return [[2, 2], [width - 2 - k, 2], [2, height - 2 - k], [width - 2 - k, height - 2 - k]].every(([x0, y0]) => {
+    let r = 0, g = 0, b = 0;
+    for (let y = y0; y < y0 + k; y++) for (let x = x0; x < x0 + k; x++) { const i = (y * width + x) * 4; b += bmp[i]; g += bmp[i + 1]; r += bmp[i + 2]; }
+    const n = k * k;
+    return r / n > 200 && g / n < 70 && b / n > 150;
+  });
+}
+
+/** Saves a grab, but only if it shows our own backdrop window. */
+function saveShot(image, file) {
+  if (!showsBackdrop(image)) {
+    console.log(`NOT SAVED ${path.basename(file)}: the grab does not show the test backdrop, so it shows something else on the screen. Stopping.`);
+    app.exit(1);
+    return false;
+  }
+  fs.writeFileSync(file, image.toPNG());
+  return true;
+}
+
+/**
  * Photographs the widget over windows of our own, so nothing of the owner's desktop is recorded:
- * the backdrop window covers the whole area that is captured.
+ * the backdrop window covers the whole area that is captured, and nothing is saved unless the
+ * grab is seen to show that window.
  */
 async function runShots() {
   fs.mkdirSync(SHOTS, { recursive: true });
@@ -150,7 +220,7 @@ async function runShots() {
   });
   const setBackdrop = (mode) => backdrop.loadFile(path.join(__dirname, 'backdrop.html'), { query: { mode } });
   await setBackdrop('dark');
-  backdrop.setAlwaysOnTop(true, 'floating');
+  onTop(backdrop);
   backdrop.showInactive();
   backdrop.moveTop();
 
@@ -162,17 +232,36 @@ async function runShots() {
   for (let i = 0; i < 200 && !(await run('Boolean(window.__mercury && window.__mercury.ready)')); i++) await sleep(50);
   for (let done = 0; done < 720; done += 30) await run('window.__mercury.step(30, 1 / 60, true); window.__mercury.mercury.gl.finish(); 0');
 
-  for (const mode of ['dark', 'light', 'busy']) {
+  if (REFRACT) {
+    for (let i = 0; i < 100 && !(await run('Boolean(window.__mercury.mercury.backdrop.frame || window.__mercury.mercury.backdrop.has)')); i++) await sleep(100);
+    console.log('capture: ' + await run('JSON.stringify({ settings: window.__mercury.backdrop.settings, error: window.__mercury.backdrop.error, frames: window.__mercury.backdrop.frames })'));
+  }
+
+  for (const mode of (args.modes || 'dark,light,busy').split(',')) {
     await setBackdrop(mode);
     backdrop.moveTop();
     widget.moveTop();
+    if (REFRACT) {
+      await sleep(900);         // the capture has to see the new backdrop first
+      await run('window.__mercury.step(1, 1 / 60, true); window.__mercury.mercury.springs.refract.snap(1); 0');
+    }
     await run('window.__mercury.step(2, 1 / 60, true); 0');
     await sleep(600);
+    if (REFRACT) {
+      // What the capture sees: the same piece of screen with the widget left out of it.
+      if (!saveShot(await grabScreen(area, display), path.join(SHOTS, `behind-${mode}.png`))) return;
+      // To photograph the result the window has to be let back into captures. Nothing is redrawn
+      // while the page's clock is stopped, so it cannot start bending a picture of itself.
+      widget.setContentProtection(false);
+      await sleep(700);
+    }
     const image = await grabScreen(area, display);
-    fs.writeFileSync(path.join(SHOTS, `window-${mode}.png`), image.toPNG());
+    if (REFRACT) { widget.setContentProtection(true); await sleep(700); }
+    if (!saveShot(image, path.join(SHOTS, `window-${mode}.png`))) return;
     const size = image.getSize();
     console.log(`window-${mode}: ${size.width}x${size.height}`);
   }
+  if (REFRACT) console.log('capture at the end: ' + await run('JSON.stringify({ frames: window.__mercury.backdrop.frames, uploads: window.__mercury.mercury.backdrop.uploads, size: [window.__mercury.mercury.backdrop.w, window.__mercury.mercury.backdrop.h], map: window.__mercury.mercury.backdrop.map })'));
   app.quit();
 }
 
@@ -207,7 +296,7 @@ async function runPassThroughTest() {
     backgroundColor: '#000000', webPreferences: { contextIsolation: true, sandbox: true },
   });
   await backdrop.loadFile(path.join(__dirname, 'backdrop.html'), { query: { mode: 'light' } });
-  backdrop.setAlwaysOnTop(true, 'floating');
+  onTop(backdrop);
   backdrop.showInactive();
   backdrop.moveTop();
   const origin = { x: area.x + 50, y: area.y + 40 };
@@ -252,7 +341,7 @@ app.whenReady().then(async () => {
   if (SHOTS) { await runShots(); return; }
   if (TEST === 'passthrough') { await runPassThroughTest(); return; }
   if (TEST === 'gpu') {
-    await require('./gpu-test.js').runGpuTest({ app, screen, createWidget, getWidget: () => widget, pickDisplay, seconds: Number(args.seconds) || 12 });
+    await require('./gpu-test.js').runGpuTest({ app, screen, createWidget, getWidget: () => widget, pickDisplay, seconds: Number(args.seconds) || 12, refract: REFRACT });
     return;
   }
 

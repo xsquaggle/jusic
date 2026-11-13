@@ -8,4 +8,11 @@ contextBridge.exposeInMainWorld('widgetHost', {
   /** 'start' | 'move' | 'end': the window follows the cursor between start and end. */
   drag: (phase) => ipcRenderer.send('widget:drag', String(phase)),
   close: () => ipcRenderer.send('widget:close'),
+  /**
+   * Refraction experiment. Resolves with which screen capture shows what is behind the window and
+   * where the window sits on that screen: { sourceId, window: {x, y, width, height}, display: {...} }.
+   */
+  backdropSource: () => ipcRenderer.invoke('widget:backdrop'),
+  /** Called with the same thing again whenever the window moves. */
+  onPlacement: (fn) => { ipcRenderer.on('widget:placement', (event, placement) => fn(placement)); },
 });
