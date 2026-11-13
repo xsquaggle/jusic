@@ -1,0 +1,10 @@
+{ "out": "design/captures/mercury-still-round15-detail.png", "width": 1616,
+  "title": "Mercury still, round 15, details: the twist at the waist and the right end, beside the main reference (generated test cover)",
+  "rows": [
+  [ { "label": "reference: the lip sweeping through the waist, over the pod", "src": "design/references/widget-mercury.png", "crop": [800, 250, 786, 430] },
+    { "label": "round 15: the same part", "src": "design/captures/raw/round15/dark.png", "crop": [600, 130, 510, 279] } ],
+  [ { "label": "reference: the bulb", "src": "design/references/widget-mercury.png", "crop": [20, 190, 640, 590] },
+    { "label": "round 15: the bulb", "src": "design/captures/raw/round15/dark.png", "crop": [110, 105, 420, 387] } ],
+  [ { "label": "round 15: pointer on the lower edge (the two small dishes show at the right end)", "src": "design/captures/raw/round15/dark-hover.png", "crop": [90, 50, 1022, 513] },
+    { "label": "round 15: at 60% size", "src": "design/captures/raw/round15/dark-small.png" } ]
+] }

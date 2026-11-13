@@ -24,7 +24,23 @@ export const L = {
   // The top of the waist: one arc, struck from above, that both lobes run into without a corner.
   pinch: { c: [425, -41], r: 210, k: 30 },
 
-  // The lip: a rounded tube running round the whole outline. It rises steeply from the
+  // The upper lip is a second layer lying over the pod the buttons sit in. Its leading edge is
+  // an arch: a flat arc over the top of the pod, a leg coming down round the right end, and
+  // at the waist a leg that sweeps down and away to the left under the words, so the whole
+  // edge is an S. Under the arch lie the pod and, below the pod's own soft rim, the strip
+  // that carries the timeline.
+  arch: { c: [629, 420], r: 273, kl: 36, kr: 40 },   // the arc over the pod, and how softly it turns into each leg
+  band: { c: [441, 150], r: 93 },                    // the waist leg is the edge of this circle
+  end: { c: [700, 196], r: 68 },                     // the right leg: the right half of this circle
+  rim: { c: [642, -33], r: 271 },                    // the pod's lower rim
+  lipFade: [432, 492],                               // the waist leg melts away to the left between these x
+  lipH: 7,            // how high the lip's rolled leading edge stands
+  lipRoll: 7,         // how wide that roll is
+  lipDome: 5,         // how full the lip is between its leading edge and the outline
+  bandH: 5.5,         // the ridge the lip narrows to where it sweeps through the waist
+  podD: 6.5,          // how far the pod lies below the strip
+
+  // The outer edge: a rounded tube running round the whole outline. It rises steeply from the
   // silhouette to a crest, then falls gently into the body, which lies a little lower.
   edgeR: 17,          // from the silhouette to the crest
   edgeH: 14,          // how high the crest stands
@@ -33,24 +49,23 @@ export const L = {
 
   // The cover is a glass tile floating just above the bulb, inside its rim all the way round.
   cover: { c: [180, 170], half: 74, r: 19, rot: -0.07 },
-  title: { x: 292, y: 197, maxW: 205, size: 24 },
-  artist: { x: 293, y: 222, size: 15.5 },
+  title: { x: 292, y: 197, maxW: 196, size: 24 },   // it stops short of the lip's waist leg; a long title is set smaller, down to three quarters
+  artist: { x: 293, y: 222, size: 15.5, maxW: 180 },   // shorter than the title: the lip's waist leg passes its far end
 
   buttons: [
-    { c: [566, 201], r: 24 },     // previous
-    { c: [642, 198], r: 37 },     // play / pause
-    { c: [718, 201], r: 24 },     // next
+    { c: [566, 193], r: 24 },     // previous
+    { c: [642, 190], r: 37 },     // play / pause
+    { c: [718, 193], r: 24 },     // next
   ],
-  basin: { c: [642, 198], b: [122, 46], r: 46 },
 
   seek: { x0: 214, x1: 646, y0: 279, y1: 247, bow: 1.5 },
-  vol: { x0: 658, x1: 744, icon: [634, 0] },
+  vol: { x0: 628, x1: 714, y: 127, icon: [604, 127] },
 
   // Two small dishes set into the lip where it wraps round the right end.
   // They only press in while the pointer is over the widget.
   utils: [
-    { c: [777, 186], r: 8.5 },    // open the full app
-    { c: [774, 212], r: 8.5 },    // hide the widget
+    { c: [779, 185], r: 8.5 },    // open the full app
+    { c: [780, 210], r: 8.5 },    // hide the widget
   ],
 
   // The time preview is drawn in a parked corner of the label sheet and shown
@@ -107,17 +122,34 @@ export function bodySdf(x, y, swell = 0) {
   return d;
 }
 
-/* ---------------------------------------------------------------- curves --- */
-
-/** Where the outline is at a given x: dir -1 for the top edge, +1 for the bottom. */
-function edgeY(x, dir) {
-  let inside = 212, outside = dir < 0 ? 30 : 390;
-  for (let i = 0; i < 36; i++) {
-    const m = (inside + outside) / 2;
-    if (bodySdf(x, m) < 0) inside = m; else outside = m;
-  }
-  return (inside + outside) / 2;
+/**
+ * Signed distance to the upper lip's leading edge: negative under the arch (the pod and the
+ * strip below it), positive on the lip.
+ */
+export function archSdf(x, y) {
+  const { arch, band, end } = L;
+  const d = smax(Math.hypot(x - arch.c[0], y - arch.c[1]) - arch.r, band.r - Math.hypot(x - band.c[0], y - band.c[1]), arch.kl);
+  // The right leg bounds the arch only on its own side: left of its centre it says nothing.
+  return x < end.c[0] ? d : smax(d, Math.hypot(x - end.c[0], y - end.c[1]) - end.r, arch.kr);
 }
+
+/**
+ * Where the arch exists as an edge at all: over and round the pod, down the right leg to the
+ * crest (the lip's end is the crest), and along the waist leg, which melts away to the left.
+ * Under the pod's rim, between the two legs, there is no edge: that is the strip.
+ */
+export function archOn(x, y) {
+  const below = smoothstep(0, 14, Math.hypot(x - L.rim.c[0], y - L.rim.c[1]) - L.rim.r);
+  const legs = Math.max(smoothstep(560, 530, x), smoothstep(735, 752, x));
+  return Math.max(1 - below, legs) * smoothstep(L.lipFade[0], L.lipFade[1], x);
+}
+
+/** The pod: under the arch and above its own lower rim. Negative inside. */
+export function podSdf(x, y) {
+  return Math.max(archSdf(x, y), Math.hypot(x - L.rim.c[0], y - L.rim.c[1]) - L.rim.r);
+}
+
+/* ---------------------------------------------------------------- curves --- */
 
 function table(n, x0, x1, fn, smooth = 3) {
   let t = Array.from({ length: n }, (_, i) => fn(mix(x0, x1, i / (n - 1)), i / (n - 1)));
@@ -146,13 +178,9 @@ export const VOL_N = 9;
 const SEEK_TAB = table(SEEK_N, L.seek.x0, L.seek.x1, (x, t) =>
   mix(L.seek.y0, L.seek.y1, t) + L.seek.bow * Math.sin(Math.PI * t), 0);
 
-// Volume rides the middle of the lip, between the outline and the fold.
-const foldY = (x) => {
-  const { c, b, r } = L.basin;
-  const dx = Math.max(0, Math.abs(x - c[0]) - (b[0] - r));
-  return c[1] - Math.sqrt(Math.max(0, r * r - dx * dx));
-};
-const VOL_TAB = table(VOL_N, L.vol.x0, L.vol.x1, (x) => mix(edgeY(x, -1), foldY(x), 0.54), 2);
+// Volume lies level across the flat of the upper lip, between the crest of the outer edge
+// and the roll of the lip's leading edge.
+const VOL_TAB = table(VOL_N, L.vol.x0, L.vol.x1, () => L.vol.y, 0);
 
 export const seekY = (x) => sample(SEEK_TAB, (x - L.seek.x0) / (L.seek.x1 - L.seek.x0));
 export const volY = (x) => sample(VOL_TAB, (x - L.vol.x0) / (L.vol.x1 - L.vol.x0));
@@ -160,7 +188,6 @@ export const seekX = (progress) => mix(L.seek.x0, L.seek.x1, clamp01(progress));
 export const seekProgress = (x) => clamp01((x - L.seek.x0) / (L.seek.x1 - L.seek.x0));
 export const volX = (v) => mix(L.vol.x0, L.vol.x1, clamp01(v));
 export const volValue = (x) => clamp01((x - L.vol.x0) / (L.vol.x1 - L.vol.x0));
-L.vol.icon[1] = volY(L.vol.x0) - 0.5;
 
 /** Signed distance to the cover tile, negative inside. (cx, cy) lets the caller pass its floating position. */
 export function tileSdf(x, y, cx = L.cover.c[0], cy = L.cover.c[1]) {
@@ -223,13 +250,27 @@ const vec2 COVER_C = ${v2(L.cover.c)};
 const float COVER_HALF = ${f1(L.cover.half)};
 const float COVER_R = ${f1(L.cover.r)};
 const float COVER_ROT = ${f1(L.cover.rot)};
-const vec2 BASIN_C = ${v2(L.basin.c)};
-const vec2 BASIN_B = ${v2(L.basin.b)};
-const float BASIN_R = ${f1(L.basin.r)};
+const vec2 ARCH_C = ${v2(L.arch.c)};
+const float ARCH_R = ${f1(L.arch.r)};
+const vec2 BAND_C = ${v2(L.band.c)};
+const float BAND_R = ${f1(L.band.r)};
+const vec2 END_C = ${v2(L.end.c)};
+const float END_R = ${f1(L.end.r)};
+const vec2 RIM_C = ${v2(L.rim.c)};
+const float RIM_R = ${f1(L.rim.r)};
+const vec2 LIP_FADE = ${v2(L.lipFade)};
+const float LIP_H = ${f1(L.lipH)};
+const float LIP_ROLL = ${f1(L.lipRoll)};
+const float LIP_DOME = ${f1(L.lipDome)};
+const float BAND_H = ${f1(L.bandH)};
+const float POD_D = ${f1(L.podD)};
 const vec2 SEEK_X = vec2(${f1(L.seek.x0)}, ${f1(L.seek.x1)});
 const vec2 VOL_X = vec2(${f1(L.vol.x0)}, ${f1(L.vol.x1)});
 const float SEEK_TAB[${SEEK_N}] = ${arr(SEEK_TAB)};
 const float VOL_TAB[${VOL_N}] = ${arr(VOL_TAB)};
+const vec3 BTN0 = vec3(${f1(L.buttons[0].c[0])}, ${f1(L.buttons[0].c[1])}, ${f1(L.buttons[0].r)});
+const vec3 BTN1 = vec3(${f1(L.buttons[1].c[0])}, ${f1(L.buttons[1].c[1])}, ${f1(L.buttons[1].r)});
+const vec3 BTN2 = vec3(${f1(L.buttons[2].c[0])}, ${f1(L.buttons[2].c[1])}, ${f1(L.buttons[2].r)});
 const vec3 UTIL0 = vec3(${f1(L.utils[0].c[0])}, ${f1(L.utils[0].c[1])}, ${f1(L.utils[0].r)});
 const vec3 UTIL1 = vec3(${f1(L.utils[1].c[0])}, ${f1(L.utils[1].c[1])}, ${f1(L.utils[1].r)});
 const vec2 TIP_SLOT = ${v2(L.tipSlot)};
@@ -271,6 +312,22 @@ float volY(float x) {
   float f = clamp((x - VOL_X.x) / (VOL_X.y - VOL_X.x), 0., 1.) * ${f1(VOL_N - 1)};
   int i = min(${VOL_N - 2}, int(floor(f)));
   return catmull(VOL_TAB[max(i - 1, 0)], VOL_TAB[i], VOL_TAB[i + 1], VOL_TAB[min(i + 2, ${VOL_N - 1})], f - float(i));
+}
+
+// The upper lip's leading edge: negative under the arch, positive on the lip.
+float archSdf(vec2 p) {
+  float d = smax(length(p - ARCH_C) - ARCH_R, BAND_R - length(p - BAND_C), ${f1(L.arch.kl)});
+  // The right leg bounds the arch only on its own side: left of its centre it says nothing.
+  return p.x < END_C.x ? d : smax(d, length(p - END_C) - END_R, ${f1(L.arch.kr)});
+}
+
+// Where the arch exists as an edge: over and round the pod, down the right leg to the crest,
+// and along the waist leg, which melts away to the left. Under the pod's rim, between the
+// two legs, there is no edge: that is the strip.
+float archOn(vec2 p) {
+  float below = smoothstep(0., 14., length(p - RIM_C) - RIM_R);
+  float legs = max(smoothstep(560., 530., p.x), smoothstep(735., 752., p.x));
+  return max(1. - below, legs) * smoothstep(LIP_FADE.x, LIP_FADE.y, p.x);
 }
 
 // swell: the lobes breathing out with the bass.

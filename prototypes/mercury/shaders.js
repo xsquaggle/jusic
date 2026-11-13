@@ -135,19 +135,19 @@ float tileSdf(vec2 p, vec2 centre) { return sdRBox(turn(p - centre, -COVER_ROT),
 
 /* --------------------------------------------------------------- details --- */
 
-vec3 sdgStadium(vec2 p, vec2 b, float r) {
-  vec2 w = abs(p) - (b - r);
-  vec2 s = vec2(p.x < 0. ? -1. : 1., p.y < 0. ? -1. : 1.);
-  float g = max(w.x, w.y);
-  vec2 q = max(w, 0.);
-  float l = max(length(q), 1e-4);
-  return vec3(g > 0. ? l - r : g - r, s * (g > 0. ? q / l : (w.x > w.y ? vec2(1, 0) : vec2(0, 1))));
+// How far inside the pod a point is (0 outside, 1 well in): under the arch and above the
+// pod's own lower rim. For shading.
+float podMask(vec2 p, float ar) {
+  return smoothstep(.6, -.6, ar) * smoothstep(3., -7., length(p - RIM_C) - RIM_R);
 }
 
-// How strongly the fold exists at a point on the basin's rim: full along the
-// top and round the right end, gone along the bottom.
-float foldWeight(vec2 grad) {
-  return smoothstep(-.42, .38, dot(grad, normalize(vec2(.42, -1.))));
+// How far down into the pod a point lies (0 on the strip, 1 on the pod's floor). Under the
+// arch the pod drops away at once, because the lip stands over it. Its own lower rim is a
+// rolled shoulder: level where it leaves the strip and steep where it reaches the floor, so
+// it shows a soft graded light with a dark line at its foot instead of one thin line.
+float podDepth(vec2 p, float ar) {
+  float t = clamp((5. - (length(p - RIM_C) - RIM_R)) / 12., 0., 1.);
+  return smoothstep(.6, -.6, ar) * (1. - sqrt(1. - t * t));
 }
 
 float ripples(vec2 p) {
@@ -216,6 +216,20 @@ float base(vec2 p0) {
   // Keep falling away outside, so the very edge still faces sideways.
   h -= max(d, 0.) * 3.;
 
+  // The upper lip, a second layer over the pod. Behind its rolled leading edge (which is in
+  // detail(), where edges stay sharp) it falls slowly away toward the outline, so it reads
+  // as a sheet curling up toward its edge.
+  float ar = archSdf(p), on = archOn(p);
+  h -= LIP_H * .62 * smoothstep(LIP_ROLL, 48., ar) * on;
+  // Between its edge and the outline the lip is full, not hollow: a broad crown, so its upper
+  // half takes the light from above and its lower half the colour off the floor.
+  float sx = max(ar, 0.), ox = max(-d, 0.);
+  float u = sx / max(sx + ox, 14.);
+  h += LIP_DOME * 4. * u * (1. - u) * smoothstep(500., 560., p.x) * on;
+  // Through the waist the lip narrows to a rolled band: a ridge just behind its edge, falling
+  // away toward the words on its other side.
+  h += BAND_H * exp(-pow((ar - 10.) / 10., 2.)) * smoothstep(560., 528., p.x) * on;
+
   // Broad swells, drifting slowly.
   vec2 a = p - vec2(186., 196.), b = p - vec2(646., 196.), c = p - vec2(420., 240.);
   h += 7. * exp(-dot(a, a) / 21000.) + 6. * exp(-dot(b, b) / 24000.) + 4. * exp(-dot(c, c) / 9000.);
@@ -236,23 +250,21 @@ float detail(vec2 p0) {
   vec2 p = warp(p0);
   float h = 0.;
 
-  // Button basin, the lip that stands over it, and the fold between them.
-  vec3 bs = sdgStadium(p - BASIN_C, BASIN_B, BASIN_R);
-  float fw = foldWeight(bs.yz);
-  float right = smoothstep(486., 566., p.x);
-  h -= 7.5 * smoothstep(10., -20., bs.x);
-  h += 4.2 * smoothstep(-6., 30., bs.x) * right;
-  h += 3. * fw * exp(-pow((bs.x - 7.) / 7., 2.));
-  float gapW = 3.1 + 2.6 * uGap;
-  h -= (1.6 + 3. * uGap) * fw * exp(-pow((bs.x + 1.) / gapW, 2.));
-  // The lip leans toward the cursor; the basin and its buttons do not.
-  h += dot(p - vec2(660., 120.), uLean * vec2(-.045, -.07)) * smoothstep(-2., 18., bs.x) * right * smoothstep(196., 150., p.y);
-
-  // The twist: where the strap that carries the timeline sweeps up into the lip.
-  float fy = mix(242., 166., smoothstep(470., 550., p.x));
-  float strap = smoothstep(474., 508., p.x) * smoothstep(556., 520., p.x);
-  h += 4.6 * smoothstep(-9., 9., p.y - fy) * strap;
-  h += 1.5 * exp(-pow((p.y - fy + 3.) / 5., 2.)) * strap;
+  // The pod the buttons sit in, and the upper lip lying over it as a second layer. The lip
+  // ends in a rolled edge: a quarter round, upright where it meets the pod and level at its
+  // crest, so along its length it mirrors first what is behind and below, then the room
+  // above. The pod drops away under it at once; its own lower rim is a gentle slope.
+  float ar = archSdf(p);
+  float fade = archOn(p);
+  float pod = podMask(p, ar);
+  h -= POD_D * podDepth(p, ar);
+  float t = 1. - clamp(ar / LIP_ROLL, 0., 1.);
+  h += LIP_H * sqrt(max(1. - t * t, 0.)) * fade;
+  // The gap under the edge, which the bass opens.
+  float gapW = 2.2 + 2.2 * uGap;
+  h -= (.8 + 3. * uGap) * exp(-pow((ar + 1.6) / gapW, 2.)) * pod;
+  // The lip leans toward the cursor; the pod and its buttons do not.
+  h += dot(p - vec2(660., 120.), uLean * vec2(-.045, -.07)) * smoothstep(0., 16., ar) * smoothstep(520., 580., p.x) * smoothstep(200., 150., p.y);
 
   // Buttons: each is one smooth bowl pressed into the surface, with one rounded shoulder and
   // no rim standing round it (a rim and a dish gave every lamp four faces to draw a ring
@@ -460,8 +472,10 @@ void main() {
     vec3 R = reflect(-V, N);
     R = rotY(uLean.x * .26 + .02 * uAudio.x * sin(uTime * 5.3)) * rotX(uLean.y * -.2 + .016 * uAudio.y * sin(uTime * 7.1)) * R;
 
-    vec3 bs = sdgStadium(pw - BASIN_C, BASIN_B, BASIN_R);
-    float fw = foldWeight(bs.yz);
+    float ar = archSdf(pw);                                  // the lip's leading edge: negative under it
+    float lipF = archOn(pw);
+    float podIn = podMask(pw, ar);
+    float fw = smoothstep(536., 572., pw.x) * smoothstep(772., 740., pw.x) * lipF;   // along the top of the arch
 
     // Where things under the surface appear to be: bent by the slope above them.
     vec2 bend = clamp(slopeD, -1.2, 1.2) + clamp(slopeB, -1., 1.) * .16;
@@ -512,17 +526,20 @@ void main() {
       float rimward = smoothstep(.2, 1., length(slopeB));
       float soft = mix(mix(5., 1.5, rimward), 11., still);
       float clear = clamp(.5 - .1 * depth - .26 * pl.x - .12 * pl.y - .2 * pl.z
-                          - .16 * smoothstep(10., -14., bs.x) - .25 * dyeAmt, .07, .6) * (1. - .8 * lensMask);
+                          - .16 * podIn - .25 * dyeAmt, .07, .6) * (1. - .8 * lensMask);
       col += behind(pw + lens, soft) * vec3(.9, .94, 1.) * (1. - F) * clear * uBackPx.y;
     }
 
     // No rim is drawn. The edge is lit only by what its roll mirrors, so it is bright where
     // it faces a lamp and dark where it does not, as a real edge is.
 
-    // Occlusion: under the lip, inside the dishes.
+    // Occlusion: the lip's shadow on what lies under its leading edge, and the bowls.
+    // The shadow is dark and tight against the edge and reaches further where the pod lies
+    // deep under the lip; along the waist it fades out with the lip itself.
     float ao = 1.;
-    ao *= 1. - .55 * fw * exp(-pow((bs.x + 5.) / 8., 2.));
-    ao *= 1. - .22 * smoothstep(8., -20., bs.x);
+    float below = smoothstep(.8, -.8, ar) * lipF;
+    ao *= 1. - below * (.5 * smoothstep(-mix(7., 15., podIn), 0., ar) + .22 * exp(min(ar, 0.) / 2.5));
+    ao *= 1. - .2 * podIn;
     float dish = 0.;
     for (int i = 0; i < 3; i++) {
       float rho = length(pw - uBtn[i].xy);
@@ -548,15 +565,15 @@ void main() {
     vec2 castUv = clamp(turn(pw - uTile.xy, -COVER_ROT) / (2. * COVER_HALF) + .5, .2, .8);
     vec3 spill = pow(mix(textureLod(uCoverA, castUv, 6.2).rgb, textureLod(uCoverB, castUv, 6.2).rgb, smoothstep(.3, .8, uTrans)), vec3(2.2));
     // (Kept low and close: at full strength a white cover fogged the whole lobe round it.)
-    col += spill * .42 * exp(-max(dT, 0.) / 11.) * smoothstep(-8., 4., dT) * born;
+    col += spill * .3 * exp(-max(dT, 0.) / 9.) * smoothstep(-8., 4., dT) * born;
 
     /* ---- the spectral surface glowing through the fold ---- */
-    float along = clamp((pw.x - (BASIN_C.x - BASIN_B.x)) / (2. * BASIN_B.x), 0., 1.);
+    float along = clamp((pw.x - 536.) / 236., 0., 1.);
     float sp = spectrumAt(along * .85);
     float seamW = 2.2 + 1.6 * uGap + 2.2 * sp;
     vec3 specCol = mix(mix(uPalA, vec3(1.), .12), mix(uPalB, vec3(1.), .08), along);
-    vec3 emis = specCol * fw * exp(-pow((bs.x + 1.5) / seamW, 2.)) * (.16 + 1.25 * sp + .5 * uAudio.w) * (.35 + .65 * uPlaying);
-    col += specCol * fw * exp(-pow((bs.x + 9.) / 13., 2.)) * (.02 + .16 * sp) * (.35 + .65 * uPlaying);
+    vec3 emis = specCol * fw * exp(-pow((ar + 1.5) / seamW, 2.)) * (.16 + 1.25 * sp + .5 * uAudio.w) * (.35 + .65 * uPlaying);
+    col += specCol * fw * exp(-pow((ar + 9.) / 13., 2.)) * (.02 + .16 * sp) * (.35 + .65 * uPlaying);
 
     /* ---- the time-preview lens darkens what is under it ---- */
     col = mix(col, col * .3 + uPalC * .03, lensMask * .85);
@@ -687,7 +704,7 @@ void main() {
       vec3 Rt = rotY(uLean.x * .3) * rotX(uLean.y * -.24) * reflect(-V, Nt);
       gSoft = .03;
       float Ft = mix(mix(.05, .55, bevel), 1., pow(1. - ndt, 3.));
-      vec3 art = pow(coverColor(cuv, pw, flow), vec3(2.2)) * 1.15;
+      vec3 art = pow(coverColor(cuv, pw, flow), vec3(2.2)) * 1.05;
       vec3 face = art * (1. - Ft) + env(Rt) * Ft;
       // One soft sheen lying across the glass; it slides as the cursor moves.
       float sweep = (tq.x - tq.y) / (2. * COVER_HALF) - uLean.x * .35 + uLean.y * .2;
@@ -756,9 +773,9 @@ float psi(vec2 p) {
 
 // Solid things the liquid has to go round: the three button dishes.
 float solid(vec2 p) {
-  float s = smoothstep(4., -4., length(p - vec2(566., 201.)) - 21.);
-  s = max(s, smoothstep(4., -4., length(p - vec2(642., 198.)) - 33.));
-  s = max(s, smoothstep(4., -4., length(p - vec2(718., 201.)) - 21.));
+  float s = smoothstep(4., -4., length(p - BTN0.xy) - BTN0.z + 3.);
+  s = max(s, smoothstep(4., -4., length(p - BTN1.xy) - BTN1.z + 4.));
+  s = max(s, smoothstep(4., -4., length(p - BTN2.xy) - BTN2.z + 3.));
   return s;
 }
 

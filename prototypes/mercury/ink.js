@@ -137,12 +137,12 @@ export function createInk(gl, { family = 'Montserrat' } = {}) {
     let size = L.title.size;
     ctx.font = font(560, size);
     const need = ctx.measureText(labels.title).width;
-    if (need > L.title.maxW) { size = Math.max(L.title.size * 0.8, size * L.title.maxW / need); ctx.font = font(560, size); }
+    if (need > L.title.maxW) { size = Math.max(L.title.size * 0.76, size * L.title.maxW / need); ctx.font = font(560, size); }
     ctx.globalAlpha = 1;
     along(fit(labels.title, L.title.maxW), L.title.x, () => L.title.y - (L.title.size - size) * 0.3);
     ctx.font = font(400, L.artist.size);
     ctx.globalAlpha = 0.8;
-    along(fit(labels.artist, L.title.maxW - 8), L.artist.x, () => L.artist.y, { tracking: 0.15 });
+    along(fit(labels.artist, L.artist.maxW), L.artist.x, () => L.artist.y, { tracking: 0.15 });
 
     // Times sit at the two ends of the timeline, level with it.
     ctx.font = font(500, 13.5);
@@ -150,10 +150,8 @@ export function createInk(gl, { family = 'Montserrat' } = {}) {
     along(labels.cur, L.seek.x0 - 13, () => seekY(L.seek.x0) + 4.6, { align: 'right' });
     along(labels.rem, L.seek.x1 + 14, () => seekY(L.seek.x1) + 4.6);
 
-    // The lip: speaker, slider, and a small label above its start.
-    ctx.font = font(600, 8.5);
-    ctx.globalAlpha = 1;
-    along('VOLUME', L.vol.x0 + 1, () => volY(L.vol.x0) - 9.5, { tracking: 1.4 });
+    // The lip: speaker and slider. (No label: it was too small to read at any size, it sat in
+    // the lip's highlight, and two of the three references do without one.)
     ctx.globalAlpha = 1;
     icon('speaker', L.vol.icon[0], L.vol.icon[1], 22);
     icon(labels.muted ? 'muted' : 'waves', L.vol.icon[0], L.vol.icon[1], 22);

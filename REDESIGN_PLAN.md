@@ -216,6 +216,8 @@ Everything that follows the cursor or responds to touch runs on **springs** (sem
 
 This replaces the short widget list above. It is what the prototype in `prototypes/mercury/` is built to. One material, one set of physics: every value below is a spring from the table (or one added here), never a timed tween, except the three places marked as timed.
 
+**What moves** (corrected 13 November 2026, after rounds 6 to 15 of the still; `AUDIT.md` has the look itself). The drop is a nearly opaque body of dark glass, not a see-through one, with a rolled edge and a visible underside. It has two layers: the body, with a pod the three buttons sit in, and an upper lip lying over the pod from the waist to the right end, whose leading edge is the "fold" of the earlier drafts. The cover is a glass tile floating above the left bulb, inside its rim, not set into the liquid; so only the three buttons are solid to the flow, and the tile shifts a little against the body as the pointer moves. Words and glyphs are upright and drawn inside the liquid; they do not follow the form. The timeline is a straight line above the lower edge, not the edge itself.
+
 Extra springs used only by the widget:
 
 | Spring | k | c | ζ | Used for |
@@ -232,8 +234,8 @@ Extra springs used only by the widget:
 
 | Input | Response | Amount |
 |---|---|---|
-| Bass (bands 0–2, smoothed) | Lobes swell (`swell`); a wave runs along the lower body and the timeline rides it; the fold opens; circulation speeds up | swell up to 2.6 units; wave up to 3 units high, 285 units long, 100 units/s; flow 1150 → 2650 |
-| Kick (pulse crossing 0.5, 160 ms refractory) | Body jumps outward about 1% (`thump`); one drop of pigment jets off the cover (two above 0.8); two counter-rotating vortices; above 0.7 one soft ripple | jet 190–300 units/s; vortices ±260–780 |
+| Bass (bands 0–2, smoothed) | Lobes swell (`swell`); a wave runs along the lower body and the timeline rides it; the gap under the upper lip's edge opens; circulation speeds up | swell up to 2.6 units; wave up to 3 units high, 285 units long, 100 units/s; flow 1150 → 2650 |
+| Kick (pulse crossing 0.5, 160 ms refractory) | Body jumps outward about 1% (`thump`); one drop of pigment leaves the tile's lower right, downward (two above 0.8); two counter-rotating vortices; above 0.7 one soft ripple | jet 190–300 units/s; vortices ±260–780 |
 | Mids | Second, shorter wave; drops fall more often | 1.1 units; one drop every 1.0–1.8 s ÷ (0.6 + mid + bass) |
 | Highs | Fine shiver across the surface; small eddies in the pigment | 0.35 units at about 30-unit wavelength |
 | Overall level | Reflections brighten and wander slightly | +16% on a kick; ±1° |
@@ -241,11 +243,11 @@ Extra springs used only by the widget:
 
 **Pigment (ink in water)**
 
-- Velocity grid 384×180, pigment 688×320, 16 pressure iterations. Pigment is carried with a corrected (MacCormack) step so plumes keep fine edges.
-- Colour enters as discrete **drops** on the cover's rim, each with a jet behind it; in still liquid a jet rolls up into a mushroom, which is the curl of ink. Between drops the rim seeps in threads.
-- A slow **circulation** carries it through the whole body: two opposite gyres in the lobes, drifting large-scale turbulence, and a current that follows the walls all the way round, which has to squeeze through the neck and so runs faster there.
-- The cover and the three button dishes are **solid**: the flow goes round them.
-- Thin pigment is drawn clear; only where it gathers does it glow, brighter than white at the core, with an out-of-focus halo. It fades over about 12 s.
+- Velocity grid 384×180, pigment 1032×480 (it was 688×320; a thread three units wide needs the finer grid), 16 pressure iterations. Pigment is carried with a corrected (MacCormack) step so threads keep fine edges.
+- Colour enters in three ways. A **stream**: three fine threads let go at the lower left into a current that runs inside the lower lip, between the timeline and the edge, and follows the outline round; this is the ribbon of colour the still shows. **Drops** on a kick, from the tile's lower right, each with a jet behind it. And between drops the tile **weeps** in threads from its lower edge only. Nothing is let go toward the words.
+- A slow **circulation** carries it through the body: two opposite gyres in the lobes, drifting large-scale turbulence, and a current that follows the walls all the way round, in the same direction as the stream (against it, it tore the threads apart at the waist). It is less than half as strong as first built, and the curl put back each step a fifth, or the liquid boils and the threads become smoke.
+- The three buttons are **solid**: the flow goes round them. The cover is not: it floats above the liquid.
+- Thin pigment is drawn clear; where it gathers it glows in its own colour, brighter than white at the core. It gives way wherever something has to be read. A cover with no colour to give (white, grey) gives the album's primary colour instead. It fades over about 12 s.
 - **Song change** (timed, 1.7 s): the outgoing cover lets go as a ring of 14 jets and two large vortices; from 0.75 s ten drops of the new cover fall in at 220 ms intervals; pigment fade shortens to 8 s during the change so the old colour swirls away rather than snapping off. The palette glides over 1.2 s (timed, ease-out cubic).
 
 **Pointer → liquid**
@@ -260,19 +262,19 @@ Extra springs used only by the widget:
 | Volume | Same bead physics. The glow around the body, the floor light and every emissive scale with the level (0.5× to 1.2×). |
 | Skip | The body shears toward the direction of the skip and springs back (`lean`), the pigment is shoved the same way at 520 units/s, the body jumps. |
 | Drag the widget | The body lags and shears (`lean`); the pigment is pushed against the acceleration; both settle when the window stops. |
-| Hover anywhere on it | Two small dishes for *open app* and *hide* press into the lip at the right end (k 170, c 17). They are flush with the surface otherwise. |
+| Hover anywhere on it | Two small dishes for *open app* and *hide* press into the lip where it comes down round the right end (k 170, c 17). They are flush with the surface otherwise. (Open question for the owner, `AUDIT.md` round 14: they are small, and may move to a right-click and tray menu.) |
 
 **The window**
 
 - **Appear:** the outline grows out of its thickest parts (`form`): two beads swell where the lobes will be, meet through the neck, overshoot slightly and settle; contents surface over the last quarter; one ripple at 420 ms.
 - **Close:** the same in reverse on `unform`: the neck parts, the beads draw in and are gone.
-- **Idle** (paused, pointer away, 2.5 s after the last disturbance): drops to a 15 fps breathing cadence with a lighter simulation step. Surface still drifts, pigment still turns. To be measured on the PC; if it is not near zero it gets cheaper until it is.
+- **Idle** (paused, pointer away, 2.5 s after the last disturbance): drops to a 15 fps breathing cadence with a lighter simulation step. Surface still drifts, pigment still turns. Measured on the PC (`HANDOFF.md`): 0.36% of the card while a game had it busy, under 1% with the card otherwise idle, exactly 0 when the window is hidden. Drawing is capped at 120 a second and 1920×1080.
 - **Reduced motion:** no jump, squash, shear, ripples, drops or vortices; pigment seeps only; forming and closing are instant; idle is a still frame at 0 fps.
 
 **Readability rules**
 
-- Words and glyphs are drawn inside the liquid but may shift by at most 1.5 units, with at most 0.45 units of colour fringing. Lines and beads bend freely.
-- The liquid lies level in three pools (under the words, along the timeline, along the volume strip), so highlights break around them and text is always white on dark, on any desktop.
+- Words and glyphs are upright, drawn inside the liquid, and may shift by at most 1.5 units, with at most 0.45 units of colour fringing. Lines and beads bend freely.
+- The liquid lies level in three pools (under the words, along the timeline, along the volume strip), so highlights break around them. The body holds back 94 to 97% of what is behind the window, so text is white on dark glass on any desktop.
 - Hit areas come from the same numbers the shader draws with (verified: 0 mismatches across 86,000 sample points outside a 1.5-unit edge band).
 
 ---
@@ -331,11 +333,11 @@ To make that quick for you, the app ships with `npm run measure` and `npm run do
 2. **The mini-player's corners are the system's.** For the same reason the compact card fills the window edge to edge and gets Windows' own rounded corners (about 8 px on Windows 11, square on Windows 10) rather than the 28 px radius in the reference. It is still the same window, as you asked.
 3. **The basin goes in the control deck, panoramic,** rather than in a blob-shaped pod as in the Resonance image. Reason in section 4.
 4. **Mercury is one design that takes from all three**, rather than one of them:
-   - From *Mercury*: the single continuous ribbon, the cover set into the left lobe, three pressed buttons, the timeline as the lower edge, volume on the upper-right lip.
-   - From *Flow*: the cover as a glass slab that leans toward the cursor, and visible pigment streams in the lower body.
-   - From *Split*: the fold between the upper lip and the body opens slightly, and the spectral surface glows through that gap. The lip leans; the controls don't.
-5. **Mercury's glass can't refract your real desktop.** A web page can't see what is behind its window. The chrome reflects a studio environment lit in the album's colours instead, and the body is nearly opaque so it reads the same on any wallpaper.
-6. ~~Text on the widget is drawn above the shader.~~ **Reversed at your request:** words and glyphs are now inside the liquid, curved to the form, with reflections passing around them. Section 6a has the readability rules that keep them crisp.
+   - From *Mercury*: the outline (a round bulb, a curved waist, a lip over a pod, a soft crest), the cover in the left bulb, three pressed buttons, the timeline along the lower body, volume on the upper-right lip.
+   - From *Flow*: the cover as a glass slab floating above the liquid that leans toward the cursor, and visible pigment streams in the lower body.
+   - From *Split*: the gap under the upper lip's edge opens slightly, and the spectral surface glows through it. The lip leans; the controls don't.
+5. **Mercury's glass does not refract your real desktop by default.** A web page can't see what is behind its window. The chrome reflects a studio environment lit in the album's colours instead, and the body is nearly opaque so it reads the same on any wallpaper. (Tried on the PC since: the window can be given a capture of its own monitor and bend that. It works and is cheap, but it takes the widget out of every screenshot and screen share, so it is kept as an option that is off unless you want it. `AUDIT.md`, round 10.)
+6. ~~Text on the widget is drawn above the shader.~~ **Reversed at your request:** words and glyphs are now inside the liquid, with reflections passing around them. They are upright: following the form was tried and read as warped italics. Section 6a has the readability rules that keep them crisp.
 7. **Additions you didn't ask for but that follow from the design:** widget sizes S / M / L, the droplet buttons for open and hide, a non-focusable widget window (clicking it won't take keyboard focus from a game or FL Studio), and the saved-device re-match.
 8. **The icon stays** for now. If a Mercury-style icon turns out better I'll show it to you before changing anything.
 
@@ -347,10 +349,10 @@ Phase 1 is in progress and gated on the still look. The rule from the owner: **d
 
 - Run it: `node prototypes/serve.js`, then open `http://127.0.0.1:5190/prototypes/mercury/`. `?capture=1` stops the clock for frame-stepped captures; `?bg=wallpaper` is the light desktop; `?ss=2` forces 2× supersampling.
 - **`HANDOFF.md` has the current state and what is left.** Read that first.
-- Latest side-by-side: `design/captures/mercury-still-round7.png`. Earlier: `mercury-still-round5.png`, and `mercury-before-after.png` for the first still pass.
-- Round 6 changed direction on three things in section 6a: the body is see-through glass with a visible underside, the cover is a glass tile floating above the body rather than set into it, and text is upright. Section 6a has not been updated for those yet.
-- **Not yet better than the reference.** `HANDOFF.md` lists the gaps.
-- Everything here has only been rendered in software (no GPU in the cloud sandbox). Frame times, the 15 fps idle cost, transparency and click-through are unmeasured and need the PC.
+- Latest side-by-side: the highest-numbered `design/captures/mercury-still-roundNN.png` (`HANDOFF.md` names it). Earlier: `mercury-still-round5.png`, `-round7.png`, and `mercury-before-after.png` for the first still pass.
+- Section 6a was corrected on 13 November 2026 for what rounds 6 to 15 changed: a nearly opaque body, two layers, the cover as a floating tile, upright text, pigment as a stream in the lower lip.
+- **Not yet better than the references.** `AUDIT.md` has the verdict and the gaps, ranked.
+- The work moved to the owner's PC on 13 November 2026: real GPU, real transparent window, measured frame pacing and GPU load. `HANDOFF.md` has the numbers.
 - The interaction list in section 6a is built as a first pass and smoke-tested once for errors; none of it has been tuned or recorded yet.
 - The test covers are generated fixtures, not real artwork.
 

@@ -7,8 +7,8 @@
  *   npx electron tools/capture/outline.js out=design/captures/raw/outline.png [ref=mercury|flow|none] [px=2]
  *
  * Lines: white the silhouette, grey the crest of its rolled edge and the underside, yellow the
- * cover tile, magenta the pod and the upper lip's leading edge (when shape.js has them), green
- * the timeline and volume, blue the buttons and the room the words are given.
+ * cover tile, magenta the pod, orange the upper lip's leading edge and the crest of its roll,
+ * green the timeline and volume, blue the buttons and the room the words are given.
  *
  * The references are drawn in perspective and ours is seen square on, so nothing will line up
  * exactly. The overlay is for comparing the character of the curves, not for tracing.
@@ -77,14 +77,18 @@ app.whenReady().then(async () => {
   line(body, [255, 255, 255], 0.5);
   line((x, y) => S.tileSdf(x, y), [255, 220, 60], 0.4);
   if (S.podSdf) line((x, y) => S.podSdf(x, y), [255, 80, 220], 0.4);
-  if (S.lipSdf) line((x, y) => S.lipSdf(x, y), [255, 120, 60], 0.5);
+  if (S.archSdf) {
+    const on = (x, y) => S.archOn(x, y) > 0.05 && body(x, y) < 0;
+    line((x, y) => (on(x, y) ? S.archSdf(x, y) : 99), [255, 120, 60], 0.5);
+    line((x, y) => (on(x, y) ? S.archSdf(x, y) - L.lipRoll : 99), [255, 120, 60], 0.25, 0.6);
+  }
   for (const b of L.buttons) line(circle(b.c, b.r), [90, 150, 255], 0.35);
   for (const u of L.utils) line(circle(u.c, u.r), [90, 150, 255], 0.3, 0.6);
   line(curve(S.seekY, L.seek.x0, L.seek.x1), [80, 255, 120], 0.5);
   line(curve(S.volY, L.vol.x0, L.vol.x1), [80, 255, 120], 0.5);
   line(circle(L.vol.icon, 11), [80, 255, 120], 0.3, 0.6);
   line(box(L.title.x, L.title.y - L.title.size * 0.74, L.title.x + L.title.maxW, L.title.y + 4), [90, 150, 255], 0.3, 0.7);
-  line(box(L.artist.x, L.artist.y - L.artist.size * 0.74, L.artist.x + L.title.maxW - 8, L.artist.y + 4), [90, 150, 255], 0.3, 0.5);
+  line(box(L.artist.x, L.artist.y - L.artist.size * 0.74, L.artist.x + L.artist.maxW, L.artist.y + 4), [90, 150, 255], 0.3, 0.5);
   // A grid every 100 units, faint, with a tick every 20 along the top and left.
   line((x, y) => Math.min(Math.abs(((x + 50) % 100) - 50), Math.abs(((y + 50) % 100) - 50)) - 0.05, [255, 255, 255], 0.1, 0.16);
 
