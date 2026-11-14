@@ -1,0 +1,14 @@
+{ "out": "design/captures/mercury-still-round28.png", "width": 1616,
+  "title": "Mercury still, round 28: the right lobe. The button bowls ringed with the album's colour; the key lamp and the floor's light on the right end (generated test cover)",
+  "rows": [
+  [ { "label": "reference: widget-mercury.png", "src": "design/references/widget-mercury.png", "crop": [0, 110, 1586, 797] },
+    { "label": "round 28, refracting in the real window: dark window behind", "src": "design/captures/raw/round28-refract/window-dark.png", "crop": [12, 12, 936, 456] } ],
+  [ { "label": "round 28, refracting: white window with words behind", "src": "design/captures/raw/round28-refract/window-light.png", "crop": [12, 12, 936, 456] },
+    { "label": "round 28, refracting: colourful window behind", "src": "design/captures/raw/round28-refract/window-busy.png", "crop": [12, 12, 936, 456] } ],
+  [ { "label": "round 28, the opaque base: dark desktop", "src": "design/captures/raw/round28/dark.png", "crop": [90, 50, 1022, 513] },
+    { "label": "round 27, before: dark desktop", "src": "design/captures/raw/round27/dark.png", "crop": [90, 50, 1022, 513] } ],
+  [ { "label": "reference: the right lobe", "src": "design/references/widget-mercury.png", "crop": [890, 235, 690, 470] },
+    { "label": "round 28: the right lobe (opaque)", "src": "design/captures/raw/round28/dark.png", "crop": [650, 150, 420, 286] } ],
+  [ { "label": "round 27, before: the right lobe", "src": "design/captures/raw/round27/dark.png", "crop": [650, 150, 420, 286] },
+    { "label": "round 28: the right lobe on a white window", "src": "design/captures/raw/round28/window.png", "crop": [650, 150, 420, 286] } ]
+] }

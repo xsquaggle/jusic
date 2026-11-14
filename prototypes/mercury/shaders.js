@@ -216,6 +216,12 @@ const vec4 RING_FLOOR = vec4(.8, .97, .78, 0.);
 const vec3 RIBBON = vec3(2.1, 1., .6);
 // The three fine lines in the rim, outermost first: how bright each is.
 const vec3 RIM = vec3(.6, .5, .6);
+// The glowing rims of the button bowls: how bright the ring, how bright the glow inside it.
+const vec2 BTN_RIM = vec2(.75, .28);
+// The key lamp on the right end: it shows where the outline faces right by more than x, fully
+// from y; its half-width in units; its strength. And how bright the floor's light is there.
+const vec4 END_KEY = vec4(.72, .96, 5., .9);
+const float END_FLOOR = .7;
 // How deep the shade is on the pocket's wall and bank to the right of the cover.
 const float WALL_R = .66;
 // The soft light at the top of the ring.
@@ -777,6 +783,40 @@ void main() {
       ao *= 1. - .45 * uUtil.x * smoothstep(u.z, u.z - 6., length(pw - u.xy));
     }
     col *= ao;
+
+    // The rims of the button bowls glow. Thick glass round a hollow gathers the light under
+    // it, so in the reference each bowl is ringed once with the album's colour: brightest on
+    // the arc toward the floor's light and again toward the key lamp, with a soft glow just
+    // inside the ring. (One ring each. Round 14 took away the five or six that every ripple of
+    // the bowl's wall used to mirror; this one is laid on, so it cannot multiply.)
+    for (int i = 0; i < 3; i++) {
+      vec2 dq = pw - uBtn[i].xy;
+      float rho = length(dq), r = uBtn[i].z;
+      vec2 nb = dq / max(rho, 1e-3);
+      float low = pow(max(dot(nb, vec2(-.5, .866)), 0.), 2.), high = pow(max(dot(nb, vec2(.6, -.8)), 0.), 3.);
+      float big = (i == 1 ? 1.25 : 1.) * (1. + .6 * uBtn[i].w) * born;
+      float ring = smoothstep(.8, -.5, abs(rho - (r - 1.4)) - .55);
+      col += mix(hotA, vec3(1.), .45) * BTN_RIM.x * big * ring * (.3 + .7 * max(low, high));
+      col += hotA * BTN_RIM.y * big * smoothstep(r - 11., r - 1.5, rho) * smoothstep(r + .5, r - 1.5, rho) * (.35 + .65 * low);
+    }
+
+    // The right end is a thick lip curled over, and it is the liveliest part of the reference
+    // after the bulb (measured: tools/capture/cut-profile.js, 'end'): the key lamp again as a
+    // white streak just inside the silhouette where the end faces right, a dark streak inside
+    // that, and the floor's light in the album's colour where the end turns down and under.
+    if (pw.x > 640.) {
+      vec2 gE = vec2(outline(pw + vec2(1.5, 0.)) - d, outline(pw + vec2(0., 1.5)) - d) / 1.5;
+      vec2 nE = gE / max(length(gE), 1e-3);
+      float gapE = max(-d, 0.);
+      // (It comes in gradually from the last button on: starting at a line, it drew that line.)
+      float quietE = (1. - clamp(calm, 0., 1.)) * (1. - .7 * uUtil.x) * smoothstep(640., 730., pw.x) * born;
+      float faceE = smoothstep(END_KEY.x, END_KEY.y, nE.x);
+      float hK = END_KEY.z * pow(faceE, .5) - 1.;
+      col += vec3(1., .98, .96) * END_KEY.w * smoothstep(.7, -.7, abs(gapE - 10.) - hK) * quietE;
+      col *= 1. - .5 * smoothstep(.8, -.8, abs(gapE - (13.5 + hK)) - 1.4) * smoothstep(.2, .6, faceE) * born;
+      float faceF = smoothstep(.55, .95, dot(nE, vec2(.6, .8)));
+      col += hotA * END_FLOOR * (.45 * smoothstep(30., 6., gapE) + .8 * smoothstep(.8, -.8, abs(gapE - 6.5) - 2.2 * faceF + .6)) * faceF * quietE;
+    }
 
     // The tile floats above the liquid: its shadow, and the picture's own light spilling round it.
     // (It lies in the hollow it has pressed, so its shadow is close in all round, where the
