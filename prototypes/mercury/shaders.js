@@ -292,6 +292,19 @@ float detail(vec2 p0) {
   // The lip leans toward the cursor; the pod and its buttons do not.
   h += dot(p - vec2(660., 120.), uLean * vec2(-.045, -.07)) * smoothstep(0., 16., ar) * smoothstep(520., 580., p.x) * smoothstep(200., 150., p.y);
 
+  // The cover's pocket. The glass does not slope down to the cover: it stands round it as a
+  // low bank and ends at it in a wall, a quarter round that is level at its crest and upright
+  // where it meets the tile. So the wall away from the lamps (right of the cover, and below
+  // it) takes their light as a bright rounded edge, and the wall toward them is in its own
+  // shade, dark in its depth with light only along its crest.
+  {
+    float dTile = tileSdf(p, uTile.xy);
+    float pressed = smoothstep(.72, 1., uForm);
+    float tw = 1. - clamp(dTile / POCKET.y, 0., 1.);
+    float bank = dTile > POCKET.y ? exp(-pow((dTile - POCKET.y) / POCKET.w, 2.)) : 1.;
+    h += (POCKET.z * bank - (POCKET.x + POCKET.z) * (1. - sqrt(max(1. - tw * tw, 0.)))) * pressed;
+  }
+
   // Buttons: each is one smooth bowl pressed into the surface, with one rounded shoulder and
   // no rim standing round it (a rim and a dish gave every lamp four faces to draw a ring
   // on). Pressing deepens the bowl and spreads it a little.
@@ -491,6 +504,9 @@ void main() {
     float bowl = 0.;
     for (int i = 0; i < 3; i++) bowl = max(bowl, smoothstep(uBtn[i].z + 2., uBtn[i].z - 6., length(pw - uBtn[i].xy)));
     gSoft = max(gSoft, .06 * bowl);
+    // The wall of the cover's pocket is cut crisp: what it mirrors keeps its edge.
+    float pocket = smoothstep(POCKET.y + 5., POCKET.y - 1., dT) * born;
+    gSoft = mix(gSoft, min(gSoft, .045), pocket);
 
     // In a pool the standing form is all but level; ripples and presses still cross it.
     vec3 pl = pools(pw) * born;
@@ -580,6 +596,18 @@ void main() {
       col += smoked(behind(pw + lens, soft)) * vec3(.9, .94, 1.) * (1. - F) * clear * uBackPx.y;
     }
 
+    // The same in the wall of the cover's pocket, which is a rim of thick glass too: light
+    // gathered along its crest all the way round, most on the side toward the lamps, with the
+    // album's colour in it. The wall's foot stays dark (the tile's shadow, below).
+    {
+      vec2 gP = vec2(tileSdf(pw + vec2(1.5, 0.), uTile.xy) - dT, tileSdf(pw + vec2(0., 1.5), uTile.xy) - dT) / 1.5;
+      float towardP = max(dot(gP / max(length(gP), 1e-3), vec2(-.74, -.67)), 0.);
+      // Beyond the bank the glass lies in the bank's shade: the dark that the bright wall needs beside it.
+      col *= 1. - .34 * smoothstep(POCKET.y + 1., POCKET.y + 9., dT) * smoothstep(POCKET.y + 34., POCKET.y + 12., dT) * born;
+      float crest = exp(-pow((dT - POCKET.y * .7) / (POCKET.y * .26), 2.));
+      col += mix(vec3(1., .97, .94), hotA, .3) * crest * (.1 + .4 * towardP) * born;
+    }
+
     // No rim is drawn. The edge is lit only by what its roll mirrors, so it is bright where
     // it faces a lamp and dark where it does not, as a real edge is.
 
@@ -611,13 +639,25 @@ void main() {
     // The tile floats above the liquid: its shadow, and the picture's own light spilling round it.
     // (It lies in the hollow it has pressed, so its shadow is close in all round, where the
     // liquid meets it, and only a little longer on the side away from the lamps.)
-    float tshadow = (.4 * smoothstep(12., -2., dT)
-                   + .22 * smoothstep(20., -10., tileSdf(pw - vec2(4., 9.), uTile.xy))) * born;
+    // The cover lies at the bottom of its pocket, so the dark is at the wall's foot: a line of
+    // deep shade where the wall meets the tile, and the wall itself left to the light.
+    float tshadow = (.72 * smoothstep(3.2, .2, dT)
+                   + .16 * smoothstep(16., -8., tileSdf(pw - vec2(3., 6.), uTile.xy))) * born;
     col *= 1. - tshadow;
     vec2 castUv = clamp(tilePlane(pw, uTile.xy) / (2. * COVER_HALF) + .5, .2, .8);
     vec3 spill = pow(mix(textureLod(uCoverA, castUv, 6.2).rgb, textureLod(uCoverB, castUv, 6.2).rgb, smoothstep(.3, .8, uTrans)), vec3(2.2));
     // (Kept low and close: at full strength a white cover fogged the whole lobe round it.)
-    col += spill * .3 * exp(-max(dT, 0.) / 9.) * smoothstep(-8., 4., dT) * born;
+    col += spill * .22 * exp(-max(dT, 0.) / 9.) * smoothstep(-8., 4., dT) * born;
+    // The picture's own colours in the wall: thick glass standing over the picture's edge shows
+    // that edge again, turned over and drawn out. Strongest low in the wall, gone at its crest.
+    {
+      vec2 tq0 = tilePlane(pw, uTile.xy) / (2. * COVER_HALF);
+      vec2 inq = clamp(tq0, -.5, .5);
+      vec2 muv = inq - (tq0 - inq) * 2.2 + .5;
+      vec3 seen = pow(mix(textureLod(uCoverA, muv, 2.5).rgb, textureLod(uCoverB, muv, 2.5).rgb, smoothstep(.3, .8, uTrans)), vec3(2.2));
+      // (Held down for a bright picture: a white cover would otherwise turn its whole wall white and lose its own edge.)
+      col += seen / (1. + 1.6 * dot(seen, vec3(.2126, .7152, .0722))) * .5 * smoothstep(POCKET.y + 1., 1.5, dT) * smoothstep(-1., 2., dT) * born;
+    }
 
     /* ---- the spectral surface glowing through the fold ---- */
     float along = clamp((pw.x - 536.) / 236., 0., 1.);

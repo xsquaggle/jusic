@@ -59,7 +59,11 @@ export const L = {
   cover: { c: [180, 170], half: 74, r: 19, rot: -0.07, lean: 0.0012, squash: 0.965 },
   // The hollow it presses: how deep, how far out the liquid starts to sink toward it, and how
   // high what it pushes aside stands up beyond that.
-  press: { d: 10, w: 28, swell: 1.2 },
+  press: { d: 4, w: 24, swell: 0 },
+  // The pocket the cover lies in, as in the main reference: the glass ends at the cover in a
+  // crisp rounded wall (d deep, over the last w units before the tile's edge), and stands a
+  // little proud all round as a bank (rise high, dying away over 'out' units beyond the wall).
+  pocket: { d: 16, w: 12, rise: 6, out: 14 },
   title: { x: 292, y: 197, maxW: 196, size: 24 },   // it stops short of the lip's waist leg; a long title is set smaller, down to three quarters
   artist: { x: 293, y: 222, size: 15.5, maxW: 180 },   // shorter than the title: the lip's waist leg passes its far end
 
@@ -280,6 +284,7 @@ const float COVER_ROT = ${f1(L.cover.rot)};
 const float COVER_LEAN = ${f1(L.cover.lean * 10000) } * 1e-4;
 const float COVER_SQUASH = ${f1(L.cover.squash)};
 const vec3 PRESS = vec3(${f1(L.press.d)}, ${f1(L.press.w)}, ${f1(L.press.swell)});
+const vec4 POCKET = vec4(${f1(L.pocket.d)}, ${f1(L.pocket.w)}, ${f1(L.pocket.rise)}, ${f1(L.pocket.out)});
 const vec2 ARCH_C = ${v2(L.arch.c)};
 const float ARCH_R = ${f1(L.arch.r)};
 const vec2 BAND_C = ${v2(L.band.c)};
