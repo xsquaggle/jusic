@@ -359,6 +359,13 @@ float detail(vec2 p0) {
 
 /* ----------------------------------------------------------- environment --- */
 
+// The light the cursor carries: how bright its sharp core is and how bright the soft light
+// round it. (The core was 3.2, more than three times white, and the soft light .2.)
+const vec2 CURSOR_LIGHT = vec2(.55, .12);
+// Words turn dark where the cursor's light behind them is brighter than the first number,
+// and are fully dark from the second.
+const vec2 WORD_FLIP = vec2(.2, .4);
+
 // How much of the lamps' light the glass rim carries through to its inner side.
 const float THROUGH = .27;
 
@@ -743,6 +750,19 @@ void main() {
     /* ---- the time-preview lens darkens what is under it ---- */
     col = mix(col, col * .3 + uPalC * .03, lensMask * .85);
 
+    /* ---- the light the cursor carries: the reflection that travels with it ---- */
+    // It lies under the words, not over them. (It used to be laid over everything at more than
+    // three times white, which burned its middle out to a white disc and took the title with it.)
+    vec3 cursorLight;
+    {
+      vec3 Lc = normalize(vec3(uCursor.x - p.x, -(uCursor.y - p.y), 70.));
+      float ndh = max(dot(N, normalize(Lc + V)), 0.);
+      float glint = pow(ndh, 200.) * CURSOR_LIGHT.x + pow(ndh, 26.) * CURSOR_LIGHT.y;
+      float near = exp(-dot(p - uCursor.xy, p - uCursor.xy) / (2. * 150. * 150.));
+      cursorLight = vec3(1., .98, .96) * glint * uCursor.z * near;
+      col += cursorLight;
+    }
+
     /* ---- words and glyphs, suspended in the liquid ---- */
     {
       vec2 qi = qWord;
@@ -768,7 +788,11 @@ void main() {
       vec2 fringe = wordBend * .3;
       vec3 word = vec3(ink(qi - fringe, 0.), ink(qi, 0.), ink(qi + fringe, 0.));
       float glow = ink(qi, 3.4);
-      col += (word * 1.02 + mix(hotA, vec3(1.), .55) * glow * .1) * gain * born * (1. - .35 * F);
+      // Where the cursor's light lies behind them, white words would be white on white. There
+      // they turn dark, as ink does held against a lamp, and stay white everywhere else.
+      float lit = smoothstep(WORD_FLIP.x, WORD_FLIP.y, dot(cursorLight, vec3(.2126, .7152, .0722)));
+      col += (word * 1.02 + mix(hotA, vec3(1.), .55) * glow * .1) * gain * born * (1. - .35 * F) * (1. - lit);
+      col = mix(col, uPalC * .05 + vec3(.008, .008, .012), clamp(word.g * 1.15, 0., 1.) * lit * gain * born);
     }
 
     /* ---- timeline ---- */
@@ -802,13 +826,6 @@ void main() {
     emis += hotA * (.5 + 1.4 * uVol.y) * exp(-dvb * dvb / (2. * vr * vr * 4.)) * (1. - uVol.w);
 
     col += emis * (1. - .3 * F) * born * mix(.7, 1.12, uSeekPull.z);
-
-    // A light carried by the cursor: the reflection that travels with it.
-    vec3 Lc = normalize(vec3(uCursor.x - p.x, -(uCursor.y - p.y), 70.));
-    vec3 Hc = normalize(Lc + V);
-    float glint = pow(max(dot(N, Hc), 0.), 200.) * 3.2 + pow(max(dot(N, Hc), 0.), 26.) * .2;
-    float near = exp(-dot(p - uCursor.xy, p - uCursor.xy) / (2. * 150. * 150.));
-    col += vec3(1., .98, .96) * glint * uCursor.z * near;
 
     /* ---- how much it holds back of what is behind the window ----
        Nearly everything. The drop is dark glass with a colour of its own, so it looks the

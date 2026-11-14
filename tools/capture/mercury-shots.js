@@ -35,6 +35,10 @@ app.commandLine.appendSwitch('force-device-scale-factor', args.dsf || '1.25');
 const HOVER = `(() => { const m = window.__mercury; m.pointer('move', 300, 300); m.step(6); m.pointer('move', 400, 262); m.step(6);
   m.pointer('move', 470, 246); m.step(50); })()`;
 
+// On the title, so that the cursor's light lies behind the words.
+const HOVER_TITLE = `(() => { const m = window.__mercury; m.pointer('move', 300, 260); m.step(6); m.pointer('move', 340, 220); m.step(6);
+  m.pointer('move', 372, 196); m.step(50); })()`;
+
 /** name, query, content size in CSS px, frames to run before the photo, extra script. */
 const SHOTS = [
   { name: 'dark', q: 'bg=studio&play&scale=1', w: 960, h: 480, warm: 720 },
@@ -43,6 +47,8 @@ const SHOTS = [
   { name: 'window', q: 'bg=window&play&scale=1', w: 960, h: 480, warm: 720 },
   { name: 'dark-hover', q: 'bg=studio&play&scale=1', w: 960, h: 480, warm: 720, after: HOVER },
   { name: 'light-hover', q: 'bg=wallpaper&play&scale=1', w: 960, h: 480, warm: 720, after: HOVER },
+  { name: 'dark-hover-title', q: 'bg=studio&play&scale=1', w: 960, h: 480, warm: 720, after: HOVER_TITLE },
+  { name: 'window-hover-title', q: 'bg=window&play&scale=1', w: 960, h: 480, warm: 720, after: HOVER_TITLE },
   { name: 'dark-paused', q: 'bg=studio&scale=1', w: 960, h: 480, warm: 360 },
   { name: 'dark-small', q: 'bg=studio&play&scale=0.6', w: 600, h: 300, warm: 720 },
   { name: 'light-small', q: 'bg=wallpaper&play&scale=0.6', w: 600, h: 300, warm: 720 },

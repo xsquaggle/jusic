@@ -201,6 +201,11 @@ The owner asked for the pocket to be as deep and as crisp as the main reference'
 - **Still short of the reference:** their pocket wall on the left is wide, deep and clear, ours narrow; their coral reflection fills the bulb's lower half and carries on along the lower edge, ours stops at the tube; their outer rim has a copper line all the way round the left; the silver sheen's graded side is still a soft fade where theirs has a second edge.
 - **Again opaque base only** (the owner was at the only screen): the refracting shots, `test=passthrough`, `test=media` and `test=gpu` are owed for rounds 22 and 23 together.
 
+## What changed on 14 November 2026 at the owner's word (the cursor's light; item 12 in part)
+
+- The owner found the light round the cursor "far too bright ... essentially completely white" and the title hard to read under it. Its core is now .55 (was 3.2) and its soft light .12 (was .2), it lies under the words, and words turn dark where it is bright behind them (`CURSOR_LIGHT`, `WORD_FLIP`). `mercury-cursor-light.png` shows before and after.
+- Item 12 (the dimple reads as a button) is not otherwise touched: the dimple and its rings are the same shape, only lit less.
+
 ## The gaps, worst first
 
 Line numbers are `prototypes/mercury/shaders.js` at commit `62869cb` unless another file is named. Items 1 and 3 were worked on in round 11; their line numbers are of historical interest only.

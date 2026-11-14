@@ -1,0 +1,10 @@
+{ "out": "design/captures/mercury-cursor-light.png", "width": 1616,
+  "title": "The cursor's light, 14 November 2026: before (left) and after (right). Dimmer, under the words, and the words turn dark where it is bright (generated test cover)",
+  "rows": [
+  [ { "label": "before: pointer on the title, dark desktop", "src": "design/captures/raw/halo-before/dark-hover-title.png", "crop": [330, 190, 480, 240] },
+    { "label": "after: pointer on the title, dark desktop", "src": "design/captures/raw/halo-a/dark-hover-title.png", "crop": [330, 190, 480, 240] } ],
+  [ { "label": "before: pointer on the title, white window", "src": "design/captures/raw/halo-before/window-hover-title.png", "crop": [330, 190, 480, 240] },
+    { "label": "after: pointer on the title, white window", "src": "design/captures/raw/halo-a/window-hover-title.png", "crop": [330, 190, 480, 240] } ],
+  [ { "label": "before: pointer on the lower edge", "src": "design/captures/raw/halo-before/dark-hover.png", "crop": [420, 240, 480, 240] },
+    { "label": "after: pointer on the lower edge", "src": "design/captures/raw/halo-a/dark-hover.png", "crop": [420, 240, 480, 240] } ]
+] }
