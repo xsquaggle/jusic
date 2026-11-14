@@ -29,7 +29,7 @@ export function createInk(gl, { family = 'Montserrat' } = {}) {
   const ctx = canvas.getContext('2d');
   const tex = gl.createTexture();
   let scale = 0;
-  let labels = { title: '', artist: '', cur: '0:00', rem: '−0:00', playing: false, muted: false, tip: '', morph: 0 };
+  let labels = { title: '', artist: '', cur: '0:00', rem: '−0:00', playing: false, muted: false, tip: '', morph: 0, dim: '' };
   let dirty = true;
 
   function resize(pxPerUnit) {
@@ -156,11 +156,12 @@ export function createInk(gl, { family = 'Montserrat' } = {}) {
     icon('speaker', L.vol.icon[0], L.vol.icon[1], 22);
     icon(labels.muted ? 'muted' : 'waves', L.vol.icon[0], L.vol.icon[1], 22);
 
-    // Transport.
-    ctx.globalAlpha = 1;
-    icon('prev', L.buttons[0].c[0] - 0.5, L.buttons[0].c[1], 21);
+    // Transport. A control the source does not allow is dimmed (labels.dim names them: 'p', 't', 'n').
+    const lit = (k) => (labels.dim.includes(k) ? 0.24 : 1);
+    icon('prev', L.buttons[0].c[0] - 0.5, L.buttons[0].c[1], 21, lit('p'));
+    ctx.globalAlpha = lit('t');
     playPause(L.buttons[1].c[0], L.buttons[1].c[1], 31, labels.morph);
-    icon('next', L.buttons[2].c[0] + 0.5, L.buttons[2].c[1], 21);
+    icon('next', L.buttons[2].c[0] + 0.5, L.buttons[2].c[1], 21, lit('n'));
 
     // Utility dishes.
     icon('open', L.utils[0].c[0], L.utils[0].c[1], 10.5, 0.95);

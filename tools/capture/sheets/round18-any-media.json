@@ -1,0 +1,5 @@
+{ "out": "design/captures/mercury-any-media-round18.png", "width": 952,
+  "title": "Mercury: the \"any media\" proof. The widget showing and controlling another app's media, as Windows reports it (a made-up test source; refracting, real window)",
+  "rows": [
+  [ { "label": "A source that allows no next or previous, like a browser tab: its title, artist, artwork, colour and position; those two buttons dimmed", "src": "design/captures/raw/round18-media/media-limited.png", "crop": [12, 12, 936, 456] } ]
+] }

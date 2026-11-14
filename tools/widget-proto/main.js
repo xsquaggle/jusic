@@ -20,11 +20,17 @@
  *                                                           rfps=N capture rate (30), rmax=N the capture's longest side.
  *   glass=0.88                                              an old alternative: a body with a floor on its opacity, nothing
  *                                                           captured (implies refract=off)
+ *   source=system                                           the "any media" proof: the widget shows and controls whatever
+ *                                                           Windows says is playing on this PC (Spotify, a browser tab...)
+ *                                                           in place of the test tracks. only=<text> follows the source
+ *                                                           whose app id contains it. See media-helper.ps1.
+ *   test=media                                              proves that chain end to end against a made-up source of its
+ *                                                           own (media-test.html), so nothing of the owner's is read
  *   display=primary|other                                   which monitor (shots and tests default to the other one, to
  *                                                           stay out of the way of whatever is on the main screen)
  */
 const { app, BrowserWindow, Tray, Menu, screen, ipcMain, desktopCapturer } = require('electron');
-const { execFileSync } = require('child_process');
+const { execFileSync, spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const http = require('http');
@@ -37,7 +43,8 @@ const TEST = args.test || null;
 // Refraction is the look (the owner's decision, 13 November 2026): on unless refract=off, or glass= is being tried.
 const REFRACT = args.refract === 'off' || (args.glass && !args.refract) ? null : (args.refract || 'live');
 // Options that are simply handed on to the page.
-const PAGE_OPTIONS = (REFRACT ? `&refract=${encodeURIComponent(REFRACT)}` : '')
+const SYSTEM = args.source === 'system' || TEST === 'media';
+const PAGE_OPTIONS = (REFRACT ? `&refract=${encodeURIComponent(REFRACT)}` : '') + (SYSTEM ? '&source=system' : '')
   + ['rfps', 'rmax', 'glass'].filter((k) => args[k]).map((k) => `&${k}=${encodeURIComponent(args[k])}`).join('');
 // Draw at a given display scale wherever the window is (the main monitor is 125%).
 if (args.dsf) app.commandLine.appendSwitch('force-device-scale-factor', args.dsf);
@@ -161,6 +168,164 @@ ipcMain.handle('widget:backdrop', () => placement());
 function sendPlacement() {
   placement().then((p) => { if (widget && !widget.isDestroyed()) widget.webContents.send('widget:placement', p); });
 }
+
+/* --------------------------------------------------------------- any media --- */
+
+// The proof of REDESIGN_PLAN.md section 6b. A helper (media-helper.ps1) reads Windows' own list
+// of playing media and prints each change as a line of JSON; it is passed on to the page, with
+// the artwork as a data: URL. The page's commands go back down the helper's stdin.
+// What the owner listens to is private: nothing here prints or stores a title, and the artwork
+// file lives in data/widget-proto/, which git ignores.
+let helper = null;
+let mediaState = null;       // the last thing the helper said, for the tests
+
+function startMediaHelper(only = args.only || '') {
+  stopMediaHelper();
+  const dir = path.join(REPO, 'data', 'widget-proto');
+  fs.mkdirSync(dir, { recursive: true });
+  const child = helper = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File',
+    path.join(__dirname, 'media-helper.ps1'), '-ThumbDir', dir, ...(only ? ['-Only', only] : [])], { windowsHide: true });
+  let rest = '';
+  child.stdout.setEncoding('utf8');
+  child.stdout.on('data', (chunk) => {
+    const lines = (rest + chunk).split(/\r?\n/);
+    rest = lines.pop();
+    for (const line of lines) {
+      if (args.debug) console.log('helper line, ' + line.length + ' characters');
+      let state;
+      try { state = JSON.parse(line); } catch { continue; }
+      if (state.thumb) {
+        try {
+          const bytes = fs.readFileSync(state.thumb);
+          state.art = `data:${bytes[0] === 0x89 ? 'image/png' : 'image/jpeg'};base64,${bytes.toString('base64')}`;
+        } catch { state.art = null; }
+      }
+      delete state.thumb;
+      mediaState = state;
+      if (widget && !widget.isDestroyed()) widget.webContents.send('widget:media', state);
+    }
+  });
+  // Its errors may quote a title, so they are printed only when asked for (debug=1, with a source of our own).
+  child.stderr.on('data', (chunk) => { if (args.debug) console.log('helper: ' + chunk); });
+  child.on('exit', () => { if (helper === child) helper = null; });
+}
+function stopMediaHelper() {
+  if (helper) { try { helper.stdin.end(); } catch { /* already gone */ } helper = null; }
+}
+ipcMain.on('widget:media-command', (event, command, value) => {
+  if (!helper || !/^(toggle|play|pause|next|prev|seek)$/.test(command)) return;
+  helper.stdin.write(command === 'seek' ? `seek ${Number(value) || 0}\n` : command + '\n');
+});
+app.on('before-quit', stopMediaHelper);
+
+/**
+ * The whole chain against a source of our own: a hidden window that announces three made-up
+ * tracks to Windows as a browser tab does (media-test.html, near-silent). The widget has to show
+ * them and its buttons have to reach that window. Ends with a photograph over the test backdrop.
+ */
+async function runMediaTest() {
+  const display = pickDisplay('other');
+  const area = {
+    x: display.workArea.x + 60, y: display.workArea.y + 60,
+    width: Math.round(STAGE.w * SIZE) + 100, height: Math.round(STAGE.h * SIZE) + 80,
+  };
+  const backdrop = new BrowserWindow({
+    ...area, frame: false, resizable: false, skipTaskbar: true, focusable: false, show: false, alwaysOnTop: true,
+    backgroundColor: '#000000', webPreferences: { contextIsolation: true, sandbox: true },
+  });
+  await backdrop.loadFile(path.join(__dirname, 'backdrop.html'), { query: { mode: 'dark' } });
+  onTop(backdrop);
+  backdrop.showInactive();
+  backdrop.moveTop();
+
+  const source = new BrowserWindow({
+    show: false, focusable: false, skipTaskbar: true, width: 300, height: 200,
+    webPreferences: { contextIsolation: true, sandbox: true, backgroundThrottling: false, autoplayPolicy: 'no-user-gesture-required' },
+  });
+  // Over http, like the covers it names as its artwork: Chromium does not fetch artwork for a page opened from a file.
+  const loadSource = (limited) => source.loadURL(`http://127.0.0.1:${PORT}/tools/widget-proto/media-test.html${limited ? '?limited=1' : ''}`);
+  const src = (js) => source.webContents.executeJavaScript(js, true);
+  // Which of Windows' sources is ours: the one that was not there before.
+  const list = () => execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File',
+    path.join(__dirname, 'media-helper.ps1'), '-List'], { encoding: 'utf8' }).split(/\r?\n/).filter(Boolean);
+  const already = new Set(list());
+  await loadSource(false);
+  let ours = null;
+  for (let i = 0; i < 20 && !ours; i++) {
+    await sleep(500);
+    ours = list().find((id) => !already.has(id)) || null;
+  }
+  console.log(ours ? `the test source is known to Windows as "${ours}"` : 'FAIL the test source never appeared in Windows\' list');
+  if (!ours) { console.log('source: ' + await src('JSON.stringify({ error: window.__source.error, paused: window.__source.audio.paused })')); app.exit(1); return; }
+
+  await createWidget({ query: '', x: area.x + 50, y: area.y + 40 });
+  widget.webContents.setAudioMuted(true);
+  widget.showInactive();
+  widget.moveTop();
+  const run = (js) => widget.webContents.executeJavaScript(js, true);
+  for (let i = 0; i < 200 && !(await run('Boolean(window.__mercury && window.__mercury.ready)')); i++) await sleep(50);
+  startMediaHelper(ours);
+
+  let failed = 0, count = 0;
+  const check = async (label, test, tries = 30) => {
+    count++;
+    let ok = false;
+    for (let i = 0; i < tries && !ok; i++) { ok = Boolean(await test()); if (!ok) await sleep(200); }
+    if (!ok) failed++;
+    console.log(`${ok ? 'ok  ' : 'FAIL'} ${label}`);
+    return ok;
+  };
+  const shown = () => run('JSON.stringify({ title: window.__mercury.player.track.title, artist: window.__mercury.player.track.artist, playing: window.__mercury.player.playing, time: window.__mercury.player.time, duration: window.__mercury.player.track.duration, dim: window.__mercury.mercury.labels ? window.__mercury.mercury.labels.dim : null, art: Boolean(window.__mercury.media.art), sent: window.__mercury.media.sent })').then(JSON.parse);
+  const click = async (x, y) => {
+    await run(`window.__mercury.pointer('move', ${x}, ${y}); window.__mercury.pointer('down', ${x}, ${y}); 0`);
+    await sleep(120);
+    await run(`window.__mercury.pointer('up', ${x}, ${y}); 0`);
+  };
+  const B = JSON.parse(await run('JSON.stringify(window.__mercury.L.buttons.map((b) => b.c))'));
+  const seek = JSON.parse(await run('JSON.stringify({ x0: window.__mercury.L.seek.x0, x1: window.__mercury.L.seek.x1 })'));
+
+  await check('the widget shows the other app\'s title and artist', async () => { const s = await shown(); return s.title === 'Test Source One' && s.artist === 'Media Test'; });
+  await check('...its artwork', async () => (await shown()).art);
+  await check('...that it is playing, and how long the track is', async () => { const s = await shown(); return s.playing && Math.abs(s.duration - 60) < 1; });
+  await check('...and its position, moving', async () => { const a = (await shown()).time; await sleep(1500); const b = (await shown()).time; return b - a > 0.8 && b - a < 2.5; }, 3);
+  await click(B[1][0], B[1][1]);
+  await check('the widget\'s pause button pauses the other app', () => src('window.__source.audio.paused'));
+  await check('...and the widget then shows it paused', async () => !(await shown()).playing);
+  await click(B[1][0], B[1][1]);
+  await check('the play button starts it again', () => src('!window.__source.audio.paused'));
+  await click(B[2][0], B[2][1]);
+  await check('the next button moves the other app to its next track', () => src('window.__source.index === 1'));
+  await check('...and the widget shows the new title', async () => (await shown()).title === 'Test Source Two');
+  await click(B[0][0], B[0][1]);
+  await check('the previous button goes back', async () => (await src('window.__source.index === 0')) && (await shown()).title === 'Test Source One');
+  const sx = Math.round(seek.x0 + (seek.x1 - seek.x0) * 0.75);
+  const sy = Number(await run(`(async () => (await import('./shape.js')).seekY(${sx}))()`));
+  await click(sx, sy);
+  await check('a click three quarters of the way along the timeline seeks the other app there', async () => { const t = await src('window.__source.audio.currentTime'); return t > 43 && t < 50; });
+  await check('...and the widget follows', async () => { const t = (await shown()).time; return t > 43 && t < 52; });
+
+  // A source like the browser tab seen on this PC: it allows no next and no previous.
+  await loadSource(true);
+  await check('a source that allows no next or previous: the helper says so', async () => mediaState && mediaState.source && !mediaState.canNext && !mediaState.canPrev, 50);
+  await check('...the widget dims those two buttons', async () => run('window.__mercury.media.state && !window.__mercury.media.state.canNext && !window.__mercury.media.state.canPrev'));
+  const before = (await shown()).sent.length;
+  await click(B[2][0], B[2][1]);
+  await sleep(600);
+  await check('...and pressing a dimmed button sends nothing', async () => (await shown()).sent.length === before, 1);
+
+  await run(`window.__mercury.pointer('leave', 0, 0); 0`);
+  await sleep(1500);
+  if (SHOTS_DIR_FOR_MEDIA) {
+    fs.mkdirSync(SHOTS_DIR_FOR_MEDIA, { recursive: true });
+    // Let back into captures to be photographed, with the picture it bends held still meanwhile.
+    if (REFRACT) { await run('window.__mercury.mercury.backdrop.frozen = true; 0'); widget.setContentProtection(false); await sleep(700); }
+    const image = await grabScreen(area, display);
+    if (saveShot(image, path.join(SHOTS_DIR_FOR_MEDIA, 'media-limited.png'))) console.log('photographed: media-limited.png');
+  }
+  console.log(failed ? `${failed} of ${count} failed` : `all ${count} passed`);
+  app.quit();
+}
+const SHOTS_DIR_FOR_MEDIA = args.out ? path.resolve(args.out) : null;
 
 /* ------------------------------------------------------------ window controls --- */
 
@@ -371,6 +536,7 @@ app.whenReady().then(async () => {
   await ensureServer();
   if (SHOTS) { await runShots(); return; }
   if (TEST === 'passthrough') { await runPassThroughTest(); return; }
+  if (TEST === 'media') { await runMediaTest(); return; }
   if (TEST === 'gpu') {
     await require('./gpu-test.js').runGpuTest({ app, screen, createWidget, getWidget: () => widget, pickDisplay, seconds: Number(args.seconds) || 12, refract: REFRACT });
     return;
@@ -378,6 +544,7 @@ app.whenReady().then(async () => {
 
   await createWidget({ x: args.x && Number(args.x), y: args.y && Number(args.y) });
   widget.showInactive();
+  if (SYSTEM) startMediaHelper();
   tray = new Tray(path.join(REPO, 'jusic.ico'));
   tray.setToolTip('Mercury prototype');
   tray.setContextMenu(Menu.buildFromTemplate([

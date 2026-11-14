@@ -15,6 +15,14 @@ contextBridge.exposeInMainWorld('widgetHost', {
   backdropSource: () => ipcRenderer.invoke('widget:backdrop'),
   /** Called with the same thing again whenever the window moves. */
   onPlacement: (fn) => { ipcRenderer.on('widget:placement', (event, placement) => fn(placement)); },
+  /**
+   * "Any media" proof (source=system). Called with what Windows says is playing on this PC, from
+   * whatever app: { source, title, artist, playing, position, duration, updatedAt, rate, canNext, ...,
+   * art (a data: URL or null) }, or { source: null } when nothing is.
+   */
+  onMedia: (fn) => { ipcRenderer.on('widget:media', (event, state) => fn(state)); },
+  /** 'toggle' | 'play' | 'pause' | 'next' | 'prev' | 'seek' (with seconds): sent to the app that is playing. */
+  media: (command, value) => ipcRenderer.send('widget:media-command', String(command), Number(value) || 0),
   /** Called with false when refraction is switched off from the tray menu, true when it is switched back on. */
   onRefract: (fn) => { ipcRenderer.on('widget:refract', (event, on) => fn(Boolean(on))); },
 });

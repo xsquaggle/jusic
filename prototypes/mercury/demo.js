@@ -35,6 +35,10 @@ if (params.get('cover')) {
   });
 }
 
+// "Any media" proof, in the widget window only (?source=system): the widget shows and controls
+// whatever Windows says is playing on this PC, from any app, in place of the test tracks.
+const SYSTEM = Boolean(host && host.onMedia && params.get('source') === 'system');
+
 const fmt = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
 /* ------------------------------------------------------------------ setup --- */
@@ -177,7 +181,7 @@ async function setTrack(index, { immediate = false } = {}) {
 function setPlaying(on) {
   player.playing = on;
   mercury.setPlaying(on);
-  if (on) synth.start(); else synth.stop();
+  if (on && !SYSTEM) synth.start(); else synth.stop();
   $('hint').style.opacity = on ? 0 : 1;
   wake();
 }
@@ -188,6 +192,65 @@ function setVolume(v, muted = false) {
   mercury.setVolume(player.volume, muted);
   synth.setVolume(muted ? 0 : player.volume);
   wake();
+}
+
+/* ----------------------------------------------------------- any media --- */
+
+// What Windows reports, and what the widget does with it. The title, artist and cover are the
+// other app's; play, pause, next, previous and seeking are sent back to it. A control it does
+// not allow is dimmed and does nothing. Volume stays this page's own and moves nothing yet, and
+// the liquid moves to a made-up beat, because the other app's sound does not pass through here.
+const media = { state: null, key: null, art: null, base: 0, at: 0, sent: [] };
+
+/** A plain glass tile for a source that gives no cover. */
+function plainCover() {
+  const c = document.createElement('canvas');
+  c.width = c.height = 256;
+  const g = c.getContext('2d');
+  const fill = g.createLinearGradient(0, 0, 256, 256);
+  fill.addColorStop(0, '#3a3d46'); fill.addColorStop(1, '#15161b');
+  g.fillStyle = fill; g.fillRect(0, 0, 256, 256);
+  return c;
+}
+
+async function applyMedia(state) {
+  media.state = state;
+  const has = Boolean(state && state.source);
+  const key = has ? `${state.source}|${state.title}|${state.artist}` : '';
+  const changed = key !== media.key;
+  media.key = key;
+  if (changed) {
+    player.track = { title: has ? state.title || 'Untitled' : 'Nothing playing', artist: has ? state.artist || '' : '', duration: 0, bpm: 96 };
+    const { title, artist } = player.track;
+    setTimeout(() => { if (media.key === key) { mercury.setLabels({ title, artist }); wake(); } }, 520);
+  }
+  player.track.duration = has ? Math.max(0, state.duration || 0) : 0;
+  media.base = has ? state.position : 0;
+  media.at = has ? state.updatedAt : 0;
+  media.rate = has ? state.rate || 1 : 0;
+  if (Boolean(has && state.playing) !== player.playing) setPlaying(Boolean(has && state.playing));
+  mercury.setLabels({ dim: !has ? 'ptn' : (state.canPrev ? '' : 'p') + (state.canPlay || state.canPause || state.canToggle ? '' : 't') + (state.canNext ? '' : 'n') });
+  // The cover: the other app's artwork, which often arrives a moment after its title.
+  const art = has ? state.art || null : null;
+  if (changed || art !== media.art) {
+    media.art = art;
+    let img;
+    try { img = art ? await loadImage(art) : plainCover(); } catch { img = plainCover(); }
+    if (media.art === art) mercury.setCover(img, paletteFromImage(img));
+  }
+  wake();
+}
+
+/** Where the other app is in its track now: its last report, carried forward while it plays. */
+function mediaTime() {
+  const d = player.track.duration;
+  const t = media.base + (player.playing && media.at ? (Date.now() - media.at) / 1000 * media.rate : 0);
+  return d > 0 ? Math.min(d, Math.max(0, t)) : 0;
+}
+
+function mediaCommand(command, value) {
+  media.sent.push(command);
+  host.media(command, value);
 }
 
 /* ------------------------------------------------------------------ synth --- */
@@ -449,9 +512,17 @@ function onUp(event) {
   if (dragging === 'button' && downTarget) {
     mercury.pressButton(downTarget.index, false);
     if (h.target === 'button' && h.index === downTarget.index) {
-      if (h.index === 0) { mercury.lurch(-1); setTrack(player.index - 1); }
-      if (h.index === 1) setPlaying(!player.playing);
-      if (h.index === 2) { mercury.lurch(1); setTrack(player.index + 1); }
+      if (SYSTEM) {
+        // The other app does it, and the widget follows what Windows then reports.
+        const st = media.state && media.state.source ? media.state : null;
+        if (st && h.index === 0 && st.canPrev) { mercury.lurch(-1); mediaCommand('prev'); }
+        if (st && h.index === 1 && (st.canPlay || st.canPause || st.canToggle)) { setPlaying(!player.playing); mediaCommand(player.playing ? 'play' : 'pause'); }
+        if (st && h.index === 2 && st.canNext) { mercury.lurch(1); mediaCommand('next'); }
+      } else {
+        if (h.index === 0) { mercury.lurch(-1); setTrack(player.index - 1); }
+        if (h.index === 1) setPlaying(!player.playing);
+        if (h.index === 2) { mercury.lurch(1); setTrack(player.index + 1); }
+      }
     }
   } else if (dragging === 'util' && downTarget) {
     mercury.pressUtil(downTarget.index, false);
@@ -462,6 +533,10 @@ function onUp(event) {
     }
   } else if (dragging === 'seek') {
     player.time = dragProgress * player.track.duration;
+    if (SYSTEM && media.state && media.state.canSeek && player.track.duration > 0) {
+      media.base = player.time; media.at = Date.now();
+      mediaCommand('seek', player.time);
+    }
     mercury.setProgress(dragProgress);
     mercury.setSeekDrag(false);
     mercury.springs.seekBead.kick(0.0);
@@ -509,13 +584,15 @@ const MAX_FPS = Number(params.get('fps')) || 120;
 let refreshPrev = 0, refreshMs = 1000 / 60, refreshCount = 0;
 
 function tick(dt, paint = true, idle = false) {
-  if (player.playing) {
+  if (SYSTEM) {
+    player.time = mediaTime();
+  } else if (player.playing) {
     player.time += dt;
     if (player.time >= player.track.duration) setTrack(player.index + 1);
   }
-  if (dragging !== 'seek') mercury.setProgress(player.time / player.track.duration);
+  if (dragging !== 'seek') mercury.setProgress(player.track.duration > 0 ? player.time / player.track.duration : 0);
   const silent = { bands: new Float32Array(16), pulse: 0 };
-  const audio = !player.playing ? silent : CAPTURE ? fakeAudio(mercury.state.time, player.track.bpm) : synth.analyse();
+  const audio = !player.playing ? silent : CAPTURE || SYSTEM ? fakeAudio(mercury.state.time, player.track.bpm) : synth.analyse();
   mercury.setAudio(audio.bands, audio.pulse);
   paintLabels();
   return mercury.frame(dt, paint, idle);
@@ -592,11 +669,21 @@ await Promise.all([document.fonts.load('600 24px Montserrat'), document.fonts.lo
 layout();
 setVolume(player.volume);
 await setTrack(Number(params.get('track')) || 0, { immediate: true });
+if (SYSTEM) {
+  // Until Windows says what is playing, the widget is an empty glass.
+  player.track = { title: 'Nothing playing', artist: '', duration: 0, bpm: 96 };
+  player.time = 0;
+  const blank = plainCover();
+  mercury.setCover(blank, null);
+  mercury.setPalette(paletteFromImage(blank), true);
+  mercury.setLabels({ dim: 'ptn' });
+  host.onMedia(applyMedia);
+}
 mercury.setLabels({ title: player.track.title, artist: player.track.artist });
-mercury.setProgress(player.time / player.track.duration);
-mercury.springs.seekBead.snap(player.time / player.track.duration);
+mercury.setProgress(player.track.duration > 0 ? player.time / player.track.duration : 0);
+mercury.springs.seekBead.snap(player.track.duration > 0 ? player.time / player.track.duration : 0);
 mercury.springs.volBead.snap(player.volume);
-if (params.has('play')) setPlaying(true);
+if (params.has('play') && !SYSTEM) setPlaying(true);
 passThrough(true);        // until the pointer is seen over the liquid, the mouse belongs to the desktop
 // It forms like a droplet. Capture scripts can ask for it already formed.
 if (params.has('unformed')) mercury.springs.form.snap(0);
@@ -607,7 +694,7 @@ wake();
 
 /** Hooks for the capture scripts. */
 window.__mercury = {
-  mercury, player, setTrack, setPlaying, setVolume, TRACKS, backdrop,
+  mercury, player, setTrack, setPlaying, setVolume, TRACKS, backdrop, media, L,
   /** Advance n frames. With paint false the liquid moves but nothing is drawn, which is far quicker. */
   step(n = 1, dt = 1 / 60, paint = true) { let m = false; for (let i = 0; i < n; i++) m = tick(dt, paint); return m; },
   pointer(type, x, y) {

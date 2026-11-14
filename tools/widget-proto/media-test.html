@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Media test source</title>
+</head>
+<body>
+<script>
+/* A stand-in for "some other app playing something": three made-up tracks with generated covers,
+   announced to Windows the way a browser tab announces a video. The sound is one minute of
+   near-silence (samples of plus or minus one step), so nothing is heard. ?limited=1 behaves like
+   the browser tab seen on this PC: no next, no previous.
+   The "any media" test drives the widget and reads window.__source here to see what arrived. */
+const limited = new URLSearchParams(location.search).has('limited');
+const base = 'http://127.0.0.1:5190/prototypes/mercury/covers/';
+const TRACKS = [
+  { title: 'Test Source One', artist: 'Media Test', cover: base + 'verdant-static.jpg' },
+  { title: 'Test Source Two', artist: 'Media Test', cover: base + 'violet-hour.jpg' },
+  { title: 'Test Source Three', artist: 'Media Test', cover: base + 'amber-drift.jpg' },
+];
+const SECONDS = 60, RATE = 8000;
+function wav() {
+  const n = SECONDS * RATE, buf = new ArrayBuffer(44 + n * 2), v = new DataView(buf);
+  const text = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+  text(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true); text(8, 'WAVEfmt '); v.setUint32(16, 16, true);
+  v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, RATE, true); v.setUint32(28, RATE * 2, true);
+  v.setUint16(32, 2, true); v.setUint16(34, 16, true); text(36, 'data'); v.setUint32(40, n * 2, true);
+  for (let i = 0; i < n; i++) v.setInt16(44 + i * 2, (i & 1) ? 1 : -1, true);
+  return URL.createObjectURL(new Blob([buf], { type: 'audio/wav' }));
+}
+const audio = new Audio(wav());
+audio.loop = true;
+const source = window.__source = { index: 0, audio, limited, commands: [] };
+
+function announce() {
+  const t = TRACKS[source.index];
+  navigator.mediaSession.metadata = new MediaMetadata({
+    title: t.title, artist: t.artist, album: 'Generated',
+    artwork: [{ src: t.cover, sizes: '512x512', type: 'image/jpeg' }],
+  });
+  position();
+}
+function position() {
+  navigator.mediaSession.setPositionState({ duration: SECONDS, playbackRate: 1, position: Math.min(SECONDS, audio.currentTime) });
+}
+function skip(by) { source.index = (source.index + by + TRACKS.length) % TRACKS.length; audio.currentTime = 0; announce(); }
+const on = (name, fn) => navigator.mediaSession.setActionHandler(name, (details) => { source.commands.push(name); fn(details); });
+on('play', () => audio.play());
+on('pause', () => audio.pause());
+on('seekto', (d) => { audio.currentTime = d.seekTime; position(); });
+if (!limited) { on('nexttrack', () => skip(1)); on('previoustrack', () => skip(-1)); }
+audio.addEventListener('play', position);
+audio.addEventListener('pause', position);
+audio.addEventListener('seeked', position);
+announce();
+audio.play().catch((error) => { source.error = String(error); });
+</script>
+</body>
+</html>
