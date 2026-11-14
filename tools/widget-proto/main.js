@@ -26,6 +26,9 @@
  *                                                           whose app id contains it. See media-helper.ps1.
  *   test=media                                              proves that chain end to end against a made-up source of its
  *                                                           own (media-test.html), so nothing of the owner's is read
+ *   test=listen                                             proves that the liquid hears what the PC plays: no window is
+ *                                                           shown; a quiet pulsed tone is played for a few seconds
+ *   listen=off                                              with source=system: do not listen, move to a made-up beat
  *   display=primary|other                                   which monitor (shots and tests default to the other one, to
  *                                                           stay out of the way of whatever is on the main screen)
  */
@@ -43,8 +46,9 @@ const TEST = args.test || null;
 // Refraction is the look (the owner's decision, 13 November 2026): on unless refract=off, or glass= is being tried.
 const REFRACT = args.refract === 'off' || (args.glass && !args.refract) ? null : (args.refract || 'live');
 // Options that are simply handed on to the page.
-const SYSTEM = args.source === 'system' || TEST === 'media';
-const PAGE_OPTIONS = (REFRACT ? `&refract=${encodeURIComponent(REFRACT)}` : '') + (SYSTEM ? '&source=system' : '')
+const SYSTEM = args.source === 'system' || TEST === 'media' || TEST === 'listen';
+const SYSTEM_LISTEN = args.listen ? `&listen=${encodeURIComponent(args.listen)}` : '';
+const PAGE_OPTIONS = SYSTEM_LISTEN + (REFRACT ? `&refract=${encodeURIComponent(REFRACT)}` : '') + (SYSTEM ? '&source=system' : '')
   + ['rfps', 'rmax', 'glass'].filter((k) => args[k]).map((k) => `&${k}=${encodeURIComponent(args[k])}`).join('');
 // Draw at a given display scale wherever the window is (the main monitor is 125%).
 if (args.dsf) app.commandLine.appendSwitch('force-device-scale-factor', args.dsf);
@@ -114,6 +118,8 @@ function createWidget({ query = 'play', x, y } = {}) {
       // Background throttling stays on (the default): when the window is hidden the page is
       // told so and stops drawing. The capture tools turn it off; the widget must not.
       contextIsolation: true, sandbox: true, nodeIntegration: false,
+      // The page analyses the PC's sound in "any media" without anyone having clicked it.
+      autoplayPolicy: 'no-user-gesture-required',
     },
   });
   onTop(widget);
@@ -323,6 +329,47 @@ async function runMediaTest() {
     if (saveShot(image, path.join(SHOTS_DIR_FOR_MEDIA, 'media-limited.png'))) console.log('photographed: media-limited.png');
   }
   console.log(failed ? `${failed} of ${count} failed` : `all ${count} passed`);
+  app.quit();
+}
+/**
+ * Does the page hear what the PC plays? Nothing is shown: the widget's window stays hidden and is
+ * read directly. A hidden window of our own plays a quiet 70 Hz tone, pulsed twice a second, for a
+ * few seconds; the listener has to report a bass that rises and falls with it, and stillness
+ * again when it stops (if nothing else on the PC is playing).
+ */
+async function runListenTest() {
+  await createWidget({ query: '' });
+  const run = (js) => widget.webContents.executeJavaScript(js, true);
+  for (let i = 0; i < 200 && !(await run('Boolean(window.__mercury && window.__mercury.ready)')); i++) await sleep(50);
+  await run('window.__mercury.listener.start()');
+  console.log('listener: ' + await run('JSON.stringify(window.__mercury.listener.state)'));
+  const sample = async (seconds) => {
+    let lo = 1, hi = 0, pulseHi = 0, raw = 0;
+    for (let i = 0; i < seconds * 25; i++) {
+      const a = JSON.parse(await run('(() => { const a = window.__mercury.listener.analyse(); return JSON.stringify({ bass: (a.bands[0] + a.bands[1] + a.bands[2]) / 3, pulse: a.pulse, level: window.__mercury.listener.state.level }); })()'));
+      lo = Math.min(lo, a.bass); hi = Math.max(hi, a.bass); pulseHi = Math.max(pulseHi, a.pulse); raw = Math.max(raw, a.level);
+      await sleep(40);
+    }
+    return { bassLow: +lo.toFixed(2), bassHigh: +hi.toFixed(2), pulseHigh: +pulseHi.toFixed(2), level: +raw.toFixed(3) };
+  };
+  const before = await sample(2);
+  console.log('before the tone: ' + JSON.stringify(before));
+  const tone = new BrowserWindow({ show: false, webPreferences: { contextIsolation: true, sandbox: true, backgroundThrottling: false, autoplayPolicy: 'no-user-gesture-required' } });
+  await tone.loadURL('data:text/html,<body></body>');
+  await tone.webContents.executeJavaScript(`(() => {
+    const ctx = new AudioContext(), o = ctx.createOscillator(), g = ctx.createGain();
+    o.frequency.value = 70; g.gain.value = 0;
+    for (let i = 0; i < 12; i++) { const t = ctx.currentTime + 0.2 + i * 0.5; g.gain.setValueAtTime(0.05, t); g.gain.exponentialRampToValueAtTime(0.0005, t + 0.3); }
+    o.connect(g).connect(ctx.destination); o.start(); o.stop(ctx.currentTime + 6.5); return ctx.resume();
+  })()`, true);
+  await sleep(600);
+  const during = await sample(4);
+  console.log('during the tone: ' + JSON.stringify(during));
+  await sleep(3500);
+  const after = await sample(2);
+  console.log('after the tone:  ' + JSON.stringify(after));
+  const heard = during.level > before.level * 1.5 || during.bassHigh - during.bassLow > 0.3;
+  console.log(heard ? 'ok   the liquid hears what the PC plays' : 'FAIL nothing was heard (or something else was playing over it: compare the three lines)');
   app.quit();
 }
 const SHOTS_DIR_FOR_MEDIA = args.out ? path.resolve(args.out) : null;
@@ -537,6 +584,7 @@ app.whenReady().then(async () => {
   if (SHOTS) { await runShots(); return; }
   if (TEST === 'passthrough') { await runPassThroughTest(); return; }
   if (TEST === 'media') { await runMediaTest(); return; }
+  if (TEST === 'listen') { await runListenTest(); return; }
   if (TEST === 'gpu') {
     await require('./gpu-test.js').runGpuTest({ app, screen, createWidget, getWidget: () => widget, pickDisplay, seconds: Number(args.seconds) || 12, refract: REFRACT });
     return;

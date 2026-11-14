@@ -151,7 +151,7 @@ The owner asked for the cover to leave a print in the glass where it sits, squas
   | Hidden | 0%, the capture stops | 0% | 0.04% → 0.04% |
 
   Whole card 49.6 W against 49.1 W playing. Memory 582 MB against 462 MB. No yellow border pixels appeared along the monitor's edges while capturing (the count was the same before and during). `test=passthrough` passes, 8 of 8, with the capture on.
-- **Still open, and needing the owner:** the widget over a full-screen game on the main monitor (does the game lose frames); whether a blurred double of the pointer shows in the glass; the tray switch by hand; dragging to the other monitor.
+- **Still open, and needing the owner:** the widget over a full-screen game on the main monitor (does the game lose frames); the tray switch by hand; dragging to the other monitor. (Answered by the owner the same evening: no blurred double of the pointer shows in the glass, only the widget's own white light and ring round the cursor.)
 - Still short of the reference with refraction on: the floor glow lies as a pink smear over words on a white window; the bent picture is soft everywhere, where real glass shows a sharp, squeezed image in its rim.
 
 ## What round 19 changed (item 9: the cover's pocket)
