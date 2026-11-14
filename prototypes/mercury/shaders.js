@@ -208,6 +208,9 @@ vec3 pools(vec2 p) {
 // The sheens on the tube round the cover: silver's half-width (as a share of the tube's width)
 // and strength, then the same for the album-coloured one.
 const vec4 SHEEN = vec4(.21, .8, .3, .8);
+// The inner face of the pocket's wall on the left: how far it reaches beyond the wall, how dark
+// it is, and how bright the line that closes it.
+const vec3 WALL_L = vec3(12., .6, .6);
 // How much of the room's soft light is taken out of the tube between its sheens.
 const float TUBE_CLEAR = .5;
 
@@ -685,6 +688,30 @@ void main() {
         float hB = 3.4 * smoothstep(.55, .98, nP.x) - .6;
         float eB = abs(dT - (POCKET.y + 3.)) - hB;
         col += vec3(.9, .94, 1.) * .5 * smoothstep(.8, -.8, eB) * (1. - tubeM) * born;
+
+        // Seen from the front and a little to the right, the pocket's wall on the left shows its
+        // whole inner face: a broad stretch of deep clear glass between the cover and the
+        // tube's crest, closed by a line of light along its upper edge. Widest level with the
+        // cover's middle; it narrows into the ordinary wall round the corners.
+        float faceL = smoothstep(.35, .92, -nP.x) * born;
+        float wallW = WALL_L.x * faceL;
+        float inWall = smoothstep(POCKET.y - 3., POCKET.y + 1., dT) * smoothstep(POCKET.y + wallW + 1., POCKET.y + wallW - 1.5, dT);
+        col *= 1. - WALL_L.y * inWall * faceL;
+        // (The line lives only along the straight of the side. Carried into the corners it left
+        // the wall and curled away from the cover like a wire.)
+        col += mix(vec3(1., .97, .94), hotA, .35) * WALL_L.z * exp(-pow((dT - POCKET.y - wallW) / 1.5, 2.)) * smoothstep(.82, .975, -nP.x) * born;
+
+        // The floor's light does not stop where the tube does: it runs on along the inside of
+        // the bulb's lower edge toward the waist, as a blade that thins to a point.
+        float run = smoothstep(52., 78., gapIn + gapT) * smoothstep(400., 250., pw.x) * born * (1. - clamp(calm, 0., 1.));
+        float hE = 6.5 * faceC * smoothstep(400., 290., pw.x) - 1.;
+        float eE = abs(gapIn - 19.) - hE;
+        col += hotA * .5 * (.35 + .65 * smoothstep(hE, -hE, gapIn - 19.)) * smoothstep(.9, -.9, eE) * run;
+
+        // And the outline's left side carries a fine line of the album's colour warmed toward
+        // copper, just inside the silhouette: the floor's light caught in the edge of the glass.
+        float faceW = smoothstep(.15, .8, -nO.x) * smoothstep(330., 250., pw.x) * born;
+        col += mix(hotA, vec3(1., .78, .6), .45) * .5 * exp(-pow((gapIn - 2.6) / 1.2, 2.)) * faceW;
       }
     }
 

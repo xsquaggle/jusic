@@ -201,6 +201,15 @@ The owner asked for the pocket to be as deep and as crisp as the main reference'
 - **Still short of the reference:** their pocket wall on the left is wide, deep and clear, ours narrow; their coral reflection fills the bulb's lower half and carries on along the lower edge, ours stops at the tube; their outer rim has a copper line all the way round the left; the silver sheen's graded side is still a soft fade where theirs has a second edge.
 - **Again opaque base only** (the owner was at the only screen): the refracting shots, `test=passthrough`, `test=media` and `test=gpu` are owed for rounds 22 and 23 together.
 
+## What round 24 changed (item 9: the wall on the left of the cover, the lower edge, the rim)
+
+- **The pocket's wall on the left shows its inner face** (`WALL_L`): a stretch of deep dark glass 12 units wide between the cover's left edge and the tube, closed by a line of light along the straight of the side. (The first try carried that line round the corners, where it left the wall and curled away like a wire; it now lives only along the straight.)
+- **The floor's light runs on along the inside of the bulb's lower edge** beyond the tube, toward the waist, as a blade that thins to a point.
+- **A fine copper line just inside the silhouette on the bulb's left side.**
+- Seen refracting in the real window over dark, white and colourful windows (second monitor), as the opaque base, and with real covers (white, blue, pink, near black): holds on all (`mercury-still-round24.png`).
+- **Honest verdict: a small step.** Still short of the reference: their wall on the left is twice as wide again and one sees the cover's edge turned up in it; their silver sheen is one continuous ribbon from the left side round to the top, ours is two pieces; their lower half is a single broad coral reflection with a hard upper edge, ours is still bands; and their whole bulb reads as a thick ring of glass with a hollow middle, where ours reads as a dome with a tile set in it. That last one is the form itself (`base()`: the tube is 7 high and the body carries on at nearly the same height), and is the next thing to change.
+- **The window tests owed since round 22 were run with this round**, on the second monitor: `test=passthrough` 8 of 8; `test=media` 15 of 15; `test=gpu dsf=1.25`, refracting, at 120 Hz with the card in use by other things (20 to 39%): 1.89% idle and 6.84% playing (1.86% and 7.9% in round 20), nothing while hidden.
+
 ## What changed on 14 November 2026 at the owner's word (the cursor's light; item 12 in part)
 
 - The owner found the light round the cursor "far too bright ... essentially completely white" and the title hard to read under it. Its core is now .55 (was 3.2) and its soft light .12 (was .2), it lies under the words, and words turn dark where it is bright behind them (`CURSOR_LIGHT`, `WORD_FLIP`). `mercury-cursor-light.png` shows before and after.
