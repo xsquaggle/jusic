@@ -11,11 +11,15 @@
  *   npx electron tools/widget-proto/main.js test=passthrough   check that the window lets the mouse through outside the
  *                                                           shape and takes it inside, without touching the real mouse
  *   npx electron tools/widget-proto/main.js test=gpu           GPU load idle, playing and hidden (see gpu-test.js)
- *   refract=live                                            experiment: the body bends what is really behind the window.
- *                                                           The window is left out of screen captures and the page is given
- *                                                           a capture of the monitor it is on. Works with shots= and test=gpu.
+ *   refract=off                                             Refraction is the widget's look and is on unless this is given: the
+ *                                                           body bends what is really behind the window. The window is left
+ *                                                           out of screen captures and the page is given a capture of the
+ *                                                           monitor it is on. Off, the body is the nearly opaque dark glass
+ *                                                           that is the base, and the widget shows in screenshots again. The
+ *                                                           tray menu switches it while it runs.
  *                                                           rfps=N capture rate (30), rmax=N the capture's longest side.
- *   glass=0.88                                              the alternative: a nearly opaque body, nothing captured
+ *   glass=0.88                                              an old alternative: a body with a floor on its opacity, nothing
+ *                                                           captured (implies refract=off)
  *   display=primary|other                                   which monitor (shots and tests default to the other one, to
  *                                                           stay out of the way of whatever is on the main screen)
  */
@@ -30,9 +34,11 @@ const args = Object.fromEntries(process.argv.slice(2).filter((a) => a.includes('
 const SIZE = Number(args.size) || 1;
 const SHOTS = args.shots ? path.resolve(args.shots) : null;
 const TEST = args.test || null;
-const REFRACT = args.refract || null;
+// Refraction is the look (the owner's decision, 13 November 2026): on unless refract=off, or glass= is being tried.
+const REFRACT = args.refract === 'off' || (args.glass && !args.refract) ? null : (args.refract || 'live');
 // Options that are simply handed on to the page.
-const PAGE_OPTIONS = ['refract', 'rfps', 'rmax', 'glass'].filter((k) => args[k]).map((k) => `&${k}=${encodeURIComponent(args[k])}`).join('');
+const PAGE_OPTIONS = (REFRACT ? `&refract=${encodeURIComponent(REFRACT)}` : '')
+  + ['rfps', 'rmax', 'glass'].filter((k) => args[k]).map((k) => `&${k}=${encodeURIComponent(args[k])}`).join('');
 // Draw at a given display scale wherever the window is (the main monitor is 125%).
 if (args.dsf) app.commandLine.appendSwitch('force-device-scale-factor', args.dsf);
 const PORT = 5190;
@@ -109,6 +115,7 @@ function createWidget({ query = 'play', x, y } = {}) {
     widget.setContentProtection(true);
     widget.on('move', sendPlacement);
   }
+  refracting = Boolean(REFRACT);
   widget.webContents.on('console-message', (event) => {
     if (event.level === 'error') console.log('page error: ' + event.message);
   });
@@ -118,6 +125,27 @@ function createWidget({ query = 'play', x, y } = {}) {
 /* -------------------------------------------------------------- refraction --- */
 
 let screenSources = null;      // display id -> capture source id
+let refracting = false;        // whether the window is refracting now (the tray menu switches it)
+
+/**
+ * The switch. With refraction on the widget is in no screenshot, recording or screen share, so
+ * the owner needs a way to turn it off. Off: the page stops the capture and lets the refraction
+ * ease out to the opaque body, and only then is the window let back into captures, so it never
+ * bends a picture of itself. On: the other way round.
+ */
+async function setRefracting(on) {
+  if (!widget || widget.isDestroyed() || on === refracting) return;
+  refracting = on;
+  if (on) {
+    widget.setContentProtection(true);
+    await sleep(300);
+    widget.webContents.send('widget:refract', true);
+  } else {
+    widget.webContents.send('widget:refract', false);
+    await sleep(1200);
+    if (!refracting && !widget.isDestroyed()) widget.setContentProtection(false);
+  }
+}
 
 /** Which capture shows what is behind the widget, and where the widget sits on that screen. */
 async function placement() {
@@ -355,6 +383,10 @@ app.whenReady().then(async () => {
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: 'Mercury prototype', enabled: false },
     { type: 'separator' },
+    ...(REFRACT ? [{
+      label: 'Refraction (off: the widget shows in screenshots)', type: 'checkbox', checked: true,
+      click: (item) => setRefracting(item.checked),
+    }] : []),
     { label: 'Quit', click: () => app.quit() },
   ]));
 });

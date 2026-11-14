@@ -9,10 +9,12 @@ contextBridge.exposeInMainWorld('widgetHost', {
   drag: (phase) => ipcRenderer.send('widget:drag', String(phase)),
   close: () => ipcRenderer.send('widget:close'),
   /**
-   * Refraction experiment. Resolves with which screen capture shows what is behind the window and
+   * Refraction. Resolves with which screen capture shows what is behind the window and
    * where the window sits on that screen: { sourceId, window: {x, y, width, height}, display: {...} }.
    */
   backdropSource: () => ipcRenderer.invoke('widget:backdrop'),
   /** Called with the same thing again whenever the window moves. */
   onPlacement: (fn) => { ipcRenderer.on('widget:placement', (event, placement) => fn(placement)); },
+  /** Called with false when refraction is switched off from the tray menu, true when it is switched back on. */
+  onRefract: (fn) => { ipcRenderer.on('widget:refract', (event, on) => fn(Boolean(on))); },
 });

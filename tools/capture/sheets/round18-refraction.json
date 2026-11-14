@@ -1,0 +1,10 @@
+{ "out": "design/captures/mercury-still-round18-refraction.png", "width": 1616,
+  "title": "Mercury round 18: live refraction as the look, photographed from the screen in the real widget window (generated test cover, the tool's own backdrops)",
+  "rows": [
+  [ { "label": "reference: widget-mercury.png", "src": "design/references/widget-mercury.png", "crop": [0, 110, 1586, 797] },
+    { "label": "round 18, refracting: dark window behind", "src": "design/captures/raw/round18-refract-b/window-dark.png", "crop": [12, 12, 936, 456] } ],
+  [ { "label": "round 18, refracting: near-white window with words behind", "src": "design/captures/raw/round18-refract-b/window-light.png", "crop": [12, 12, 936, 456] },
+    { "label": "before this round's tuning: the same window washed the body pale", "src": "design/captures/raw/round18-refract-a/window-light.png", "crop": [12, 12, 936, 456] } ],
+  [ { "label": "round 18, refracting: colourful window behind", "src": "design/captures/raw/round18-refract-b/window-busy.png", "crop": [12, 12, 936, 456] },
+    { "label": "round 18, refracting: bold stripes, where the bending shows most plainly", "src": "design/captures/raw/round18-refract-b/window-stripes.png", "crop": [12, 12, 936, 456] } ]
+] }

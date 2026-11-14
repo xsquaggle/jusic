@@ -65,13 +65,14 @@ addEventListener('resize', layout);
 
 /* ------------------------------------------------------------- refraction --- */
 
-// Experiment, in the widget window only (?refract=live): bend what is really behind the window.
+// The widget's look, in the widget window only (?refract=live, which its shell gives by default):
+// bend what is really behind the window.
 // The window's host keeps it out of screen captures, so a capture of its monitor shows exactly
 // what it is covering. Frames are handed to the renderer as they arrive; it uploads the newest
 // one when it next draws. ?rfps=N sets the capture rate (30), ?rmax=N the capture's longest side.
 // ?glass=0.88 is the alternative being weighed against it: a nearly opaque body, no capture.
 const REFRACT = host && host.backdropSource ? params.get('refract') : null;
-const backdrop = { track: null, sourceId: null, placement: null, frames: 0, settings: null, error: null };
+const backdrop = { on: true, track: null, sourceId: null, placement: null, frames: 0, settings: null, error: null };
 mercury.backdrop.floor = Number(params.get('glass')) || 0;
 
 /** Tell the renderer where the stage sits inside the captured monitor. Everything is in the screen's own units. */
@@ -122,7 +123,13 @@ function stopBackdrop() {
 if (REFRACT) {
   host.onPlacement(placeBackdrop);
   // A hidden widget must cost nothing, so the capture stops with it.
-  document.addEventListener('visibilitychange', () => { if (document.hidden) stopBackdrop(); else startBackdrop(); });
+  document.addEventListener('visibilitychange', () => { if (document.hidden) stopBackdrop(); else if (backdrop.on) startBackdrop(); });
+  // The switch in the tray menu. Off: stop capturing and let the opaque body come back.
+  if (host.onRefract) host.onRefract((on) => {
+    backdrop.on = on;
+    if (on) { if (!document.hidden) startBackdrop(); } else { stopBackdrop(); mercury.setBackdropFrame(null); }
+    wake();
+  });
 }
 
 /* ----------------------------------------------------------------- player --- */

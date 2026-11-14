@@ -111,6 +111,9 @@ vec3 behind(vec2 q, float blur) {
   return pow(c / 12., vec3(2.2));
 }
 
+// What smoked glass lets through of it: nearly all of a dim thing, under a third of a white one.
+vec3 smoked(vec3 c) { return c / (1. + 2.2 * dot(c, vec3(.2126, .7152, .0722))); }
+
 /* ---------------------------------------------------------- deformation --- */
 
 // The whole body squashes around a press, shears against a drag, and jumps a
@@ -562,16 +565,19 @@ void main() {
            * (1. - clamp(calm, 0., 1.)) * (1. - .7 * podIn) * born;
     }
 
-    // Refraction (experiment): the body holds back everything behind the window, and shows
-    // instead what a capture says is there, bent the way the surface above it slopes (a drop
-    // magnifies), blurred, and dimmed to smoked glass. Calm and dimmest where words sit.
+    // Refraction, the widget's look: the body holds back everything behind the window, and
+    // shows instead what a capture says is there, bent the way the surface above it slopes (a
+    // drop magnifies), blurred, and dimmed to smoked glass. Calm and dimmest where words sit.
+    // Smoked glass takes more out of a bright thing than a dim one (smoked()): a white page
+    // behind it comes through as a grey the white words still stand on, and a dark desktop
+    // keeps what little light it has.
     if (uBackPx.y > 0.) {
       vec2 lens = clamp(slopeB, -1.6, 1.6) * 28. + clamp(slopeD, -1.5, 1.5) * 10.;
       float rimward = smoothstep(.2, 1., length(slopeB));
-      float soft = mix(mix(5., 1.5, rimward), 11., still);
-      float clear = clamp(.5 - .1 * depth - .26 * pl.x - .12 * pl.y - .2 * pl.z
-                          - .16 * podIn - .25 * dyeAmt, .07, .6) * (1. - .8 * lensMask);
-      col += behind(pw + lens, soft) * vec3(.9, .94, 1.) * (1. - F) * clear * uBackPx.y;
+      float soft = mix(mix(5., 1.5, rimward), 12., still);
+      float clear = clamp(.5 + .12 * rimward - .1 * depth - .34 * pl.x - .16 * pl.y - .24 * pl.z
+                          - .16 * podIn - .25 * dyeAmt, .06, .62) * (1. - .8 * lensMask);
+      col += smoked(behind(pw + lens, soft)) * vec3(.9, .94, 1.) * (1. - F) * clear * uBackPx.y;
     }
 
     // No rim is drawn. The edge is lit only by what its roll mirrors, so it is bright where
@@ -720,8 +726,8 @@ void main() {
     vec3 wall = env(Rw) * Fw + (uPalC * .06 + dyeW * .4) * (1. - Fw);
     wall *= 1. - .35 * wt;                                                           // falling into shadow lower down
     float wallGlass = .9 + .07 * wt;
-    // Refraction (experiment): through the side of the drop, what is behind is drawn far up under the top face.
-    if (uBackPx.y > 0.) wall += behind(pw - normalize(uWall) * 22. * (1. - .5 * wt), 4.5) * vec3(.9, .94, 1.) * (1. - wallGlass) * .8 * uBackPx.y;
+    // Refraction: through the side of the drop, what is behind is drawn far up under the top face.
+    if (uBackPx.y > 0.) wall += smoked(behind(pw - normalize(uWall) * 22. * (1. - .5 * wt), 4.5)) * vec3(.9, .94, 1.) * (1. - wallGlass) * 1.6 * uBackPx.y;
     col = mix(wall, col, covTop);
     glass = mix(wallGlass, glass, covTop);
   }
