@@ -210,6 +210,34 @@ The owner asked for the pocket to be as deep and as crisp as the main reference'
 - **Honest verdict: a small step.** Still short of the reference: their wall on the left is twice as wide again and one sees the cover's edge turned up in it; their silver sheen is one continuous ribbon from the left side round to the top, ours is two pieces; their lower half is a single broad coral reflection with a hard upper edge, ours is still bands; and their whole bulb reads as a thick ring of glass with a hollow middle, where ours reads as a dome with a tile set in it. That last one is the form itself (`base()`: the tube is 7 high and the body carries on at nearly the same height), and is the next thing to change.
 - **The window tests owed since round 22 were run with this round**, on the second monitor: `test=passthrough` 8 of 8; `test=media` 15 of 15; `test=gpu dsf=1.25`, refracting, at 120 Hz with the card in use by other things (20 to 39%): 1.89% idle and 6.84% playing (1.86% and 7.9% in round 20), nothing while hidden.
 
+## Measured on 14 November 2026: where the light lies in the ring of glass round the cover
+
+Rounds 22 to 24 were judged by eye and moved slowly. `npx electron tools/capture/ring-profile.js shot=<a dark shot>` now reads both pictures (no window): from the cover's middle along five rays, the brightness from the cover's edge (`:`) to the silhouette (`|`) as digits 0 to 9, stretched to the same 30 columns in both, then how warm the light is, and the ring's width along the ray in stage units. Round 24 against the reference:
+
+```
+up         ref   30  :444444444444555555544555555445|   warm :222222222222211111112233210111|
+up         ours  29  :676433356777777888987543332222|   warm :111111000000000000000000000000|
+up-left    ref   23  :455544589999999999998878744432|   warm :122211100000000000000000001111|
+up-left    ours   9  :888888899998888777666666665555|   warm :000000000000000000011111111111|
+left       ref   59  :555533344443332222222244333423|   warm :222221111111111111222221111112|
+left       ours  45  :236667532222246776778886666345|   warm :110010000000000000000000000012|
+down-left  ref   36  :247766555555555555556667788464|   warm :122124344443333333333332111011|
+down-left  ours  46  :111221125433321110001111111135|   warm :222222220111110000000001111122|
+down       ref   68  :433222222221246422222222432213|   warm :211111111111100111111111331103|
+down       ours  80  :112343576311346544444455441112|   warm :333332001111221222222222221112|
+```
+
+What it says, by the clock:
+
+- **10 to 11 o'clock (up-left): the reference's key light.** One thick white streak (9s, no warmth) across the middle half of the ring, with a hard inner edge. Ours has no room for it: the cover's corner comes within 9 units of the silhouette where the reference has 23.
+- **12 o'clock (up): the reference is an even, slightly pink mid-tone** (4 to 5) from the cover to the silhouette. Ours has a bright silver band in the middle (7 to 9) and a dark outer third.
+- **9 o'clock (left): the reference is dark clear glass in its outer half** (2s), lighter toward the cover (5 at the wall, where the cover's own colours show), with only a thin line at the rim. Ours is the opposite: dark by the cover and a broad bright silver band (6 to 8) over the outer half. Our silver is in the wrong place.
+- **7 to 8 o'clock (down-left): the reference's brightest warm area**, filled with the album's colour from the cover to the rim (5 to 8, warmth 3 to 4), hottest near the rim. Ours is nearly black there (1s).
+- **6 o'clock (down): the reference is mostly dark** with one modest streak of colour close to the rim. Ours carries its band of colour in the middle of the ring.
+- **Widths:** the reference's cover sits about 10 units further right and a few lower in its bulb than ours (left 59 against 45, up-left 23 against 9, down 68 against 80); their title starts 30 units from the cover's edge, ours 38.
+
+So the next rounds re-aim the light to these numbers and move the cover, and each is checked with the tool before anyone looks at a picture.
+
 ## What changed on 14 November 2026 at the owner's word (the cursor's light; item 12 in part)
 
 - The owner found the light round the cursor "far too bright ... essentially completely white" and the title hard to read under it. Its core is now .55 (was 3.2) and its soft light .12 (was .2), it lies under the words, and words turn dark where it is bright behind them (`CURSOR_LIGHT`, `WORD_FLIP`). `mercury-cursor-light.png` shows before and after.
