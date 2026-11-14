@@ -1,0 +1,14 @@
+{ "out": "design/captures/mercury-still-round26.png", "width": 1616,
+  "title": "Mercury still, round 26: crisp lines in the ring: a ribbon of light under the cover with shade beside it, three fine lines in the rim (generated test cover)",
+  "rows": [
+  [ { "label": "reference: widget-mercury.png", "src": "design/references/widget-mercury.png", "crop": [0, 110, 1586, 797] },
+    { "label": "round 26, refracting in the real window: dark window behind", "src": "design/captures/raw/round26-refract/window-dark.png", "crop": [12, 12, 936, 456] } ],
+  [ { "label": "round 26, refracting: white window with words behind", "src": "design/captures/raw/round26-refract/window-light.png", "crop": [12, 12, 936, 456] },
+    { "label": "round 26, refracting: colourful window behind", "src": "design/captures/raw/round26-refract/window-busy.png", "crop": [12, 12, 936, 456] } ],
+  [ { "label": "round 26, the opaque base: dark desktop", "src": "design/captures/raw/round26/dark.png", "crop": [90, 50, 1022, 513] },
+    { "label": "round 25, before: dark desktop", "src": "design/captures/raw/round25/dark.png", "crop": [90, 50, 1022, 513] } ],
+  [ { "label": "reference: the bulb", "src": "design/references/widget-mercury.png", "crop": [20, 190, 640, 590] },
+    { "label": "round 26: the bulb (opaque)", "src": "design/captures/raw/round26/dark.png", "crop": [105, 75, 420, 387] } ],
+  [ { "label": "round 25, before: the bulb (opaque)", "src": "design/captures/raw/round25/dark.png", "crop": [105, 75, 420, 387] },
+    { "label": "round 26, refracting, dark window behind: the bulb", "src": "design/captures/raw/round26-refract/window-dark.png", "crop": [95, 85, 330, 315] } ]
+] }
