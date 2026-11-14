@@ -56,7 +56,8 @@ export const L = {
   // The cover is a glass tile lying in the bulb, inside its rim all the way round. It presses
   // into the liquid, and it leans back: its far (upper) edge is drawn a little narrower and
   // the whole a little shorter, as a slab seen from in front and above.
-  cover: { c: [180, 170], half: 74, r: 19, rot: -0.07, lean: 0.0012, squash: 0.965 },
+  // (Its place in the bulb is the main reference's, measured: tools/capture/ring-profile.js.)
+  cover: { c: [188, 175], half: 74, r: 19, rot: -0.07, lean: 0.0012, squash: 0.965 },
   // The hollow it presses: how deep, how far out the liquid starts to sink toward it, and how
   // high what it pushes aside stands up beyond that.
   press: { d: 4, w: 24, swell: 0 },

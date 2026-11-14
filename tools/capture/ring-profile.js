@@ -37,8 +37,8 @@ const PAD = 4;          // ...and this many more before and after
 const REF = { file: 'design/references/widget-mercury.png', c: [305, 419], half: 150, corner: 40, unit: 2.03,
   // roughly where the silhouette is along each ray, in px from the cover's middle; refined below
   out: { 90: 210, 135: 250, 180: 262, 225: 275, 258: 312 } };
-// Ours, from shape.js: the shot is 960 CSS px wide with the stage 50, 40 in.
-const OURS = { cover: [180, 170], half: 74, corner: 19, squash: 0.965, bulb: [186, 197], r: 128 };
+// Ours comes from shape.js when the tool starts: the shot is 960 CSS px wide with the stage 50, 40 in.
+let OURS = null;
 
 function load(file) {
   const img = nativeImage.createFromPath(path.resolve(REPO, file));
@@ -94,7 +94,9 @@ function profile(img, c, deg, from, to) {
   return { lum, warm };
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  const { L, tileSdf } = await import(require('url').pathToFileURL(path.join(REPO, 'prototypes', 'mercury', 'shape.js')).href);
+  OURS = { cover: L.cover.c, half: L.cover.half, corner: L.cover.r, squash: L.cover.squash, bulb: L.lobeL.c, r: L.lobeL.r };
   const shot = args.shot || 'design/captures/raw/round24/dark.png';
   const ref = load(REF.file), ours = load(shot);
   const k = ours.width / 960;
@@ -108,7 +110,9 @@ app.whenReady().then(() => {
     const a = profile(ref, REF.c, ray.a, rFrom, rTo);
     // ours: out of the cover, and out of the bulb's circle
     const [ux, uy] = dir(ray.a);
-    const oFrom = coverEdge(ray.a, OURS.half, OURS.half * OURS.squash, OURS.corner);
+    let lo = 0, hi = 3 * OURS.half;
+    for (let i = 0; i < 40; i++) { const m = (lo + hi) / 2; if (tileSdf(OURS.cover[0] + ux * m, OURS.cover[1] + uy * m) < 0) lo = m; else hi = m; }
+    const oFrom = lo;
     const ox = OURS.cover[0] - OURS.bulb[0], oy = OURS.cover[1] - OURS.bulb[1];
     const bq = ox * ux + oy * uy;
     const oTo = -bq + Math.sqrt(Math.max(bq * bq - (ox * ox + oy * oy - OURS.r * OURS.r), 0));

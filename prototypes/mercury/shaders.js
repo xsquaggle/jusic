@@ -205,14 +205,19 @@ vec3 pools(vec2 p) {
 
 /* ---------------------------------------------------------------- height --- */
 
-// The sheens on the tube round the cover: silver's half-width (as a share of the tube's width)
-// and strength, then the same for the album-coloured one.
-const vec4 SHEEN = vec4(.21, .8, .3, .8);
+// The key lamp in the ring round the cover: it shows where the outline faces up and to the left
+// by more than x, fully from y; its half-width as a share of the ring's width; its strength.
+const vec4 RING_KEY = vec4(.84, .975, .25, 1.);
+// The floor's light in the ring, down and to the left: from x, fully from y; how bright the
+// album's colour is there. (w is spare.)
+const vec4 RING_FLOOR = vec4(.8, .97, .78, 0.);
+// The soft light at the top of the ring.
+const float RING_TOP = .15;
 // The inner face of the pocket's wall on the left: how far it reaches beyond the wall, how dark
 // it is, and how bright the line that closes it.
-const vec3 WALL_L = vec3(12., .6, .6);
+const vec3 WALL_L = vec3(12., .32, 0.);
 // How much of the room's soft light is taken out of the tube between its sheens.
-const float TUBE_CLEAR = .5;
+const float TUBE_CLEAR = .6;
 
 // How high the tube of glass between the bulb's outline and the cover's pocket is crowned.
 const float TUBE_H = 7.;
@@ -649,10 +654,14 @@ void main() {
       float floorP = max(dot(nP, vec2(.5, .86)), 0.);
       col += (vec3(1., .98, .95) * 1.5 * pow(towardP, 3.) + hotA * .9 * pow(floorP, 4.)) * glintP * born;
 
-      // Sheens with edges. A lamp mirrored in a tube of glass is a shape, not a glow: a band
-      // lying along the tube that is cut clean on both sides, swells where the tube faces the
-      // lamp, thins as it turns away and comes to a point. One in silver on the side toward the
-      // lamps, one in the album's colour on the side toward the floor's light.
+      // The light in the ring of glass round the cover, laid out by the clock as it lies in the
+      // main reference (measured there: tools/capture/ring-profile.js). A lamp mirrored in a tube
+      // of glass is a shape, not a glow, and each part of the ring faces something different:
+      //   10 to 11 o'clock  the key lamp: one thick white streak with a hard edge
+      //   12 o'clock        no lamp: an even soft light through the glass
+      //   9 o'clock         nothing: dark, clear glass
+      //   7 to 8 o'clock    the floor's light, filling the ring with the album's colour
+      //   6 o'clock         dark, with one streak of that colour close to the rim
       {
         float gapIn = max(-d, 0.), gapT = max(dT, 0.);
         float wT = max(gapIn + gapT, 20.);
@@ -661,27 +670,33 @@ void main() {
         vec2 gO = vec2(outline(pw + vec2(1.5, 0.)) - d, outline(pw + vec2(0., 1.5)) - d) / 1.5;
         vec2 nO = gO / max(length(gO), 1e-3);
         float aa = .9 / wT;
-        float faceS = smoothstep(.3, .96, dot(nO, vec2(-.64, -.77)));
-        float hS = SHEEN.x * faceS - .03;
-        float eS = abs(uu - .6) - hS;
-        float silver = smoothstep(aa, -aa, eS);
-        float faceC = smoothstep(.3, .97, dot(nO, vec2(.22, .975)));
-        float hC = SHEEN.z * faceC - .03;
-        float eC = abs(uu - .5) - hC;
-        float coral = smoothstep(aa, -aa, eC);
-        // Clear glass: between its reflections the tube is dark, not milky. What it had picked
-        // up from the room's soft light is taken down wherever no sheen lies.
-        col *= 1. - TUBE_CLEAR * tubeS * (1. - silver) * (1. - coral);
-        col += vec3(.9, .94, 1.) * SHEEN.y * (.22 + .78 * pow(smoothstep(-hS, hS, uu - .6), 1.6)) * silver * tubeS;
-        // A hot stroke inside the silver, close under its clean edge: the lamp's own tube seen
-        // in the panel. Thin, white, and shorter than the sheen it lies in.
-        float stroke = exp(-pow((uu - .6 - hS * .62) * wT / 1.5, 2.)) * smoothstep(.55, .9, faceS);
-        col += vec3(1., .98, .96) * 1.15 * stroke * tubeS;
-        // The floor's light is one large reflection under the cover, hottest at its middle.
-        float coreC = pow(faceC, 5.);
-        col += mix(hotA, vec3(1., .96, .93), .45 * coreC) * SHEEN.w * (.25 + .75 * pow(smoothstep(hC, -hC, uu - .5), 1.4)) * (.55 + .9 * coreC) * coral * tubeS;
-        float strokeC = exp(-pow((uu - .5 + hC * .6) * wT / 1.4, 2.)) * smoothstep(.6, .95, faceC);
-        col += mix(hotA, vec3(1.), .6) * 1.2 * strokeC * tubeS;
+        // How squarely the outline here faces up and to the left, up, and down and to the left.
+        float toUL = dot(nO, vec2(-.707, -.707)), toU = -nO.y, toDL = dot(nO, vec2(-.839, .545));
+
+        // The key lamp: across the middle of the ring, cut hard on the cover's side, with a
+        // softer skirt toward the rim. It ends short of 9 and short of 12.
+        float faceS = smoothstep(RING_KEY.x, RING_KEY.y, toUL);
+        // (Its width grows quickly from its ends, as the round end of a lamp's panel does. Growing
+        // evenly, the ends came out as long straight-sided arrowheads.)
+        float hS = RING_KEY.z * pow(faceS, .5) - .03;
+        float silver = smoothstep(-aa, aa, uu - (.47 - hS)) * smoothstep(.49 + 2.2 * hS, .47 + hS, uu) * smoothstep(-.02, .03, hS);
+        float skirt = 0.;
+        // The two soft lights turn on and off slowly round the ring. Laid on as flat fills with
+        // short ends they read as paint; glass shows light that swells and dies away.
+        float faceU = smoothstep(.2, .95, toU) * (1. - faceS);
+        float faceDL = smoothstep(RING_FLOOR.x, RING_FLOOR.y, toDL);
+
+        // Clear glass: wherever no light lies the ring is dark, not milky.
+        col *= 1. - TUBE_CLEAR * tubeS * (1. - silver) * (1. - .6 * faceU) * (1. - .8 * faceDL);
+        // 12 o'clock: an even soft light with a little of the album in it, a shade brighter toward the rim.
+        col += mix(vec3(.47, .48, .5), hotA, .25) * RING_TOP * (.75 + .25 * uu) * faceU * tubeS;
+        col += vec3(1., .99, .97) * RING_KEY.w * (silver + skirt) * tubeS;
+        // 7 to 8 o'clock, the floor's light: it rises toward the rim and is cut off hard just
+        // short of it, and it is bright again close by the cover's corner.
+        float hotRim = smoothstep(.5, .88, uu) * smoothstep(.9 + aa, .9 - aa, uu);
+        float hotIn = exp(-pow((uu - .09) / .07, 2.));
+        col += (mix(hotA, hotA * hotA * 1.2, .45) * RING_FLOOR.z * (.6 + .55 * hotRim + .4 * hotIn) + vec3(.22) * hotRim) * faceDL * tubeS;
+        float faceC = smoothstep(.3, .97, dot(nO, vec2(.22, .975)));      // facing the floor, for the lower edge below
 
         // The bank to the right of the cover, where the body goes on: one crescent of light on
         // its crest, widest level with the cover's middle and pointed at both ends.
@@ -693,7 +708,7 @@ void main() {
         // whole inner face: a broad stretch of deep clear glass between the cover and the
         // tube's crest, closed by a line of light along its upper edge. Widest level with the
         // cover's middle; it narrows into the ordinary wall round the corners.
-        float faceL = smoothstep(.35, .92, -nP.x) * born;
+        float faceL = smoothstep(.35, .92, -nP.x) * smoothstep(.35, -.15, nP.y) * born;
         float wallW = WALL_L.x * faceL;
         float inWall = smoothstep(POCKET.y - 3., POCKET.y + 1., dT) * smoothstep(POCKET.y + wallW + 1., POCKET.y + wallW - 1.5, dT);
         col *= 1. - WALL_L.y * inWall * faceL;
@@ -704,9 +719,9 @@ void main() {
         // The floor's light does not stop where the tube does: it runs on along the inside of
         // the bulb's lower edge toward the waist, as a blade that thins to a point.
         float run = smoothstep(52., 78., gapIn + gapT) * smoothstep(400., 250., pw.x) * born * (1. - clamp(calm, 0., 1.));
-        float hE = 6.5 * faceC * smoothstep(400., 290., pw.x) - 1.;
-        float eE = abs(gapIn - 19.) - hE;
-        col += hotA * .5 * (.35 + .65 * smoothstep(hE, -hE, gapIn - 19.)) * smoothstep(.9, -.9, eE) * run;
+        float hE = 5. * faceC * smoothstep(400., 290., pw.x) - 1.;
+        float eE = abs(gapIn - 13.) - hE;
+        col += hotA * .5 * (.35 + .65 * smoothstep(hE, -hE, gapIn - 13.)) * smoothstep(.9, -.9, eE) * run;
 
         // And the outline's left side carries a fine line of the album's colour warmed toward
         // copper, just inside the silhouette: the floor's light caught in the edge of the glass.

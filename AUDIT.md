@@ -238,6 +238,36 @@ What it says, by the clock:
 
 So the next rounds re-aim the light to these numbers and move the cover, and each is checked with the tool before anyone looks at a picture.
 
+## What round 25 changed (item 9: the ring's light laid out as measured)
+
+- **The cover sits 8 units further right and 5 lower in the bulb** (`cover.c` in `shape.js`, now 188, 175), as the reference's does: there is glass round its upper left corner now, and the title starts 30 units from its edge as theirs does.
+- **The light in the ring is laid out by the clock, to the measurements** (the block beginning "The light in the ring of glass round the cover" in `shaders.js`; `RING_KEY`, `RING_FLOOR`, `RING_TOP`):
+  - 10 to 11 o'clock: the key lamp, one thick white streak across the middle of the ring, hard on the cover's side, softer toward the rim, with round ends. It replaces the silver band that ran from 8:30 to 1 o'clock.
+  - 12 o'clock: an even soft light with a little of the album's colour in it.
+  - 9 o'clock: nothing; dark clear glass (`TUBE_CLEAR` is .6).
+  - 7 to 8 o'clock: the floor's light, the album's colour filling the ring from the cover to the rim, rising toward the rim and cut off hard just short of it.
+  - 6 o'clock: dark; the blade of colour along the lower edge sits closer to the rim.
+- The first try laid these on as flat fills with short ends, which matched the numbers and looked like paint. They are soft lights that swell and die away round the ring, with the crisp streaks on top. The lesson: the tool judges where the light is and how bright; the picture judges whether it is glass.
+- The line of light that closed the wall's inner face on the left is gone (it read as a wire), and that face is lighter (`WALL_L`).
+- Measured after the round (the tool now finds our cover's edge with `shape.js`'s own `tileSdf`, since the tile leans and is wider at the bottom; the widths in the table above were taken with a plainer estimate):
+
+```
+up         ref   30  :444444444444555555544555555445|
+up         ours  40  :567777654456676555555555544333|
+up-left    ref   23  :455544589999999999998878744432|
+up-left    ours  27  :566777899999999989988888777665|
+left       ref   59  :555533344443332222222244333423|
+left       ours  54  :136466322232322221111111145535|
+down-left  ref   36  :247766555555555555556667788464|
+down-left  ours  42  :113676666554444444455566677777|
+down       ref   68  :433222222221246422222222432213|
+down       ours  68  :342566521111111111111111111113|
+```
+
+- Seen refracting in the real window over dark, white and colourful windows (second monitor), as the opaque base, and with real covers (white, blue, pink, near black): holds on all; the lower-left takes each album's colour (`mercury-still-round25.png`).
+- **Honest verdict: the largest step on the bulb since the pocket was made**, and the first that the numbers confirm. **Still short of the reference:** their light has hard edges nearly everywhere, with near-black glass right beside it, where ours has one hard-edged streak and soft light elsewhere; their rim carries several fine parallel lines of white and copper on the left and along the bottom, ours one; by the cover at 9 o'clock their glass is lighter (5 against our 1 to 3) and at 12 o'clock ours is brighter by the cover and darker at the rim than theirs; their streak of colour near the rim at 6 o'clock is missing; our ring is 10 units wider than theirs at the top.
+- `test=passthrough` 8 of 8 with the cover in its new place; `test=drag` passes.
+
 ## What changed on 14 November 2026 at the owner's word (the cursor's light; item 12 in part)
 
 - The owner found the light round the cursor "far too bright ... essentially completely white" and the title hard to read under it. Its core is now .55 (was 3.2) and its soft light .12 (was .2), it lies under the words, and words turn dark where it is bright behind them (`CURSOR_LIGHT`, `WORD_FLIP`). `mercury-cursor-light.png` shows before and after.
