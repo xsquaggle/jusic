@@ -1,0 +1,12 @@
+{ "out": "design/captures/mercury-still-round22.png", "width": 1616,
+  "title": "Mercury still, round 22: sheens with edges on the tube of glass round the cover (generated test cover; opaque base only)",
+  "rows": [
+  [ { "label": "reference: widget-mercury.png", "src": "design/references/widget-mercury.png", "crop": [0, 110, 1586, 797] },
+    { "label": "round 22: dark desktop", "src": "design/captures/raw/round22/dark.png", "crop": [90, 50, 1022, 513] } ],
+  [ { "label": "round 22: light wallpaper", "src": "design/captures/raw/round22/light.png", "crop": [90, 50, 1022, 513] },
+    { "label": "round 22: white window", "src": "design/captures/raw/round22/window.png", "crop": [90, 50, 1022, 513] } ],
+  [ { "label": "reference: the bulb", "src": "design/references/widget-mercury.png", "crop": [20, 190, 640, 590] },
+    { "label": "round 22: the bulb", "src": "design/captures/raw/round22/dark.png", "crop": [105, 75, 420, 387] } ],
+  [ { "label": "round 21, before: the bulb", "src": "design/captures/raw/round21/dark.png", "crop": [105, 75, 420, 387] },
+    { "label": "round 22: the bulb on a white window", "src": "design/captures/raw/round22/window.png", "crop": [105, 75, 420, 387] } ]
+] }

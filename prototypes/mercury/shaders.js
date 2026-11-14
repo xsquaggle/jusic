@@ -205,6 +205,10 @@ vec3 pools(vec2 p) {
 
 /* ---------------------------------------------------------------- height --- */
 
+// The sheens on the tube round the cover: silver's half-width (as a share of the tube's width)
+// and strength, then the same for the album-coloured one.
+const vec4 SHEEN = vec4(.21, .8, .24, .85);
+
 // How high the tube of glass between the bulb's outline and the cover's pocket is crowned.
 const float TUBE_H = 7.;
 
@@ -623,7 +627,7 @@ void main() {
       float tubeM = smoothstep(78., 52., max(-d, 0.) + max(dT, 0.));
       // Beyond the bank the glass lies in the bank's shade: the dark that the bright wall needs
       // beside it. Not in the tube, which is full and lit.
-      col *= 1. - .42 * (1. - tubeM) * smoothstep(POCKET.y + 1., POCKET.y + 9., dT) * smoothstep(POCKET.y + 34., POCKET.y + 12., dT) * born;
+      col *= 1. - .58 * (1. - tubeM) * smoothstep(POCKET.y + 4., POCKET.y + 10., dT) * smoothstep(POCKET.y + 34., POCKET.y + 12., dT) * born;
       float crest = exp(-pow((dT - POCKET.y * .7) / (POCKET.y * .26), 2.));
       col += mix(vec3(1., .97, .94), hotA, .3) * crest * (.1 + .4 * towardP) * born;
       // And on the very crest a glint, as a cut edge of glass has: hot and white where the
@@ -632,6 +636,34 @@ void main() {
       float glintP = exp(-pow((dT - POCKET.y * .8) / 1.25, 2.));
       float floorP = max(dot(nP, vec2(.5, .86)), 0.);
       col += (vec3(1., .98, .95) * 1.5 * pow(towardP, 3.) + hotA * .9 * pow(floorP, 4.)) * glintP * born;
+
+      // Sheens with edges. A lamp mirrored in a tube of glass is a shape, not a glow: a band
+      // lying along the tube that is cut clean on both sides, swells where the tube faces the
+      // lamp, thins as it turns away and comes to a point. One in silver on the side toward the
+      // lamps, one in the album's colour on the side toward the floor's light.
+      {
+        float gapIn = max(-d, 0.), gapT = max(dT, 0.);
+        float wT = max(gapIn + gapT, 20.);
+        float uu = gapT / wT;                                   // 0 at the pocket, 1 at the outline
+        float tubeS = smoothstep(78., 52., gapIn + gapT) * smoothstep(1., 5., dT) * born * (1. - clamp(calm, 0., 1.));
+        vec2 gO = vec2(outline(pw + vec2(1.5, 0.)) - d, outline(pw + vec2(0., 1.5)) - d) / 1.5;
+        vec2 nO = gO / max(length(gO), 1e-3);
+        float aa = .9 / wT;
+        float hS = SHEEN.x * smoothstep(.3, .96, dot(nO, vec2(-.64, -.77))) - .03;
+        float eS = abs(uu - .6) - hS;
+        float silver = smoothstep(aa, -aa, eS);
+        col += vec3(.9, .94, 1.) * SHEEN.y * (.22 + .78 * pow(smoothstep(-hS, hS, uu - .6), 1.6)) * silver * tubeS;
+        float hC = SHEEN.z * smoothstep(.35, .97, dot(nO, vec2(.22, .975))) - .03;
+        float eC = abs(uu - .52) - hC;
+        float coral = smoothstep(aa, -aa, eC);
+        col += hotA * SHEEN.w * (.2 + .8 * pow(smoothstep(hC, -hC, uu - .52), 1.6)) * coral * tubeS;
+
+        // The bank to the right of the cover, where the body goes on: one crescent of light on
+        // its crest, widest level with the cover's middle and pointed at both ends.
+        float hB = 3.4 * smoothstep(.55, .98, nP.x) - .6;
+        float eB = abs(dT - (POCKET.y + 3.)) - hB;
+        col += vec3(.9, .94, 1.) * .5 * smoothstep(.8, -.8, eB) * (1. - tubeM) * born;
+      }
     }
 
     // No rim is drawn. The edge is lit only by what its roll mirrors, so it is bright where
@@ -682,7 +714,7 @@ void main() {
       vec2 muv = inq - (tq0 - inq) * 2.2 + .5;
       vec3 seen = pow(mix(textureLod(uCoverA, muv, 2.5).rgb, textureLod(uCoverB, muv, 2.5).rgb, smoothstep(.3, .8, uTrans)), vec3(2.2));
       // (Held down for a bright picture: a white cover would otherwise turn its whole wall white and lose its own edge.)
-      col += seen / (1. + 1.6 * dot(seen, vec3(.2126, .7152, .0722))) * .5 * smoothstep(POCKET.y + 1., 1.5, dT) * smoothstep(-1., 2., dT) * born;
+      col += seen / (1. + 1.6 * dot(seen, vec3(.2126, .7152, .0722))) * .85 * smoothstep(POCKET.y + 1., 1.5, dT) * smoothstep(-1., 2., dT) * born;
     }
 
     /* ---- the spectral surface glowing through the fold ---- */

@@ -183,6 +183,15 @@ The owner asked for the pocket to be as deep and as crisp as the main reference'
 - **Still short of the reference:** their sheens are broad and have sharp ends (lamps with edges, mirrored crisply); ours are soft-ended glows. The bulb's lower half has no broad coral sheen like theirs. The bank to the right of the cover is a soft ring where theirs is one sharp crescent. The picture's colours are faint in the pocket's wall.
 - `test=passthrough` passes, 8 of 8. (The mouse pointer shows in this round's pictures of the real window, to the right of the widget: the owner's mouse had been moved onto that screen. It is outside the glass, so it does not yet answer whether a blurred double shows inside it.)
 
+## What round 22 changed (item 9 and item 1: light with edges on the tube round the cover)
+
+- **Two sheens with edges on the tube of glass between the bulb's outline and the cover** (`SHEEN` and the block "Sheens with edges" in the top-face part of `main`, `shaders.js`). Each is a band lying along the tube, cut clean on one side and graded on the other, that swells where the tube faces its light, thins as the tube turns away and comes to a point: silver on the side toward the lamps (upper left), the album's colour on the side toward the floor (below the cover). They are drawn as shapes in the tube's own coordinates (how far across it, which way its outline faces), not mirrored from the room: the tube's slopes are in `base()`, which is sampled wide, so a lamp mirrored there can never have an edge.
+- **The bank to the right of the cover** carries one pointed crescent of light, and the shade beyond it is deeper (.58, was .42) and starts further out.
+- **The picture's colours in the pocket's wall** are stronger (.85, was .5).
+- Seen on dark, light and white backdrops and with real covers (white, blue, pink, near black): it holds on all of them (`mercury-still-round22.png`; the bulb beside the reference's and beside round 21's).
+- **Honest verdict: a modest step.** The upper left of the bulb now has a broad silver sheen with a clean outer edge, and there is colour under the cover. **Still short of the reference:** their sheens are brighter and more of them (several thin hot strokes inside the broad one); their tube is clear, with dark showing through between the strokes, where ours is still a little milky; their pocket wall on the left is wide and deep; the lower half of their bulb is one large coral reflection with a hot core, ours a band.
+- **Not done this round, because the owner was at the only screen:** the photographs of the real refracting window, `test=passthrough`, `test=media`, `test=gpu`. The shader gained a few lines only in the tube. Run all four first next time.
+
 ## The gaps, worst first
 
 Line numbers are `prototypes/mercury/shaders.js` at commit `62869cb` unless another file is named. Items 1 and 3 were worked on in round 11; their line numbers are of historical interest only.
