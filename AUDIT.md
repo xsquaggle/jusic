@@ -318,6 +318,15 @@ What it says (words, the timeline and the buttons show as short bright runs in b
 - **Through the waist the two agree above** (a sheen across the upper third, dark below it); the reference's lower third is lit (3 to 4) where ours is dark.
 - The reference's drop is taller than ours through the title (163 units against 132) and between the cover and the title (229 against 202): it is in perspective and nearer the eye on the left; no change is meant by this.
 
+## What round 27 changed (items 1 and 4: dark glass between the cover and the title)
+
+- **To the right of the cover the glass is near black** (`WALL_R`): a little light at the cover's very edge, then the pocket's wall and the bank beyond it in deep shade, from level with the cover's upper third down. Read along a line from the cover's edge toward the title, level with the cover's middle, ours was `5665665544443444454432...` where the reference has `3344333222222222111111...`; it is now `5666654322222111111111...`. (The wall there faced the key lamp and mirrored it, and round 22 had laid a crescent of light on the bank: twenty units of bright glass where the reference has four. The crescent is gone.) Level with the cover's upper third the body's own even light is left alone, as the reference has it.
+- **The timeline's bead glows close** (its halo was 25 units across, three times the reference's).
+- `cut-profile.js` takes its cut through the title a quarter of the way along it, clear of the bead in both pictures; the first reading there had the bead's glow in it, and what was said above about the lower half through the title being too bright was mostly that.
+- Measured after the round: `gap` is `2332221111222211223444433452...` against the reference's `4344544222222221111122122576...` (it was `2333322233345543345556654663...`).
+- Seen refracting over dark, white and colourful windows, as the opaque base, and with real covers: holds on all (`mercury-still-round27.png`). `test=passthrough` 8 of 8.
+- **Next is the right lobe**, which is the furthest from the reference now. Side by side: theirs is warm and lit all through (the upper lip a clear pink sheet of glass, the three button bowls with glowing rims in the album's colour, the right end a thick curled lip with white and coral light and dark streaks in it); ours is grey and dark, with thin grey rims on the bowls and one thin line at the end.
+
 ## What changed on 14 November 2026 at the owner's word (the cursor's light; item 12 in part)
 
 - The owner found the light round the cursor "far too bright ... essentially completely white" and the title hard to read under it. Its core is now .55 (was 3.2) and its soft light .12 (was .2), it lies under the words, and words turn dark where it is bright behind them (`CURSOR_LIGHT`, `WORD_FLIP`). `mercury-cursor-light.png` shows before and after.

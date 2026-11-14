@@ -216,6 +216,8 @@ const vec4 RING_FLOOR = vec4(.8, .97, .78, 0.);
 const vec3 RIBBON = vec3(2.1, 1., .6);
 // The three fine lines in the rim, outermost first: how bright each is.
 const vec3 RIM = vec3(.6, .5, .6);
+// How deep the shade is on the pocket's wall and bank to the right of the cover.
+const float WALL_R = .66;
 // The soft light at the top of the ring.
 const float RING_TOP = .15;
 // The inner face of the pocket's wall on the left: how far it reaches beyond the wall, how dark
@@ -649,7 +651,7 @@ void main() {
       float tubeM = smoothstep(78., 52., max(-d, 0.) + max(dT, 0.));
       // Beyond the bank the glass lies in the bank's shade: the dark that the bright wall needs
       // beside it. Not in the tube, which is full and lit.
-      col *= 1. - .58 * (1. - tubeM) * smoothstep(POCKET.y + 4., POCKET.y + 10., dT) * smoothstep(POCKET.y + 34., POCKET.y + 12., dT) * born;
+      col *= 1. - .3 * (1. - tubeM) * smoothstep(POCKET.y + 4., POCKET.y + 10., dT) * smoothstep(POCKET.y + 34., POCKET.y + 12., dT) * born;
       float crest = exp(-pow((dT - POCKET.y * .7) / (POCKET.y * .26), 2.));
       col += mix(vec3(1., .97, .94), hotA, .3) * crest * (.1 + .4 * towardP) * born;
       // And on the very crest a glint, as a cut edge of glass has: hot and white where the
@@ -713,12 +715,6 @@ void main() {
         // with an edge next to it.
         // (Only under the lower edge. Round the corner the floor's light lies beside the ribbon, not shade.)
         col *= 1. - RIBBON.z * smoothstep(.8, -.8, abs(dT - POCKET.y * .8 - RIBBON.x * floorP * floorP - 2.2) - 1.6 * floorP) * smoothstep(.3, .7, floorP) * smoothstep(.7, .97, nP.y) * born;
-
-        // The bank to the right of the cover, where the body goes on: one crescent of light on
-        // its crest, widest level with the cover's middle and pointed at both ends.
-        float hB = 3.4 * smoothstep(.55, .98, nP.x) - .6;
-        float eB = abs(dT - (POCKET.y + 3.)) - hB;
-        col += vec3(.9, .94, 1.) * .5 * smoothstep(.8, -.8, eB) * (1. - tubeM) * born;
 
         // Seen from the front and a little to the right, the pocket's wall on the left shows its
         // whole inner face: a broad stretch of deep clear glass between the cover and the
@@ -803,6 +799,14 @@ void main() {
       vec3 seen = pow(mix(textureLod(uCoverA, muv, 2.5).rgb, textureLod(uCoverB, muv, 2.5).rgb, smoothstep(.3, .8, uTrans)), vec3(2.2));
       // (Held down for a bright picture: a white cover would otherwise turn its whole wall white and lose its own edge.)
       col += seen / (1. + 1.6 * dot(seen, vec3(.2126, .7152, .0722))) * .85 * smoothstep(POCKET.y + 1., 1.5, dT) * smoothstep(-1., 2., dT) * born;
+      // To the right of the cover the glass is near black, as it is in the reference between the
+      // cover and the title (measured: tools/capture/cut-profile.js): a little light at the
+      // cover's very edge, then the wall and the bank beyond it in deep shade. (The wall there
+      // faces the key lamp and mirrored it, and a crescent of light lay on the bank: twenty
+      // units of bright glass where the reference has four.)
+      // (Not level with the cover's upper third: there the body's upper flank carries its own even light.)
+      float rightOf = smoothstep(.5, .53, tq0.x) * smoothstep(.68, .5, tq0.y) * smoothstep(-.42, -.1, tq0.y);
+      col *= 1. - WALL_R * rightOf * smoothstep(2., 6., dT) * smoothstep(POCKET.y + 30., POCKET.y + 10., dT) * born;
     }
 
     /* ---- the spectral surface glowing through the fold ---- */
@@ -876,7 +880,8 @@ void main() {
     float db = length(bq * vec2(1. / (1. + .75 * abs(st)), 1. + .22 * abs(st)));
     float br = 6.4 * (1. + .55 * uSeek.y);
     emis += warmWhite * 2. * smoothstep(br + .8, br - .8, db);
-    emis += hotA * (.7 + .7 * uSeek.z + .5 * uAudio.w) * exp(-db * db / (2. * br * br * 4.5));
+    // (Its glow is kept close: at four and a half bead-widths it lit the glass for 25 units round it.)
+    emis += hotA * (.7 + .7 * uSeek.z + .5 * uAudio.w) * exp(-db * db / (2. * br * br * 1.8));
 
     /* ---- volume, along the lip ---- */
     float vx = mix(VOL_X.x, VOL_X.y, uVol.x);

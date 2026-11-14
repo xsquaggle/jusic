@@ -26,7 +26,7 @@ const COLS = 40;
 // make a stage unit at the bulb.
 const REF = { file: 'design/references/widget-mercury.png', unit: 2.03, cuts: {
   gap: { x: 476, top: 300, bottom: 742 },       // between the cover and the title
-  title: { x: 650, top: 392, bottom: 728 },     // through the middle of the title
+  title: { x: 582, top: 375, bottom: 735 },     // through the title a quarter of the way along it (clear of the timeline's bead in both pictures)
   waist: { x: 900, top: 405, bottom: 655 },     // between the title's end and the first button
   play: { x: 1237, top: 258, bottom: 662 },     // through the play button
   end: { x: 1470, top: 300, bottom: 600 },      // between the last button and the right end
@@ -79,7 +79,7 @@ app.whenReady().then(async () => {
   while (bodySdf(xEnd, b[2].c[1]) < 0) xEnd += 1;
   const X = {
     gap: (L.cover.c[0] + L.cover.half + L.title.x) / 2,
-    title: L.title.x + L.title.maxW / 2,
+    title: L.title.x + L.title.maxW / 4,
     waist: (titleEnd + b[0].c[0] - b[0].r) / 2,
     play: b[1].c[0],
     end: b[2].c[0] + 0.48 * (xEnd - b[2].c[0]),

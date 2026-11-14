@@ -1,0 +1,14 @@
+{ "out": "design/captures/mercury-still-round27.png", "width": 1616,
+  "title": "Mercury still, round 27: near-black glass between the cover and the title, as measured in the reference; the timeline's bead glows close (generated test cover)",
+  "rows": [
+  [ { "label": "reference: widget-mercury.png", "src": "design/references/widget-mercury.png", "crop": [0, 110, 1586, 797] },
+    { "label": "round 27, refracting in the real window: dark window behind", "src": "design/captures/raw/round27-refract/window-dark.png", "crop": [12, 12, 936, 456] } ],
+  [ { "label": "round 27, refracting: white window with words behind", "src": "design/captures/raw/round27-refract/window-light.png", "crop": [12, 12, 936, 456] },
+    { "label": "round 27, refracting: colourful window behind", "src": "design/captures/raw/round27-refract/window-busy.png", "crop": [12, 12, 936, 456] } ],
+  [ { "label": "round 27, the opaque base: dark desktop", "src": "design/captures/raw/round27/dark.png", "crop": [90, 50, 1022, 513] },
+    { "label": "round 26, before: dark desktop", "src": "design/captures/raw/round26/dark.png", "crop": [90, 50, 1022, 513] } ],
+  [ { "label": "reference: the cover and the title", "src": "design/references/widget-mercury.png", "crop": [20, 190, 900, 590] },
+    { "label": "round 27: the cover and the title (opaque)", "src": "design/captures/raw/round27/dark.png", "crop": [120, 100, 560, 367] } ],
+  [ { "label": "round 26, before", "src": "design/captures/raw/round26/dark.png", "crop": [120, 100, 560, 367] },
+    { "label": "round 27 on a white window", "src": "design/captures/raw/round27/window.png", "crop": [120, 100, 560, 367] } ]
+] }
