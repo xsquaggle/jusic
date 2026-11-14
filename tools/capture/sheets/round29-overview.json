@@ -1,0 +1,12 @@
+{ "out": "design/captures/mercury-still-round29.png", "width": 1616,
+  "title": "Mercury still, round 29: warm light. A copper line in the upper edge on the shoulders of the two lobes; the lamps a neutral white instead of a blue one (generated test cover)",
+  "rows": [
+  [ { "label": "reference: widget-mercury.png", "src": "design/references/widget-mercury.png", "crop": [0, 110, 1586, 797] },
+    { "label": "round 29, refracting in the real window: dark window behind", "src": "design/captures/raw/round29-refract/window-dark.png", "crop": [12, 12, 936, 456] } ],
+  [ { "label": "round 29, refracting: white window with words behind", "src": "design/captures/raw/round29-refract/window-light.png", "crop": [12, 12, 936, 456] },
+    { "label": "round 29, refracting: colourful window behind", "src": "design/captures/raw/round29-refract/window-busy.png", "crop": [12, 12, 936, 456] } ],
+  [ { "label": "round 29, the opaque base: dark desktop", "src": "design/captures/raw/round29/dark.png", "crop": [90, 50, 1022, 513] },
+    { "label": "round 28, before: dark desktop", "src": "design/captures/raw/round28/dark.png", "crop": [90, 50, 1022, 513] } ],
+  [ { "label": "round 29: light wallpaper", "src": "design/captures/raw/round29/light.png", "crop": [90, 50, 1022, 513] },
+    { "label": "round 24, where this session began: dark desktop", "src": "design/captures/raw/round24/dark.png", "crop": [90, 50, 1022, 513] } ]
+] }

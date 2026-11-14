@@ -222,6 +222,8 @@ const vec2 BTN_RIM = vec2(.75, .28);
 // from y; its half-width in units; its strength. And how bright the floor's light is there.
 const vec4 END_KEY = vec4(.72, .96, 5., .9);
 const float END_FLOOR = .7;
+// The copper line along the upper silhouette: how bright.
+const float RIM_TOP = .6;
 // How deep the shade is on the pocket's wall and bank to the right of the cover.
 const float WALL_R = .66;
 // The soft light at the top of the ring.
@@ -413,7 +415,7 @@ float softbox(vec3 r, vec3 dir, vec3 right, vec2 size, float soft) {
 // That is what makes a highlight swell, thin and vanish along a lip, where a room
 // that is evenly bright above and evenly coloured below draws a line of even width.
 vec3 env(vec3 r) {
-  vec3 warm = vec3(1., .955, .91), cool = vec3(.86, .93, 1.);
+  vec3 warm = vec3(1., .955, .91), cool = vec3(.93, .94, .97);     // (cool was .86, .93, 1.: bluer than anything in the reference)
   vec3 hot = mix(uPalA, vec3(1.), .16);
   vec3 c = vec3(.010, .011, .014);
 
@@ -793,10 +795,10 @@ void main() {
       vec2 dq = pw - uBtn[i].xy;
       float rho = length(dq), r = uBtn[i].z;
       vec2 nb = dq / max(rho, 1e-3);
-      float low = pow(max(dot(nb, vec2(-.5, .866)), 0.), 2.), high = pow(max(dot(nb, vec2(.6, -.8)), 0.), 3.);
+      float low = pow(max(dot(nb, vec2(-.5, .866)), 0.), 2.), high = pow(max(dot(nb, vec2(.9, -.44)), 0.), 3.);
       float big = (i == 1 ? 1.25 : 1.) * (1. + .6 * uBtn[i].w) * born;
       float ring = smoothstep(.8, -.5, abs(rho - (r - 1.4)) - .55);
-      col += mix(hotA, vec3(1.), .45) * BTN_RIM.x * big * ring * (.3 + .7 * max(low, high));
+      col += mix(hotA, vec3(1.), .45) * BTN_RIM.x * big * ring * (.18 + .82 * max(low, high));
       col += hotA * BTN_RIM.y * big * smoothstep(r - 11., r - 1.5, rho) * smoothstep(r + .5, r - 1.5, rho) * (.35 + .65 * low);
     }
 
@@ -816,6 +818,18 @@ void main() {
       col *= 1. - .5 * smoothstep(.8, -.8, abs(gapE - (13.5 + hK)) - 1.4) * smoothstep(.2, .6, faceE) * born;
       float faceF = smoothstep(.55, .95, dot(nE, vec2(.6, .8)));
       col += hotA * END_FLOOR * (.45 * smoothstep(30., 6., gapE) + .8 * smoothstep(.8, -.8, abs(gapE - 6.5) - 2.2 * faceF + .6)) * faceF * quietE;
+    }
+
+    // The upper silhouette carries a fine line of the album's colour warmed toward copper, just
+    // inside the edge: in the reference the drop's whole upper outline is warm (measured: the
+    // first columns of every cut), where ours was a cool white line or nothing. It swells on
+    // the shoulders of the two lobes and thins between them, and is worked out only at the edge.
+    if (-d < 8.) {
+      vec2 gR = vec2(outline(pw + vec2(1.5, 0.)) - d, outline(pw + vec2(0., 1.5)) - d) / 1.5;
+      float up = smoothstep(.15, .85, -gR.y / max(length(gR), 1e-3));
+      // (No floor under it: of even strength all the way it is an outline again, and item 1 of the audit was outlines.)
+      float swell = min(1., .12 + exp(-pow((pw.x - 250.) / 80., 2.)) + exp(-pow((pw.x - 590.) / 70., 2.)) + exp(-pow((pw.x - 760.) / 45., 2.)));
+      col += mix(hotA, vec3(1., .72, .5), .5) * RIM_TOP * smoothstep(.7, -.6, abs(-d - 2.4) - .9 * swell) * up * swell * born;
     }
 
     // The tile floats above the liquid: its shadow, and the picture's own light spilling round it.
