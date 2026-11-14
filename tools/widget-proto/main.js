@@ -10,6 +10,8 @@
  *   npx electron tools/widget-proto/main.js shots=<folder>  photograph it over test backdrops, then quit
  *   npx electron tools/widget-proto/main.js test=passthrough   check that the window lets the mouse through outside the
  *                                                           shape and takes it inside, without touching the real mouse
+ *   npx electron tools/widget-proto/main.js test=drag          check that the drop stays under the mouse while dragged: no
+ *                                                           window is shown and the real mouse is not touched
  *   npx electron tools/widget-proto/main.js test=gpu           GPU load idle, playing and hidden (see gpu-test.js)
  *   refract=off                                             Refraction is the widget's look and is on unless this is given: the
  *                                                           body bends what is really behind the window. The window is left
@@ -101,13 +103,18 @@ function savedPosition(w, h) {
   } catch { return null; }
 }
 
+/** The window's size as designed, in DIPs. Every move sets it again: see dragStep(). */
+let widgetSize = null;
+
 function createWidget({ query = 'play', x, y } = {}) {
   const w = Math.round(STAGE.w * SIZE), h = Math.round(STAGE.h * SIZE);
   const area = pickDisplay('primary').workArea;
   if (x === undefined && y === undefined && !args.display) ({ x, y } = savedPosition(w, h) || {});
+  x = x ?? area.x + area.width - w - 40;
+  y = y ?? area.y + area.height - h - 40;
+  widgetSize = { width: w, height: h };
   widget = new BrowserWindow({
-    width: w, height: h, useContentSize: true,
-    x: x ?? area.x + area.width - w - 40, y: y ?? area.y + area.height - h - 40,
+    width: w, height: h, useContentSize: true, x, y,
     transparent: true, frame: false, hasShadow: false, roundedCorners: false, thickFrame: false,
     resizable: false, maximizable: false, minimizable: false, fullscreenable: false,
     alwaysOnTop: true, skipTaskbar: true, focusable: false, show: false,
@@ -119,6 +126,9 @@ function createWidget({ query = 'play', x, y } = {}) {
       contextIsolation: true, sandbox: true, nodeIntegration: false,
     },
   });
+  // On a monitor scaled by 125% or 150% the window comes out a few pixels larger than asked,
+  // more or fewer depending on where it stands. Asking once more by its bounds settles it.
+  widget.setBounds({ x, y, ...widgetSize });
   onTop(widget);
   if (REFRACT) {
     // Left out of every screen capture, its own included: otherwise it would bend a picture of itself.
@@ -391,6 +401,68 @@ async function runListenTest() {
   console.log(heard ? 'ok   the liquid hears what the PC plays' : 'FAIL nothing was heard');
   app.quit();
 }
+/**
+ * Does the drop stay under the mouse while it is dragged? Nothing is shown and the real mouse is
+ * not touched: the widget's window stays hidden, on the monitor the owner keeps it on (the scaling
+ * of that monitor is what matters), and the dragging code is driven with made-up cursor points
+ * that wander and come back to where they began. Afterwards the window has to be exactly the size
+ * and at exactly the place it started, and so does the drop inside it. The position file is not
+ * written. Only numbers are printed.
+ */
+async function runDragTest() {
+  const display = pickDisplay('primary');
+  const area = display.workArea;
+  await createWidget({ query: '', x: area.x + 201, y: area.y + 203 });
+  const run = (js) => widget.webContents.executeJavaScript(js, false);
+  for (let i = 0; i < 200 && !(await run('Boolean(window.__mercury && window.__mercury.ready)')); i++) await sleep(50);
+  console.log(`display ${display.size.width}x${display.size.height} at scale ${display.scaleFactor}`);
+  const measure = async () => {
+    await sleep(250);
+    const page = JSON.parse(await run(`(() => { const r = document.querySelector('.widget').getBoundingClientRect();
+      return JSON.stringify({ inner: [innerWidth, innerHeight], drop: [Math.round(r.left * 100) / 100, Math.round(r.top * 100) / 100] }); })()`));
+    return { size: widget.getSize(), position: widget.getPosition(), ...page };
+  };
+  const path = (i) => ({ x: 1000 + Math.round(70 * Math.sin(i / 9)) + (i % 7), y: 500 + Math.round(45 * Math.cos(i / 13)) + (i % 5) });
+  const home = { x: 1000, y: 500 };
+  const STEPS = 400;
+
+  const before = await measure();
+  console.log('before:                  ' + JSON.stringify(before));
+  const [x0, y0] = widget.getPosition();
+
+  // What a drag does now.
+  const sizes = new Set();
+  let off = 0, dropMoved = 0;
+  dragStep('start', home);
+  for (let i = 0; i < STEPS; i++) {
+    const c = path(i);
+    dragStep('move', c);
+    const [px, py] = widget.getPosition();
+    off = Math.max(off, Math.abs(px - (x0 + c.x - home.x)), Math.abs(py - (y0 + c.y - home.y)));
+    sizes.add(widget.getSize().join('x'));
+    if (i % 80 === 40) {            // the drop inside the window, a few times on the way
+      const m = await measure();
+      dropMoved = Math.max(dropMoved, Math.abs(m.drop[0] - before.drop[0]), Math.abs(m.drop[1] - before.drop[1]));
+    }
+  }
+  dragStep('move', home);
+  dragStep('end', home, { remember: false });
+  const after = await measure();
+  console.log('after ' + STEPS + ' moves and back: ' + JSON.stringify(after));
+  console.log(`  window sizes on the way: ${[...sizes].join(', ')}; furthest from the mouse: ${off} px; the drop moved inside the window by ${dropMoved} px`);
+  const steady = [...sizes].every((s) => { const [sw, sh] = s.split('x').map(Number); return Math.abs(sw - widgetSize.width) <= 1 && Math.abs(sh - widgetSize.height) <= 1; });
+  const ok = JSON.stringify(after) === JSON.stringify(before) && steady && off <= 1 && dropMoved === 0;
+
+  // What a drag used to do (moving the window by its position alone), for the record: on a
+  // monitor at 100% this adds nothing; at 125% it adds hundreds of pixels.
+  for (let i = 0; i < STEPS; i++) { const c = path(i); widget.setPosition(x0 + c.x - home.x, y0 + c.y - home.y); }
+  widget.setPosition(x0, y0);
+  const [ow, oh] = widget.getSize();
+  console.log(`  (the old way, by position alone, over the same path: the window grows by ${ow - after.size[0]} x ${oh - after.size[1]})`);
+
+  console.log(ok ? 'ok   the drop stays under the mouse' : 'FAIL the window or the drop ended somewhere else');
+  app.quit();
+}
 const SHOTS_DIR_FOR_MEDIA = args.out ? path.resolve(args.out) : null;
 
 /* ------------------------------------------------------------ window controls --- */
@@ -401,20 +473,30 @@ ipcMain.on('widget:ignore', (event, on) => {
   if (widget && !widget.isDestroyed()) widget.setIgnoreMouseEvents(ignoring, { forward: true });
 });
 let drag = null;
-ipcMain.on('widget:drag', (event, phase) => {
+/**
+ * One step of dragging the window by the drop's body. cursor: where the mouse is, in screen DIPs.
+ * (A function of its own so that test=drag can drive it with made-up points, without the mouse.)
+ */
+function dragStep(phase, cursor, { remember = true } = {}) {
   if (!widget || widget.isDestroyed()) return;
-  const cursor = screen.getCursorScreenPoint();
   if (phase === 'start') {
     const [wx, wy] = widget.getPosition();
     drag = { cx: cursor.x, cy: cursor.y, wx, wy };
   } else if (phase === 'move' && drag) {
-    widget.setPosition(drag.wx + cursor.x - drag.cx, drag.wy + cursor.y - drag.cy);
+    // Its size goes with every move, never the position alone. On a monitor scaled by 125% or
+    // 150% a position does not fall on whole pixels, Windows is handed the rectangle rounded
+    // outward, and setPosition() takes the size from the window as it then is: so each move
+    // made the window a pixel or two larger, some hundreds of pixels over one drag. The drop
+    // sat in the window's middle and slid away to the right and down for as long as the
+    // button was held. Stating the designed size each time leaves nothing to add up.
+    widget.setBounds({ x: drag.wx + cursor.x - drag.cx, y: drag.wy + cursor.y - drag.cy, ...widgetSize });
   } else if (phase === 'end') {
     drag = null;
     const [px, py] = widget.getPosition();
-    try { fs.writeFileSync(POSITION_FILE, JSON.stringify({ x: px, y: py })); } catch { /* remembering is a nicety */ }
+    if (remember) try { fs.writeFileSync(POSITION_FILE, JSON.stringify({ x: px, y: py })); } catch { /* remembering is a nicety */ }
   }
-});
+}
+ipcMain.on('widget:drag', (event, phase) => dragStep(String(phase), screen.getCursorScreenPoint()));
 ipcMain.on('widget:close', () => app.quit());
 
 /* ------------------------------------------------------------------- shots --- */
@@ -604,6 +686,7 @@ app.whenReady().then(async () => {
   if (TEST === 'passthrough') { await runPassThroughTest(); return; }
   if (TEST === 'media') { await runMediaTest(); return; }
   if (TEST === 'listen') { await runListenTest(); return; }
+  if (TEST === 'drag') { await runDragTest(); return; }
   if (TEST === 'gpu') {
     await require('./gpu-test.js').runGpuTest({ app, screen, createWidget, getWidget: () => widget, pickDisplay, seconds: Number(args.seconds) || 12, refract: REFRACT });
     return;

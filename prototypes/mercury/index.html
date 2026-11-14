@@ -59,6 +59,10 @@ body {
    clear, so whatever is behind the window shows through the canvas's alpha. */
 body.widget-mode { background: transparent; }
 body.widget-mode .desk, body.widget-mode .panel, body.widget-mode .hint { display: none; }
+/* ...and the drop is fixed to the window's top left corner, not its middle: the window's size
+   can be a pixel more or less from one position to the next on a scaled monitor, and nothing
+   the window does to its size may move the drop inside it. */
+body.widget-mode .widget { left: 0; top: 0; margin: 0; transform-origin: 0 0; }
 
 .widget {
   position: absolute;
