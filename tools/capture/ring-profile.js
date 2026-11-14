@@ -31,12 +31,12 @@ const RAYS = [
 const COLS = 30;        // samples between the cover's edge and the silhouette
 const PAD = 4;          // ...and this many more before and after
 
-// The reference, read off the picture (change these if it is ever replaced): the cover's middle
-// and half-width in its pixels, its corner radius, and how many of its pixels make a stage unit
+// The reference, read off the picture (change these if it is ever replaced): the cover's middle,
+// half-width and half-height in its pixels (140 to 447 across, 278 to 568 down), its corner radius, and how many of its pixels make a stage unit
 // at the bulb (its bulb is 260 px in radius where ours is 128 units).
-const REF = { file: 'design/references/widget-mercury.png', c: [305, 419], half: 150, corner: 40, unit: 2.03,
+const REF = { file: 'design/references/widget-mercury.png', c: [293.5, 423], half: 153.5, halfV: 145, corner: 40, unit: 2.03,
   // roughly where the silhouette is along each ray, in px from the cover's middle; refined below
-  out: { 90: 210, 135: 250, 180: 262, 225: 275, 258: 312 } };
+  out: { 90: 216, 135: 245, 180: 251, 225: 280, 258: 318 } };
 // Ours comes from shape.js when the tool starts: the shot is 960 CSS px wide with the stage 50, 40 in.
 let OURS = null;
 
@@ -75,9 +75,10 @@ function coverEdge(deg, h, hv, r) {
 function silhouette(img, c, deg, guess) {
   const [ux, uy] = dir(deg);
   const l = (d) => lumOf(at(img, c[0] + ux * d, c[1] + uy * d));
+  // (The ground is read close outside the guess: under the drop the floor has light on it not far below.)
   let ground = 1;
-  for (let d = guess * 1.12; d <= guess * 1.3; d += 2) ground = Math.min(ground, l(d));
-  for (let d = guess * 1.12; d >= guess * 0.8; d -= 1) if (l(d) > ground + 0.09) return d;
+  for (let d = guess * 1.1; d <= guess * 1.16; d += 2) ground = Math.min(ground, l(d));
+  for (let d = guess * 1.1; d >= guess * 0.85; d -= 1) if (l(d) > ground + 0.09) return d;
   return guess;
 }
 
@@ -105,7 +106,7 @@ app.whenReady().then(async () => {
   console.log('per ray: the ring\'s width in stage units, brightness 0-9 from the cover\'s edge ":" to the silhouette "|", then warmth 0-9\n');
   for (const ray of RAYS) {
     // the reference
-    const rFrom = coverEdge(ray.a, REF.half, REF.half, REF.corner);
+    const rFrom = coverEdge(ray.a, REF.half, REF.halfV, REF.corner);
     const rTo = silhouette(ref, REF.c, ray.a, REF.out[ray.a]);
     const a = profile(ref, REF.c, ray.a, rFrom, rTo);
     // ours: out of the cover, and out of the bulb's circle

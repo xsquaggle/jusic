@@ -277,6 +277,47 @@ down       ours  68  :342566521111111111111111111113|
 - Seen refracting over dark, white and colourful windows, as the opaque base, and with real covers (white, blue, pink, near black): holds on all (`mercury-still-round26.png`). `test=passthrough` 8 of 8.
 - **Still short of the reference on the bulb:** by the cover at 9 o'clock their glass is lighter and one sees the cover's colours in it; the top is not as flat as theirs; their white streak has a fine dark edge on its outer side and ours runs into the rim's own light; their ribbon under the cover is one blade that starts on the left wall, ours follows the corner. **And the bulb is now ahead of the rest of the drop:** the waist, the upper lip and the right end still carry the old soft light. They are next, with the same method: measure, then change.
 
+## Measured on 14 November 2026, second part: the rest of the drop, and a correction
+
+**A correction to the ring's measurements above.** The reference's cover had been read 12 pixels too far right and as a square; it is 140 to 447 across and 278 to 568 down. `ring-profile.js` has the right numbers now. Two things said above came from that mistake and are withdrawn: the reference's glass is *not* lighter by the cover at 9 o'clock (those columns were the cover's own picture), and its ring is not much wider than ours on the left. Everything else stands. Round 26 against the reference, with the cover read properly:
+
+```
+up         ref   34  :343444444444445555555544555534|
+up         ours  40  :567777754467677655555555444333|
+up-left    ref   21  :555545799999999999999888974443|
+up-left    ours  27  :566777889999999999988888777654|
+left       ref   51  :433444444333322222222443333422|
+left       ours  54  :125456322232322221111111135524|
+down-left  ref   32  :755555555555555555666666777463|
+down-left  ours  42  :112576678654444444455566677777|
+down       ref   66  :424322222222222222222222432114|
+down       ours  68  :342468611111111111111111223454|
+```
+
+**The rest of the drop.** `npx electron tools/capture/cut-profile.js shot=<a dark shot>` (no window) reads five vertical cuts, each from the upper silhouette (first column) to the lower (last), 40 columns: between the cover and the title; through the title; between the title's end and the first button; through the play button; between the last button and the right end. The number is the drop's height there in stage units. Round 26:
+
+```
+gap    ref   229  4344544222222221111122122576236222233363
+gap    ours  202  2333322233345543345556654663423574223446
+title  ref   163  5322224181111111222254522393222222343222
+title  ours  132  1343111135111111111122334456679776555436
+waist  ref   120  2574455554245651221221111115222324344444
+waist  ours  129  1356888555433221231111111111111115412215
+play   ref   197  3321111112336311112222222248453225223342
+play   ours  203  2463224853366422114444111152321711112322
+end    ref   131  2554322233469972552111233344566754555536
+end    ours  118  1222222221111112223544332211443223334454
+```
+
+What it says (words, the timeline and the buttons show as short bright runs in both):
+
+- **Between the cover and the title the reference is near-black glass** (1s and 2s through its middle); ours is a mid grey (3 to 6) from top to bottom. This is the largest difference left.
+- **Through the title, the reference's lower half is dark** (2s and 3s) with the timeline as one bright line in it; ours is bright (4 to 9) over the whole lower 45%: the glow round the timeline and the lower lip's light are far too broad.
+- **At the right end the reference is bright and lively** (a white streak at a third of the way down, then rising to 5 to 7 through the lower half); ours is dim (1s and 2s above, 2 to 5 below).
+- **Over the play button the reference's upper lip is dark** (1 to 3, with the volume line in it); ours carries several bright bands there.
+- **Through the waist the two agree above** (a sheen across the upper third, dark below it); the reference's lower third is lit (3 to 4) where ours is dark.
+- The reference's drop is taller than ours through the title (163 units against 132) and between the cover and the title (229 against 202): it is in perspective and nearer the eye on the left; no change is meant by this.
+
 ## What changed on 14 November 2026 at the owner's word (the cursor's light; item 12 in part)
 
 - The owner found the light round the cursor "far too bright ... essentially completely white" and the title hard to read under it. Its core is now .55 (was 3.2) and its soft light .12 (was .2), it lies under the words, and words turn dark where it is bright behind them (`CURSOR_LIGHT`, `WORD_FLIP`). `mercury-cursor-light.png` shows before and after.
