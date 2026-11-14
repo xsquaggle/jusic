@@ -26,8 +26,8 @@
  *                                                           whose app id contains it. See media-helper.ps1.
  *   test=media                                              proves that chain end to end against a made-up source of its
  *                                                           own (media-test.html), so nothing of the owner's is read
- *   test=listen                                             proves that the liquid hears what the PC plays: no window is
- *                                                           shown; a quiet pulsed tone is played for a few seconds
+ *   test=listen                                             proves that the liquid hears what the PC plays (sound-helper.ps1):
+ *                                                           no window is shown; a quiet pulsed tone is played for a few seconds
  *   listen=off                                              with source=system: do not listen, move to a made-up beat
  *   display=primary|other                                   which monitor (shots and tests default to the other one, to
  *                                                           stay out of the way of whatever is on the main screen)
@@ -47,8 +47,7 @@ const TEST = args.test || null;
 const REFRACT = args.refract === 'off' || (args.glass && !args.refract) ? null : (args.refract || 'live');
 // Options that are simply handed on to the page.
 const SYSTEM = args.source === 'system' || TEST === 'media' || TEST === 'listen';
-const SYSTEM_LISTEN = args.listen ? `&listen=${encodeURIComponent(args.listen)}` : '';
-const PAGE_OPTIONS = SYSTEM_LISTEN + (REFRACT ? `&refract=${encodeURIComponent(REFRACT)}` : '') + (SYSTEM ? '&source=system' : '')
+const PAGE_OPTIONS = (REFRACT ? `&refract=${encodeURIComponent(REFRACT)}` : '') + (SYSTEM ? '&source=system' : '')
   + ['rfps', 'rmax', 'glass'].filter((k) => args[k]).map((k) => `&${k}=${encodeURIComponent(args[k])}`).join('');
 // Draw at a given display scale wherever the window is (the main monitor is 125%).
 if (args.dsf) app.commandLine.appendSwitch('force-device-scale-factor', args.dsf);
@@ -118,8 +117,6 @@ function createWidget({ query = 'play', x, y } = {}) {
       // Background throttling stays on (the default): when the window is hidden the page is
       // told so and stops drawing. The capture tools turn it off; the widget must not.
       contextIsolation: true, sandbox: true, nodeIntegration: false,
-      // The page analyses the PC's sound in "any media" without anyone having clicked it.
-      autoplayPolicy: 'no-user-gesture-required',
     },
   });
   onTop(widget);
@@ -223,6 +220,29 @@ ipcMain.on('widget:media-command', (event, command, value) => {
   helper.stdin.write(command === 'seek' ? `seek ${Number(value) || 0}\n` : command + '\n');
 });
 app.on('before-quit', stopMediaHelper);
+
+// What the PC is playing, for the liquid to move to (sound-helper.ps1). Its lines are spectra,
+// 16 numbers each; nothing of the sound itself comes through here.
+let soundHelper = null;
+let soundLines = 0;
+function startSoundHelper() {
+  if (soundHelper || args.listen === 'off') return;
+  const child = soundHelper = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File',
+    path.join(__dirname, 'sound-helper.ps1')], { windowsHide: true });
+  let rest = '';
+  child.stdout.setEncoding('utf8');
+  child.stdout.on('data', (chunk) => {
+    const lines = (rest + chunk).split(/\r?\n/);
+    rest = lines.pop();
+    const last = lines.filter((l) => l.startsWith('B ')).pop();      // only the newest matters
+    if (!last) return;
+    soundLines += lines.length;
+    if (widget && !widget.isDestroyed()) widget.webContents.send('widget:bands', last.slice(2).split(' ').map(Number));
+  });
+  child.stderr.on('data', (chunk) => console.log('sound helper: ' + String(chunk).trim()));
+  child.on('exit', () => { if (soundHelper === child) soundHelper = null; });
+}
+app.on('before-quit', () => { if (soundHelper) { try { soundHelper.stdin.end(); } catch { /* gone */ } soundHelper = null; } });
 
 /**
  * The whole chain against a source of our own: a hidden window that announces three made-up
@@ -332,27 +352,29 @@ async function runMediaTest() {
   app.quit();
 }
 /**
- * Does the page hear what the PC plays? Nothing is shown: the widget's window stays hidden and is
- * read directly. A hidden window of our own plays a quiet 70 Hz tone, pulsed twice a second, for a
- * few seconds; the listener has to report a bass that rises and falls with it, and stillness
- * again when it stops (if nothing else on the PC is playing).
+ * Does the liquid hear what the PC plays? Nothing is shown: the widget's window stays hidden and
+ * is read directly. A hidden window of our own plays a quiet 70 Hz tone, pulsed twice a second,
+ * for a few seconds. If the PC was silent, the bass has to rise and fall with it and be still
+ * before; if something is already playing, that is what is heard, which proves the same thing.
+ * Only numbers are printed.
  */
 async function runListenTest() {
   await createWidget({ query: '' });
-  const run = (js) => widget.webContents.executeJavaScript(js, true);
+  const run = (js) => widget.webContents.executeJavaScript(js, false);
   for (let i = 0; i < 200 && !(await run('Boolean(window.__mercury && window.__mercury.ready)')); i++) await sleep(50);
-  await run('window.__mercury.listener.start()');
-  console.log('listener: ' + await run('JSON.stringify(window.__mercury.listener.state)'));
+  startSoundHelper();
+  for (let i = 0; i < 100 && !(await run('window.__mercury.listener.state.ready')); i++) await sleep(100);
+  console.log('listening: ' + await run('JSON.stringify({ ready: window.__mercury.listener.state.ready, lines: window.__mercury.listener.state.lines })'));
   const sample = async (seconds) => {
-    let lo = 1, hi = 0, pulseHi = 0, raw = 0;
+    let lo = 1, hi = 0, pulseHi = 0, level = 0;
     for (let i = 0; i < seconds * 25; i++) {
       const a = JSON.parse(await run('(() => { const a = window.__mercury.listener.analyse(); return JSON.stringify({ bass: (a.bands[0] + a.bands[1] + a.bands[2]) / 3, pulse: a.pulse, level: window.__mercury.listener.state.level }); })()'));
-      lo = Math.min(lo, a.bass); hi = Math.max(hi, a.bass); pulseHi = Math.max(pulseHi, a.pulse); raw = Math.max(raw, a.level);
+      lo = Math.min(lo, a.bass); hi = Math.max(hi, a.bass); pulseHi = Math.max(pulseHi, a.pulse); level = Math.max(level, a.level);
       await sleep(40);
     }
-    return { bassLow: +lo.toFixed(2), bassHigh: +hi.toFixed(2), pulseHigh: +pulseHi.toFixed(2), level: +raw.toFixed(3) };
+    return { bassLow: +lo.toFixed(2), bassHigh: +hi.toFixed(2), pulseHigh: +pulseHi.toFixed(2), level: +level.toFixed(3) };
   };
-  const before = await sample(2);
+  const before = await sample(3);
   console.log('before the tone: ' + JSON.stringify(before));
   const tone = new BrowserWindow({ show: false, webPreferences: { contextIsolation: true, sandbox: true, backgroundThrottling: false, autoplayPolicy: 'no-user-gesture-required' } });
   await tone.loadURL('data:text/html,<body></body>');
@@ -362,14 +384,11 @@ async function runListenTest() {
     for (let i = 0; i < 12; i++) { const t = ctx.currentTime + 0.2 + i * 0.5; g.gain.setValueAtTime(0.05, t); g.gain.exponentialRampToValueAtTime(0.0005, t + 0.3); }
     o.connect(g).connect(ctx.destination); o.start(); o.stop(ctx.currentTime + 6.5); return ctx.resume();
   })()`, true);
-  await sleep(600);
+  await sleep(1500);
   const during = await sample(4);
   console.log('during the tone: ' + JSON.stringify(during));
-  await sleep(3500);
-  const after = await sample(2);
-  console.log('after the tone:  ' + JSON.stringify(after));
-  const heard = during.level > before.level * 1.5 || during.bassHigh - during.bassLow > 0.3;
-  console.log(heard ? 'ok   the liquid hears what the PC plays' : 'FAIL nothing was heard (or something else was playing over it: compare the three lines)');
+  const heard = before.bassHigh - before.bassLow > 0.3 || during.bassHigh - during.bassLow > 0.3;
+  console.log(heard ? 'ok   the liquid hears what the PC plays' : 'FAIL nothing was heard');
   app.quit();
 }
 const SHOTS_DIR_FOR_MEDIA = args.out ? path.resolve(args.out) : null;
@@ -592,7 +611,7 @@ app.whenReady().then(async () => {
 
   await createWidget({ x: args.x && Number(args.x), y: args.y && Number(args.y) });
   widget.showInactive();
-  if (SYSTEM) startMediaHelper();
+  if (SYSTEM) { startMediaHelper(); startSoundHelper(); }
   tray = new Tray(path.join(REPO, 'jusic.ico'));
   tray.setToolTip('Mercury prototype');
   tray.setContextMenu(Menu.buildFromTemplate([

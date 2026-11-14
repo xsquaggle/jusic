@@ -256,73 +256,44 @@ function mediaCommand(command, value) {
 /* -------------------------------------------------------------- listening --- */
 
 // In "any media" the sound is another app's and never passes through this page, so the liquid
-// had nothing to move to but a made-up beat. Here the page listens to what the PC itself is
-// playing: a loopback of the sound output (Windows gives one with a screen capture; the picture
-// is thrown away at once), analysed into the same 16 bands and beat pulse the test synth gives,
-// and never stored or sent anywhere. It hears everything the PC plays, a game's sound included.
-// The level is evened out, so a quiet song moves the liquid as much as a loud one; silence stays still.
+// had nothing to move to but a made-up beat. Now the widget's shell listens to what the PC is
+// really playing (tools/widget-proto/sound-helper.ps1: whichever sound output carries the music,
+// analysed and dropped, never stored) and hands this page its spectrum about 30 times a second.
+// Here it becomes the same 16 bands and beat pulse the test synth gives. The level is evened
+// out, so a quiet song moves the liquid as much as a loud one; silence stays still.
+// (The browser's own loopback was tried first. It hears only the output Windows calls the
+// default, and on this PC the music goes out through another one: the liquid lay dead.)
 const listener = (() => {
-  let ctx = null, analyser = null, freq = null, stream = null;
-  const bands = new Float32Array(16);
-  let bassAvg = 0, pulse = 0, level = 0.05;
-  const state = { ready: false, error: null, level: 0 };
+  const target = new Float32Array(16), smooth = new Float32Array(16), bands = new Float32Array(16);
+  let bassAvg = 0, pulse = 0, level = 0.12, fedAt = -1e9;
+  const state = { get ready() { return performance.now() - fedAt < 2000; }, level: 0, lines: 0 };
 
-  async function start() {
-    if (stream || !host || !host.backdropSource) return;
-    try {
-      const { sourceId } = await host.backdropSource();
-      stream = await navigator.mediaDevices.getUserMedia({
-        audio: { mandatory: { chromeMediaSource: 'desktop' } },
-        video: { mandatory: { chromeMediaSource: 'desktop', chromeMediaSourceId: sourceId, maxWidth: 32, maxHeight: 32, maxFrameRate: 1 } },
-      });
-      for (const track of stream.getVideoTracks()) track.stop();      // only the sound is wanted
-      ctx = new AudioContext();
-      await ctx.resume();
-      analyser = ctx.createAnalyser();
-      analyser.fftSize = 2048;
-      analyser.smoothingTimeConstant = 0.72;
-      ctx.createMediaStreamSource(stream).connect(analyser);         // analysed, never played back
-      freq = new Uint8Array(analyser.frequencyBinCount);
-      state.ready = true;
-      state.error = null;
-    } catch (error) {
-      state.error = String((error && error.message) || error);
-      console.error('listening: ' + state.error);
-    }
-  }
-  function stop() {
-    if (stream) for (const track of stream.getTracks()) track.stop();
-    if (ctx) ctx.close();
-    stream = ctx = analyser = null;
-    state.ready = false;
+  /** A line from the helper: 16 loudnesses on a decibel scale. */
+  function feed(values) {
+    for (let i = 0; i < 16; i++) target[i] = (Number(values[i]) || 0) ** 1.6 * (0.9 + 0.9 * (i / 16));
+    fedAt = performance.now();
+    state.lines++;
   }
   function analyse() {
-    if (!analyser) return { bands, pulse: 0 };
-    analyser.getByteFrequencyData(freq);
-    const nyquist = ctx.sampleRate / 2;
     let top = 0;
-    const raw = new Float32Array(16);
     for (let i = 0; i < 16; i++) {
-      const f0 = 32 * (14000 / 32) ** (i / 16), f1 = 32 * (14000 / 32) ** ((i + 1) / 16);
-      const from = Math.max(1, Math.floor(f0 / nyquist * freq.length));
-      const to = Math.max(from + 1, Math.ceil(f1 / nyquist * freq.length));
-      let peak = 0;
-      for (let j = from; j < to; j++) peak = Math.max(peak, freq[j]);
-      raw[i] = (peak / 255) ** 1.6 * (0.9 + 0.9 * (i / 16));
-      top = Math.max(top, raw[i]);
+      // Up at once, down a little slower: a kick shows as a kick.
+      smooth[i] = target[i] > smooth[i] ? target[i] : smooth[i] + (target[i] - smooth[i]) * 0.35;
+      top = Math.max(top, smooth[i]);
     }
     // Follow the loudest band: up quickly, down slowly. Below the floor it is silence, not a quiet song.
-    level = top > level ? level + (top - level) * 0.3 : Math.max(0.05, level * 0.9992);
+    level = top > level ? level + (top - level) * 0.3 : Math.max(0.12, level * 0.9992);
     state.level = level;
     const gain = 0.85 / level;
-    for (let i = 0; i < 16; i++) bands[i] = Math.min(1, raw[i] * gain);
+    // What stands out above the song's own steady level is what moves the liquid.
+    for (let i = 0; i < 16; i++) bands[i] = Math.min(1, Math.max(0, smooth[i] * gain - 0.25) / 0.75);
     const bass = (bands[0] + bands[1] + bands[2]) / 3;
     bassAvg += (bass - bassAvg) * 0.04;
     const hit = Math.max(0, bass - bassAvg * 0.92) * 3.2 + bass * 0.18;
     pulse = hit > pulse ? pulse + (hit - pulse) * 0.6 : pulse * 0.9;
     return { bands, pulse: Math.min(1, pulse) };
   }
-  return { start, stop, analyse, state };
+  return { feed, analyse, state };
 })();
 
 /* ------------------------------------------------------------------ synth --- */
@@ -665,7 +636,7 @@ function tick(dt, paint = true, idle = false) {
   if (dragging !== 'seek') mercury.setProgress(player.track.duration > 0 ? player.time / player.track.duration : 0);
   const silent = { bands: new Float32Array(16), pulse: 0 };
   // In "any media" the liquid moves to what the PC is really playing; the made-up beat is only
-  // for when that cannot be heard (the loopback failed, or ?listen=off).
+  // for when nothing is listening (the helper is not running: listen=off).
   const audio = !player.playing ? silent
     : SYSTEM ? (listener.state.ready ? listener.analyse() : fakeAudio(mercury.state.time, player.track.bpm))
     : CAPTURE ? fakeAudio(mercury.state.time, player.track.bpm) : synth.analyse();
@@ -754,11 +725,7 @@ if (SYSTEM) {
   mercury.setPalette(paletteFromImage(blank), true);
   mercury.setLabels({ dim: 'ptn' });
   host.onMedia(applyMedia);
-  if (params.get('listen') !== 'off') {
-    if (!document.hidden) listener.start();
-    // A hidden widget must cost nothing, so it stops listening too.
-    document.addEventListener('visibilitychange', () => { if (document.hidden) listener.stop(); else listener.start(); });
-  }
+  if (host.onBands) host.onBands(listener.feed);
 }
 mercury.setLabels({ title: player.track.title, artist: player.track.artist });
 mercury.setProgress(player.track.duration > 0 ? player.time / player.track.duration : 0);
@@ -775,7 +742,7 @@ wake();
 
 /** Hooks for the capture scripts. */
 window.__mercury = {
-  mercury, player, setTrack, setPlaying, setVolume, TRACKS, backdrop, media, listener, L,
+  mercury, player, setTrack, setPlaying, setVolume, TRACKS, backdrop, startBackdrop, media, listener, L,
   /** Advance n frames. With paint false the liquid moves but nothing is drawn, which is far quicker. */
   step(n = 1, dt = 1 / 60, paint = true) { let m = false; for (let i = 0; i < n; i++) m = tick(dt, paint); return m; },
   pointer(type, x, y) {

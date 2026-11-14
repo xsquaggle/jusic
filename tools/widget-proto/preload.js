@@ -21,6 +21,8 @@ contextBridge.exposeInMainWorld('widgetHost', {
    * art (a data: URL or null) }, or { source: null } when nothing is.
    */
   onMedia: (fn) => { ipcRenderer.on('widget:media', (event, state) => fn(state)); },
+  /** The spectrum of what the PC is playing, about 30 times a second: 16 numbers from 0 to 1, low to high. */
+  onBands: (fn) => { ipcRenderer.on('widget:bands', (event, bands) => fn(bands)); },
   /** 'toggle' | 'play' | 'pause' | 'next' | 'prev' | 'seek' (with seconds): sent to the app that is playing. */
   media: (command, value) => ipcRenderer.send('widget:media-command', String(command), Number(value) || 0),
   /** Called with false when refraction is switched off from the tray menu, true when it is switched back on. */
