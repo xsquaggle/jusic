@@ -192,6 +192,15 @@ The owner asked for the pocket to be as deep and as crisp as the main reference'
 - **Honest verdict: a modest step.** The upper left of the bulb now has a broad silver sheen with a clean outer edge, and there is colour under the cover. **Still short of the reference:** their sheens are brighter and more of them (several thin hot strokes inside the broad one); their tube is clear, with dark showing through between the strokes, where ours is still a little milky; their pocket wall on the left is wide and deep; the lower half of their bulb is one large coral reflection with a hot core, ours a band.
 - **Not done this round, because the owner was at the only screen:** the photographs of the real refracting window, `test=passthrough`, `test=media`, `test=gpu`. The shader gained a few lines only in the tube. Run all four first next time.
 
+## What round 23 changed (item 9 and item 1: a clear tube, hot strokes)
+
+- **The tube round the cover is clear between its reflections** (`TUBE_CLEAR`, .5): the soft light it had picked up from the room is halved wherever no sheen lies, so the silver and the album's colour stand against dark glass instead of a milky grey.
+- **A thin hot stroke inside each sheen**, close under its clean edge and shorter than the sheen: white in the silver (upper left), near white in the album's colour (under the cover, left of the time).
+- **The floor's light under the cover is one larger reflection with a hot core** (`SHEEN.z` .3, `coreC`): brightest and palest at the middle of the bulb's underside, falling to the album's colour at its ends.
+- Seen on dark, light and white backdrops and with real covers (white, blue, pink, near black): holds on all (`mercury-still-round23.png`, the bulb beside the reference's and beside round 22's).
+- **Still short of the reference:** their pocket wall on the left is wide, deep and clear, ours narrow; their coral reflection fills the bulb's lower half and carries on along the lower edge, ours stops at the tube; their outer rim has a copper line all the way round the left; the silver sheen's graded side is still a soft fade where theirs has a second edge.
+- **Again opaque base only** (the owner was at the only screen): the refracting shots, `test=passthrough`, `test=media` and `test=gpu` are owed for rounds 22 and 23 together.
+
 ## The gaps, worst first
 
 Line numbers are `prototypes/mercury/shaders.js` at commit `62869cb` unless another file is named. Items 1 and 3 were worked on in round 11; their line numbers are of historical interest only.

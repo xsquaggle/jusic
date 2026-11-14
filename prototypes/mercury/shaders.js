@@ -207,7 +207,9 @@ vec3 pools(vec2 p) {
 
 // The sheens on the tube round the cover: silver's half-width (as a share of the tube's width)
 // and strength, then the same for the album-coloured one.
-const vec4 SHEEN = vec4(.21, .8, .24, .85);
+const vec4 SHEEN = vec4(.21, .8, .3, .8);
+// How much of the room's soft light is taken out of the tube between its sheens.
+const float TUBE_CLEAR = .5;
 
 // How high the tube of glass between the bulb's outline and the cover's pocket is crowned.
 const float TUBE_H = 7.;
@@ -649,14 +651,27 @@ void main() {
         vec2 gO = vec2(outline(pw + vec2(1.5, 0.)) - d, outline(pw + vec2(0., 1.5)) - d) / 1.5;
         vec2 nO = gO / max(length(gO), 1e-3);
         float aa = .9 / wT;
-        float hS = SHEEN.x * smoothstep(.3, .96, dot(nO, vec2(-.64, -.77))) - .03;
+        float faceS = smoothstep(.3, .96, dot(nO, vec2(-.64, -.77)));
+        float hS = SHEEN.x * faceS - .03;
         float eS = abs(uu - .6) - hS;
         float silver = smoothstep(aa, -aa, eS);
-        col += vec3(.9, .94, 1.) * SHEEN.y * (.22 + .78 * pow(smoothstep(-hS, hS, uu - .6), 1.6)) * silver * tubeS;
-        float hC = SHEEN.z * smoothstep(.35, .97, dot(nO, vec2(.22, .975))) - .03;
-        float eC = abs(uu - .52) - hC;
+        float faceC = smoothstep(.3, .97, dot(nO, vec2(.22, .975)));
+        float hC = SHEEN.z * faceC - .03;
+        float eC = abs(uu - .5) - hC;
         float coral = smoothstep(aa, -aa, eC);
-        col += hotA * SHEEN.w * (.2 + .8 * pow(smoothstep(hC, -hC, uu - .52), 1.6)) * coral * tubeS;
+        // Clear glass: between its reflections the tube is dark, not milky. What it had picked
+        // up from the room's soft light is taken down wherever no sheen lies.
+        col *= 1. - TUBE_CLEAR * tubeS * (1. - silver) * (1. - coral);
+        col += vec3(.9, .94, 1.) * SHEEN.y * (.22 + .78 * pow(smoothstep(-hS, hS, uu - .6), 1.6)) * silver * tubeS;
+        // A hot stroke inside the silver, close under its clean edge: the lamp's own tube seen
+        // in the panel. Thin, white, and shorter than the sheen it lies in.
+        float stroke = exp(-pow((uu - .6 - hS * .62) * wT / 1.5, 2.)) * smoothstep(.55, .9, faceS);
+        col += vec3(1., .98, .96) * 1.15 * stroke * tubeS;
+        // The floor's light is one large reflection under the cover, hottest at its middle.
+        float coreC = pow(faceC, 5.);
+        col += mix(hotA, vec3(1., .96, .93), .45 * coreC) * SHEEN.w * (.25 + .75 * pow(smoothstep(hC, -hC, uu - .5), 1.4)) * (.55 + .9 * coreC) * coral * tubeS;
+        float strokeC = exp(-pow((uu - .5 + hC * .6) * wT / 1.4, 2.)) * smoothstep(.6, .95, faceC);
+        col += mix(hotA, vec3(1.), .6) * 1.2 * strokeC * tubeS;
 
         // The bank to the right of the cover, where the body goes on: one crescent of light on
         // its crest, widest level with the cover's middle and pointed at both ends.

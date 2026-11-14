@@ -1,0 +1,12 @@
+{ "out": "design/captures/mercury-still-round23.png", "width": 1616,
+  "title": "Mercury still, round 23: the tube round the cover clear between its reflections, with hot strokes in them (generated test cover; opaque base only)",
+  "rows": [
+  [ { "label": "reference: widget-mercury.png", "src": "design/references/widget-mercury.png", "crop": [0, 110, 1586, 797] },
+    { "label": "round 23: dark desktop", "src": "design/captures/raw/round23/dark.png", "crop": [90, 50, 1022, 513] } ],
+  [ { "label": "round 23: light wallpaper", "src": "design/captures/raw/round23/light.png", "crop": [90, 50, 1022, 513] },
+    { "label": "round 23: white window", "src": "design/captures/raw/round23/window.png", "crop": [90, 50, 1022, 513] } ],
+  [ { "label": "reference: the bulb", "src": "design/references/widget-mercury.png", "crop": [20, 190, 640, 590] },
+    { "label": "round 23: the bulb", "src": "design/captures/raw/round23/dark.png", "crop": [105, 75, 420, 387] } ],
+  [ { "label": "round 22, before: the bulb", "src": "design/captures/raw/round22/dark.png", "crop": [105, 75, 420, 387] },
+    { "label": "round 23: the bulb on a white window", "src": "design/captures/raw/round23/window.png", "crop": [105, 75, 420, 387] } ]
+] }
