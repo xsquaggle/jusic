@@ -205,6 +205,9 @@ vec3 pools(vec2 p) {
 
 /* ---------------------------------------------------------------- height --- */
 
+// How high the tube of glass between the bulb's outline and the cover's pocket is crowned.
+const float TUBE_H = 7.;
+
 // The form itself: the rolled edge, the crown of the body, slow liquid swells
 // and the waves the music sends along it. Sampled with a wide step, so its
 // reflections are soft and continuous.
@@ -254,6 +257,16 @@ float base(vec2 p0) {
   float pressed = smoothstep(.72, 1., uForm);
   h -= PRESS.x * smoothstep(PRESS.y, -5., dTile) * pressed;
   h += PRESS.z * exp(-pow((dTile - PRESS.y - 5.) / 9., 2.)) * pressed;
+
+  // Between the bulb's outline and the cover the glass is one piece: a full tube, crowned
+  // across its width, running from the rim over into the pocket's wall. (Left of the cover,
+  // above it and below it. To the right, where the body goes on, there is no such tube.)
+  {
+    float gapIn = max(-d, 0.), gapT = max(dTile, 0.);
+    float tube = smoothstep(78., 52., gapIn + gapT) * smoothstep(-2., 6., dTile) * pressed;
+    float uu = gapT / max(gapIn + gapT, 20.);
+    h += TUBE_H * 4. * uu * (1. - uu) * tube;
+  }
 
   // The bulb is crowned: full in the middle and falling away to its rim all round, so the
   // part of it toward the lamps carries a sheen and the part toward the floor its colour.
@@ -602,10 +615,20 @@ void main() {
     {
       vec2 gP = vec2(tileSdf(pw + vec2(1.5, 0.), uTile.xy) - dT, tileSdf(pw + vec2(0., 1.5), uTile.xy) - dT) / 1.5;
       float towardP = max(dot(gP / max(length(gP), 1e-3), vec2(-.74, -.67)), 0.);
-      // Beyond the bank the glass lies in the bank's shade: the dark that the bright wall needs beside it.
-      col *= 1. - .34 * smoothstep(POCKET.y + 1., POCKET.y + 9., dT) * smoothstep(POCKET.y + 34., POCKET.y + 12., dT) * born;
+      vec2 nP = gP / max(length(gP), 1e-3);
+      // Where the wall runs into the bulb's rim (left of the cover, above and below it) the two are one tube of glass.
+      float tubeM = smoothstep(78., 52., max(-d, 0.) + max(dT, 0.));
+      // Beyond the bank the glass lies in the bank's shade: the dark that the bright wall needs
+      // beside it. Not in the tube, which is full and lit.
+      col *= 1. - .42 * (1. - tubeM) * smoothstep(POCKET.y + 1., POCKET.y + 9., dT) * smoothstep(POCKET.y + 34., POCKET.y + 12., dT) * born;
       float crest = exp(-pow((dT - POCKET.y * .7) / (POCKET.y * .26), 2.));
       col += mix(vec3(1., .97, .94), hotA, .3) * crest * (.1 + .4 * towardP) * born;
+      // And on the very crest a glint, as a cut edge of glass has: hot and white where the
+      // wall's edge faces the lamps, the album's colour where it faces the floor's light, and
+      // nothing between, so it swells, thins and stops instead of running round as a line.
+      float glintP = exp(-pow((dT - POCKET.y * .8) / 1.25, 2.));
+      float floorP = max(dot(nP, vec2(.5, .86)), 0.);
+      col += (vec3(1., .98, .95) * 1.5 * pow(towardP, 3.) + hotA * .9 * pow(floorP, 4.)) * glintP * born;
     }
 
     // No rim is drawn. The edge is lit only by what its roll mirrors, so it is bright where
@@ -641,7 +664,7 @@ void main() {
     // liquid meets it, and only a little longer on the side away from the lamps.)
     // The cover lies at the bottom of its pocket, so the dark is at the wall's foot: a line of
     // deep shade where the wall meets the tile, and the wall itself left to the light.
-    float tshadow = (.72 * smoothstep(3.2, .2, dT)
+    float tshadow = (.84 * smoothstep(5.8, .4, dT)
                    + .16 * smoothstep(16., -8., tileSdf(pw - vec2(3., 6.), uTile.xy))) * born;
     col *= 1. - tshadow;
     vec2 castUv = clamp(tilePlane(pw, uTile.xy) / (2. * COVER_HALF) + .5, .2, .8);

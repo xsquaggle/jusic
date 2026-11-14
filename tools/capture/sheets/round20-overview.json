@@ -1,0 +1,10 @@
+{ "out": "design/captures/mercury-still-round20.png", "width": 1616,
+  "title": "Mercury still, round 20: the pocket's wall and the bulb's rim as one tube of glass, a glint on its crest (generated test cover; refracting in the real widget window)",
+  "rows": [
+  [ { "label": "reference: the bulb", "src": "design/references/widget-mercury.png", "crop": [20, 190, 640, 590] },
+    { "label": "round 20, refracting, dark window behind: the bulb", "src": "design/captures/raw/round20-refract/window-dark.png", "crop": [95, 85, 330, 315] } ],
+  [ { "label": "round 20, refracting, white window behind: the bulb", "src": "design/captures/raw/round20-refract/window-light.png", "crop": [95, 85, 330, 315] },
+    { "label": "round 19, before: the bulb", "src": "design/captures/raw/round19-refract/window-dark.png", "crop": [95, 85, 330, 315] } ],
+  [ { "label": "round 20, refracting: dark window behind", "src": "design/captures/raw/round20-refract/window-dark.png", "crop": [12, 12, 936, 456] },
+    { "label": "round 20, refracting: colourful window behind", "src": "design/captures/raw/round20-refract/window-busy.png", "crop": [12, 12, 936, 456] } ]
+] }
