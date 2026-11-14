@@ -1,0 +1,12 @@
+{ "out": "design/captures/mercury-still-round21.png", "width": 1616,
+  "title": "Mercury still, round 21: the grey taken out of the glass, so its sheens stand against darks (generated test cover)",
+  "rows": [
+  [ { "label": "reference: widget-mercury.png", "src": "design/references/widget-mercury.png", "crop": [0, 110, 1586, 797] },
+    { "label": "round 21, refracting in the real window: dark window behind", "src": "design/captures/raw/round21-refract/window-dark.png", "crop": [12, 12, 936, 456] } ],
+  [ { "label": "round 21, refracting: white window with words behind", "src": "design/captures/raw/round21-refract/window-light.png", "crop": [12, 12, 936, 456] },
+    { "label": "round 21, refracting: colourful window behind", "src": "design/captures/raw/round21-refract/window-busy.png", "crop": [12, 12, 936, 456] } ],
+  [ { "label": "round 21, the opaque base: dark desktop", "src": "design/captures/raw/round21/dark.png", "crop": [90, 50, 1022, 513] },
+    { "label": "round 20, before: dark desktop", "src": "design/captures/raw/round20/dark.png", "crop": [90, 50, 1022, 513] } ],
+  [ { "label": "reference: the bulb", "src": "design/references/widget-mercury.png", "crop": [20, 190, 640, 590] },
+    { "label": "round 21, refracting, dark window behind: the bulb", "src": "design/captures/raw/round21-refract/window-dark.png", "crop": [95, 85, 330, 315] } ]
+] }

@@ -387,10 +387,13 @@ vec3 env(vec3 r) {
   // the upper left. Gently sloping liquid (the body, the inside of the lip, the swells and
   // the waves the music sends) mirrors this part, and a lamp's edge there would be torn
   // into blotches by every ripple. The wash gives those parts a sheen that slides instead.
-  c += cool * .3 * pow(max(dot(r, normalize(vec3(-.36, .46, .81))), 0.), 4.);
+  // (It is a lobe, not a fog: level glass, which looks straight back at the viewer, catches only
+  // its skirt and stays near black, and glass leaning up and to the left carries all of it. At a
+  // power of 4 everything level carried a third of it, and the whole body was grey.)
+  c += cool * .46 * pow(max(dot(r, normalize(vec3(-.4, .52, .75))), 0.), 11.);
   // ...and, as soft and as edgeless, the album's colour coming up off the floor in front:
   // liquid that leans toward the viewer's feet carries it as a glow, not a line.
-  c += hot * .22 * pow(max(dot(r, normalize(vec3(.06, -.62, .78))), 0.), 7.);
+  c += hot * .3 * pow(max(dot(r, normalize(vec3(.06, -.66, .75))), 0.), 12.);
 
   // The lamps stand well off to the sides, so only steep liquid shows them: the outer
   // face of the lip, the rims of the buttons, the walls of the dishes.
