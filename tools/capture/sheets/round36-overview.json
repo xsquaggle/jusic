@@ -1,0 +1,12 @@
+{ "out": "design/captures/mercury-still-round36.png", "width": 1616,
+  "title": "Mercury still, round 36: the lower edge as one lit band to the silhouette; the underside falls off within a few units and is clear glass below that (generated test cover)",
+  "rows": [
+  [ { "label": "reference: the lower edge, under the words to the right lobe", "src": "design/references/widget-mercury.png", "crop": [520, 560, 760, 220] },
+    { "label": "round 36: the same stretch", "src": "design/captures/raw/round36/dark.png", "crop": [430, 330, 370, 110] } ],
+  [ { "label": "round 35, before", "src": "design/captures/raw/round35/dark.png", "crop": [430, 330, 370, 110] },
+    { "label": "round 36 over a white window (the underside is clear glass, not a dark line)", "src": "design/captures/raw/round36/window.png", "crop": [430, 330, 370, 110] } ],
+  [ { "label": "reference: widget-mercury.png", "src": "design/references/widget-mercury.png", "crop": [0, 110, 1586, 797] },
+    { "label": "round 36, refracting in the real window: dark window behind", "src": "design/captures/raw/round36-refract/window-dark.png", "crop": [12, 12, 936, 456] } ],
+  [ { "label": "round 36, the opaque base: dark desktop", "src": "design/captures/raw/round36/dark.png", "crop": [90, 50, 1022, 513] },
+    { "label": "round 36, refracting: colourful window behind", "src": "design/captures/raw/round36-refract/window-busy.png", "crop": [12, 12, 936, 456] } ]
+] }

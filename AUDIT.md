@@ -451,6 +451,25 @@ Done on 16 November 2026, in the same session as round 34.
 - Only the light changed, not the outline or the hit test.
 - **Still short on the bowls:** the reference's crescent has a thinner hot core and more coral; its bowls are about 3 units larger in radius than ours (28, 40, 27 against 24, 37, 24) and nearly touch one another and the pod's rims; and the pod round them is lit silvery-pink glass (4s to 6s) where ours is dark brown. That last is most of what is left of the lower right lobe's darkness (mean colour 92,75,76 against 119,90,85 before this round).
 
+## What round 36 changed (items 1 and 4: the lower edge as one line)
+
+Done on 16 November 2026, in the same session as rounds 34 and 35.
+
+- **Measured first**, across the lower edge at seven places from x 300 to 700, from 30 units inside the lower silhouette to 16 below it. The reference's lower edge is one lit band running right up to the silhouette and falling off within 3 to 5 units below it (at x 480: 8s and 9s over the last 9 units, then 7 6 5 and dark). Ours was a streak lying 4 units in, a gap, a copper line of its own at the edge, and then the underside as a third band, 5s over 6 to 8 units below the silhouette: three lines where theirs is one (round 30 named it).
+- **The lower lip's streak runs to the edge** (`LOW_EDGE` in `shaders.js`), wider where it swells (up to 8 units), and the copper is its own outer side rather than a line beside it.
+- **The underside falls off within a few units** (`UNDER_FALL`): only its first 3 or so carry on the edge's light; below that it is dark on a dark desktop and clear glass, not a dark band, on a light one (first tried dark all the way, it drew a dark line under the whole drop on a white window: an outline again, item 1). Its thickness (`uWall`, 11 units) and the hit test are unchanged.
+- Measured, at x 480, from 30 units inside the silhouette (the 31st digit is the silhouette):
+
+```
+ref  2332234434454567776324899999998765211111111111
+r35  1111135664200000011146888754665555311111110000
+r36  1111246653100000111125788888765543211111110000
+```
+
+- **The floor** (broad pools of the album's colour under the drop): read with `area-map.js part=all`, the ground below and round the drop already has the reference's mean colour (74,50,49 against 75,52,51), and the reference's perspective puts its pools a few units from where ours could be compared. Left as it is; the drop's reflection in the floor, which the reference shows, is not attempted.
+- The ring round the cover's `down` ray, past the silhouette: ours `|43311` against the reference's `|31111` (round 35: `|34311`). Only the light and the underside's see-through changed. Seen as the opaque base over dark, light and white, refracting over dark and colourful windows, and with real covers (`mercury-still-round36.png`).
+- **Still short on the lower edge:** the reference's lower lip is a broad rounded tube whose light breaks into separate white and coral streaks with soft gradients between them; ours is one even ribbon.
+
 ## What changed on 14 November 2026 at the owner's word (the cursor's light; item 12 in part)
 
 - The owner found the light round the cursor "far too bright ... essentially completely white" and the title hard to read under it. Its core is now .55 (was 3.2) and its soft light .12 (was .2), it lies under the words, and words turn dark where it is bright behind them (`CURSOR_LIGHT`, `WORD_FLIP`). `mercury-cursor-light.png` shows before and after.

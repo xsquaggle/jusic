@@ -260,6 +260,8 @@ const vec4 LIP_EDGE = vec4(.75, 1.1, .45, .55);
 // the edge itself, how deep the line of shade above the streak; how much of the soft glow from
 // the floor is taken out round it.
 const vec4 LOW_EDGE = vec4(1., .55, .55, .78);
+// How dark the underside goes below its first few units.
+const float UNDER_FALL = .78;
 // The upper lip's sheet over the pod: how far its glass takes on the album's colour; how much of
 // the room's wash is taken out of it, from x z to x w (its left end, where it curls up toward the
 // lamps, keeps the light).
@@ -1042,10 +1044,17 @@ void main() {
       float qL = faceDn * smoothstep(300., 360., s) * smoothstep(690., 645., s) * born * (1. - clamp(ink(qWord, 7.) * 2.5, 0., 1.));
       col *= 1. - LOW_EDGE.w * smoothstep(1., 3., gapL) * smoothstep(30., 20., gapL) * qL;
       // (Its width and brightness both swell, and between the swells it thins to a sliver of copper.)
-      float hL = .35 + 2.3 * swellL;
-      col += mix(mix(hotA, vec3(1., .8, .64), .4), vec3(1., .97, .94), swellL * swellL) * LOW_EDGE.x * (.3 + .7 * swellL) * smoothstep(.7, -.7, abs(gapL - (4. + hL)) - hL) * qL;
-      col *= 1. - LOW_EDGE.z * smoothstep(.7, -.7, abs(gapL - (4. + 2. * hL + 1.7)) - .55) * (.3 + .7 * swellL) * qL;
-      col += mix(hotA, vec3(1., .72, .5), .5) * LOW_EDGE.y * smoothstep(.6, -.6, abs(gapL - 1.4) - .45) * (.2 + .8 * (1. - swellL)) * qL;
+      // It runs right up to the edge: in the reference the lower edge is one lit band from about 9
+      // units in to the silhouette, falling off within a few units below it (8s and 9s, then 7 6 5
+      // and dark, at x 480). Ours lay 4 units in, with a copper line of its own at the edge and the
+      // underside as a third band below: three lines where theirs is one. The copper is now the
+      // streak's own outer side.
+      float hL = .5 + 3.4 * swellL;
+      float bandL = smoothstep(.7, -.7, abs(gapL - (1.2 + hL)) - hL);
+      vec3 cL = mix(mix(hotA, vec3(1., .8, .64), .4), vec3(1., .97, .94), swellL * swellL * smoothstep(1.2, 3.5, gapL));
+      cL = mix(cL, mix(hotA, vec3(1., .72, .5), .5), LOW_EDGE.y * smoothstep(3., 1.2, gapL));
+      col += cL * LOW_EDGE.x * (.3 + .7 * swellL) * bandL * qL;
+      col *= 1. - LOW_EDGE.z * smoothstep(.7, -.7, abs(gapL - (1.2 + 2. * hL + 1.7)) - .55) * (.3 + .7 * swellL) * qL;
     }
 
     /* ---- the spectral surface glowing through the fold ---- */
@@ -1167,8 +1176,14 @@ void main() {
     float Fw = mix(.34, .9, pow(1. - max(dot(Nw, V), 0.), 2.5));
     vec3 dyeW = texture(uDye, (pw - uWall * .6) / STAGE).rgb;
     vec3 wall = env(Rw) * Fw + (uPalC * .06 + dyeW * .4) * (1. - Fw);
-    wall *= 1. - .35 * wt;                                                           // falling into shadow lower down
-    float wallGlass = .9 + .07 * wt;
+    // Falling into shadow lower down: only its first few units carry on the light of the edge above
+    // (the reference's lower edge falls off within 3 to 5 units below the silhouette; ours showed
+    // the underside as a band of its own, 5s over 6 to 8 units).
+    float fall = smoothstep(.04, .32, wt);
+    wall *= 1. - UNDER_FALL * fall;
+    // ...and is thin, clear glass there, not a dark band: on a light desktop a dark one drew a line
+    // under the whole drop (an outline, item 1 of the audit).
+    float wallGlass = .9 + .07 * wt - .38 * fall;
     // Refraction: through the side of the drop, what is behind is drawn far up under the top face.
     if (uBackPx.y > 0.) wall += smoked(behind(pw - normalize(uWall) * 22. * (1. - .5 * wt), 4.5)) * vec3(.9, .94, 1.) * (1. - wallGlass) * 1.6 * uBackPx.y;
     col = mix(wall, col, covTop);
