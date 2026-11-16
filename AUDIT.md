@@ -680,6 +680,13 @@ end    r55   4341111235687546763534444456776334445666   warm 2100011122211111001
 - **Still short at the right end:** the reference's end is a rounded lobe of glass, a broad sheen on its body and a bright highlight down its outer right side; ours now has the reference's light down the cut but drawn as thin lines on a flat surface. That is geometry: the curl as a real tube in the height, and the end's lower lobe rounded.
 - Only light and the pod's height changed; the outline and the hit test did not. Seen as the opaque base, refracting over dark and colourful windows (`mercury-still-round55.png`), and with real covers.
 
+## Round 56 (tried, not kept: the right end as a rounded lobe)
+
+- **The owner, on 16 November 2026, after round 55**, sending the main reference (`widget-mercury.png`): "Lets work on getting it to as replicably close to the reference still here as we can. Once you finish up, we'll run a visual audit, and try to get it back on track with the 'liquid glass' look - as its not as clear as the still."
+- **Seen with `outline.js ref=mercury`:** our pod runs out to the right silhouette (its lower rim and the lip's edge meet at about x 785), and past the last button the end is the pod's sunken, flat floor. In the reference the end past the last button is a full, rounded mass of glass, white where it faces the lamps and coral below.
+- **Tried:** a dome over the end in `base()` (centre 768,214, radius 44, 10 high; then 772,226, radius 50, 12 high). Under the present material it showed only as a pale wedge right of the last button, and down the 'end' cut it lit the lower part to 6s and 7s where the reference has 3s to 5s. Reverted.
+- **What it showed:** the reference's right end, like the rest of it, is clear glass full of broad warm light; ours is dark smoked glass with thin bright lines on it, and a change of form there barely shows under it. The material (the owner's "not as clear as the still") is now the largest gap, ahead of any one part: the visual audit the owner asked for comes next.
+
 ## What changed on 14 November 2026 at the owner's word (the cursor's light; item 12 in part)
 
 - The owner found the light round the cursor "far too bright ... essentially completely white" and the title hard to read under it. Its core is now .55 (was 3.2) and its soft light .12 (was .2), it lies under the words, and words turn dark where it is bright behind them (`CURSOR_LIGHT`, `WORD_FLIP`). `mercury-cursor-light.png` shows before and after.
