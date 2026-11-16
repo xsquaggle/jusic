@@ -1,0 +1,13 @@
+{ "out": "design/captures/mercury-still-round41.png", "width": 1616,
+  "title": "Mercury still, round 41: the right lobe's upper shoulder as full as the reference's (up to 11 units higher), and the volume line longer and higher, where the reference's lies (generated test cover)",
+  "rows": [
+  [ { "label": "reference: the right lobe", "src": "design/references/widget-mercury.png", "crop": [960, 230, 626, 470] },
+    { "label": "round 41: the same part", "src": "design/captures/raw/round41/dark.png", "crop": [740, 110, 400, 300] },
+    { "label": "round 40, before", "src": "design/captures/raw/round40/dark.png", "crop": [740, 110, 400, 300] } ],
+  [ { "label": "the geometry over the reference (white: the outline; green: the volume line and speaker)", "src": "design/captures/raw/outline-r41.png", "crop": [1120, 140, 540, 380] },
+    { "label": "round 41 over a white window", "src": "design/captures/raw/round41/window.png", "crop": [740, 110, 400, 300] } ],
+  [ { "label": "reference: widget-mercury.png", "src": "design/references/widget-mercury.png", "crop": [0, 110, 1586, 797] },
+    { "label": "round 41, refracting in the real window: dark window behind", "src": "design/captures/raw/round41-refract/window-dark.png", "crop": [12, 12, 936, 456] } ],
+  [ { "label": "round 41, the opaque base: dark desktop", "src": "design/captures/raw/round41/dark.png", "crop": [90, 50, 1022, 513] },
+    { "label": "round 41, refracting: colourful window behind", "src": "design/captures/raw/round41-refract/window-busy.png", "crop": [12, 12, 936, 456] } ]
+] }

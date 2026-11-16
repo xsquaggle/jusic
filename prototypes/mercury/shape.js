@@ -18,6 +18,12 @@ export const L = {
   // The right lobe: a round shoulder and, beyond it, the end itself, a little smaller and lower.
   lobeR: { c: [645, 189], r: 101, k: 40 },
   crest: { c: [706, 198], r: 88, k: 50 },
+  // The right lobe's upper shoulder (round 41). Traced off the reference, its top edge stays near y 87
+  // to 89 out to x 700 and then falls steeply to the right end; ours fell from x 650 and lay 9 to 11
+  // units lower from x 700 to 750. This circle fits theirs from x 700 to 780 and meets the right side
+  // where ours already did. Below y 'below' it adds nothing (it would have bulged the lower edge), and
+  // it is blended into the body over k.
+  shoulder: { c: [680, 200], r: 112.5, below: 200, kb: 14, k: 6 },
   // What is cut away under the right end, so the outline comes over the top, down the end and
   // back along a rising lower edge: a soft crest instead of a tail.
   // (Near the tip, where the cut meets the end, it is turned sharply, as the reference's end
@@ -86,7 +92,9 @@ export const L = {
   ],
 
   seek: { x0: 214, x1: 646, y0: 279, y1: 247, bow: 1.5 },
-  vol: { x0: 628, x1: 714, y: 127, icon: [604, 127] },
+  // (Round 41: 97 units long, from x 645 to 742, and 3.5 higher, as the reference's line is; it was
+  // 86 long from 628 at y 127. The speaker keeps 23 units before it, level with it.)
+  vol: { x0: 645, x1: 742, y: 123.5, icon: [622, 123.5] },
 
   // Two small beads of liquid glass beside the right end, each holding one control. They bud off
   // the end while the pointer is over its right side and rest just clear of it (the owner's word on
@@ -143,13 +151,14 @@ function sdCapsule(px, py, ax, ay, bx, by, ra, rb) {
  * @param {number} swell how far the lobes are breathing out with the bass
  */
 export function bodySdf(x, y, swell = 0) {
-  const { lobeL, lobeR, crest, bridge, pinch, cut } = L;
+  const { lobeL, lobeR, crest, shoulder, bridge, pinch, cut } = L;
 
   let d = Math.hypot(x - lobeL.c[0], y - lobeL.c[1]) - (lobeL.r + swell);
   d = smin(d, sdCapsule(x, y, bridge.a[0], bridge.a[1], bridge.b[0], bridge.b[1], bridge.ra, bridge.rb), bridge.k);
 
   d = smin(d, Math.hypot(x - lobeR.c[0], y - lobeR.c[1]) - (lobeR.r + swell), lobeR.k);
   d = smin(d, Math.hypot(x - crest.c[0], y - crest.c[1]) - (crest.r + swell), crest.k);
+  d = smin(d, smax(Math.hypot(x - shoulder.c[0], y - shoulder.c[1]) - (shoulder.r + swell), y - shoulder.below, shoulder.kb), shoulder.k);
   d = smax(d, -(Math.hypot(x - pinch.c[0], y - pinch.c[1]) - pinch.r), pinch.k);
   d = smax(d, -(Math.hypot(x - cut.c[0], y - cut.c[1]) - cut.r), mix(cut.k, cut.kTip, smoothstep(cut.tip[0], cut.tip[1], x)));
   return d;
@@ -412,6 +421,7 @@ float bodySdf(vec2 p, float swell) {
   d = smin(d, sdCapsule(p, ${v2(L.bridge.a)}, ${v2(L.bridge.b)}, ${f1(L.bridge.ra)}, ${f1(L.bridge.rb)}), ${f1(L.bridge.k)});
   d = smin(d, length(p - ${v2(L.lobeR.c)}) - (${f1(L.lobeR.r)} + swell), ${f1(L.lobeR.k)});
   d = smin(d, length(p - ${v2(L.crest.c)}) - (${f1(L.crest.r)} + swell), ${f1(L.crest.k)});
+  d = smin(d, smax(length(p - ${v2(L.shoulder.c)}) - (${f1(L.shoulder.r)} + swell), p.y - ${f1(L.shoulder.below)}, ${f1(L.shoulder.kb)}), ${f1(L.shoulder.k)});
   d = smax(d, -(length(p - ${v2(L.pinch.c)}) - ${f1(L.pinch.r)}), ${f1(L.pinch.k)});
   d = smax(d, -(length(p - ${v2(L.cut.c)}) - ${f1(L.cut.r)}), mix(${f1(L.cut.k)}, ${f1(L.cut.kTip)}, smoothstep(${f1(L.cut.tip[0])}, ${f1(L.cut.tip[1])}, p.x)));
   return d;

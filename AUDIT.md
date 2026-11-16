@@ -519,6 +519,15 @@ Done on 16 November 2026, in the same session as rounds 34 to 39.
 - Measured: on the play bowl at 6 o'clock ours reads `...334678888765|` against the reference's `...345688898544|`; the `play` cut `...111385521...` against `...112248453...`. The pod's mean stays near the reference's (133,105,103 against 130,97,94 with the larger bowls left out).
 - `test=passthrough` after the change: 14 of 14. Seen as the opaque base over dark, light and white, refracting over dark and colourful windows, and with real covers (`mercury-still-round40.png`).
 
+## What round 41 changed (items 7 and 11: the right lobe's shoulder, and the volume line)
+
+Done on 16 November 2026, in the same session as rounds 34 to 40.
+
+- **Measured first: the upper silhouette by x**, ours from `shape.js` against the reference's found on the picture (a scratch tracer, the reference mapped as `outline.js` maps it). From x 620 to 650 the two agreed within 2 units, but the reference's top stays near y 87 to 89 out to x 700 before it falls to the right end, where ours fell from x 650: ours lay 6 to 11 units lower from x 680 to 750. (That is also why the longer volume line had no room under our top edge.)
+- **The right lobe has an upper shoulder** (`L.shoulder` in `shape.js`, in `bodySdf` in JS and in the generated GLSL): a circle fitted to the reference's top edge from x 700 to 780 (centre 680, 200, radius 112.5), cut off below y 200 so it cannot touch the lower edge, and blended into the body over 6 units (at 24 it bulged the top past the reference's by 4 to 7 units near the right end). The top edge now matches the reference's within 1.5 units from x 620 to 780 (before: up to 11 lower). Every lower edge is unchanged (`outline.js` prints the same bottoms), and the right side is unchanged at the beads' heights (794).
+- **The volume line is 97 units, from x 645 to 742, at y 123.5** (`L.vol`), as the reference's lies (it was 86 units from 628 at y 127); over the reference, ours now sits on theirs from end to end. The speaker keeps 23 units before it, level with it. Round 34 had already made the part not yet played dim. The "VOLUME" label the main reference shows is still left out, as decided in round 15 (too small to read at the widget's size, in the lip's highlight, and two of the three references do without one).
+- `test=passthrough`: 14 of 14 with the new outline. Seen as the opaque base over dark, light and white, refracting over dark and colourful windows, and with real covers (`mercury-still-round41.png`; its second row has the geometry over the reference).
+
 ## What changed on 14 November 2026 at the owner's word (the cursor's light; item 12 in part)
 
 - The owner found the light round the cursor "far too bright ... essentially completely white" and the title hard to read under it. Its core is now .55 (was 3.2) and its soft light .12 (was .2), it lies under the words, and words turn dark where it is bright behind them (`CURSOR_LIGHT`, `WORD_FLIP`). `mercury-cursor-light.png` shows before and after.
