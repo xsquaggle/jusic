@@ -48,7 +48,7 @@ Updated 16 November 2026, after round 33. Step 2 of the owner's order of work is
 **The owner answered on 16 November 2026** (the questions that needed their mouse or main screen):
 - *The cursor's light:* "Yes, the light around the cursor is dim enough now." Settled.
 - *The tray's Refraction switch:* "the refraction switch worked last time I tried it." Settled.
-- *A full-screen game under the refracting widget:* not tried. They are "not sure how to execute and run the widget" themselves. They were given the one command, `npx electron tools/widget-proto/main.js`, run from `C:\Users\g8rla\jusic-redesign`. Still open.
+- *A full-screen game under the refracting widget:* at first they were "not sure how to execute and run the widget". Given the one command (`npx electron tools/widget-proto/main.js`, run from `C:\Users\g8rla\jusic-redesign`), they tried it and answered the same day: **"Runs great over a full screen game!"** Settled. They then asked for the next round in a fresh session.
 - *The two utility dishes:* they should "appear whenever the mouse hovers over to the right side of it, and ... in two separate small little beads of liquid glass to the right ... so they're not inside of the drop." **Done in round 32** (`AUDIT.md`, "What round 32 changed").
 
 **Two things the owner asked for on 13 November 2026, in the evening** (also in "The owner's instructions" below):
