@@ -1,0 +1,12 @@
+{ "out": "design/captures/mercury-still-round51.png", "width": 1616,
+  "title": "Mercury still, rounds 50 and 51: the cover's seat as a thick glossy ledge; the bowls' rims thin and coral (generated test cover)",
+  "rows": [
+  [ { "label": "flow reference: the cover on its seat", "src": "design/references/widget-mercury-flow.png", "crop": [28, 187, 887, 557] },
+    { "label": "round 51: the same part", "src": "design/captures/raw/round51/dark.png", "crop": [125, 125, 537, 337] } ],
+  [ { "label": "flow reference: the bowls", "src": "design/references/widget-mercury-flow.png", "crop": [880, 270, 700, 420] },
+    { "label": "round 51: the bowls (round 49's were broad white crescents)", "src": "design/captures/raw/round51/dark.png", "crop": [620, 150, 425, 255] } ],
+  [ { "label": "reference: widget-mercury-flow.png", "src": "design/references/widget-mercury-flow.png", "crop": [0, 220, 1586, 620] },
+    { "label": "round 51, refracting in the real window: dark window behind", "src": "design/captures/raw/round51-refract/window-dark.png", "crop": [12, 12, 936, 456] } ],
+  [ { "label": "round 51, the opaque base: dark desktop", "src": "design/captures/raw/round51/dark.png", "crop": [90, 50, 1022, 513] },
+    { "label": "round 51, refracting: colourful window behind", "src": "design/captures/raw/round51-refract/window-busy.png", "crop": [12, 12, 936, 456] } ]
+] }

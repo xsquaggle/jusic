@@ -56,7 +56,7 @@ export const L = {
   // cover rests on the roll of the edge; and it sags by 'sag' under the cover's middle 'c' (over 'w')
   // where its weight presses. It fades in from the bulb's rim at lipFade. Until round 48 it melted
   // away beside the cover, between x 266 and 304, and the cover had no seat.)
-  seat: { blend: [305, 255], at: [190, 253.5], slope: -0.096, gap: 3.5, sag: 2.5, c: 188, w: 48 },
+  seat: { blend: [305, 255], at: [190, 253.5], slope: -0.096, gap: 7, sag: 2.5, c: 188, w: 48 },   // (gap 3.5 in round 49: no room for the ledge's top)
   lipFade: [92, 128],
   lipH: 7,            // how high the lip's rolled leading edge stands
   lipRoll: 7,         // how wide that roll is

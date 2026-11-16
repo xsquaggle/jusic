@@ -620,6 +620,17 @@ r46    283  283  283  281  277  273  267  262  257  252  249  248  248  250  253
 - `test=passthrough`: 14 of 14, the cover included. Seen whole and close beside the flow reference (`mercury-still-round49.png`).
 - **Still short:** the seat is a thin bright line, where the flow reference's is the front edge of a thick glossy ledge; at the cover's lower right corner the edge makes a small hook where it turns from the run to the cover; the cover's turn is slight to the eye.
 
+## What round 50 changed (items 1, 4 and 9: the cover's seat as a thick ledge)
+
+- **Seen beside the flow reference, close under the cover:** theirs is the front edge of a thick glossy ledge the cover stands on: the ledge's top shows as a broad pale band in front of the cover, a thin contact shadow under the cover, the bright front edge, a warm outer face below it, then the darker strip with the timeline. Round 49's seat lay 3.5 units under the cover, so no top showed and it read as a thin line; the shade behind the edge's roll darkened what little there was.
+- **The seat is 7 units below the cover's edge** (`L.seat.gap`; 9.5 under the middle where it sags), the ledge's top between the edge's crest and the cover is lit glossy glass falling off toward the cover, which keeps its own thin contact shadow, and the edge's outer face is warmer and broader there (`SEAT_LEDGE`, `seatM` in `shaders.js`); the shade behind the roll is taken out under the cover. The hook where the edge turned from the run to the cover at its lower right corner is now a soft curve.
+
+## What round 51 changed (item 8: the bowls' rims thin and coral)
+
+- **Seen beside the flow reference:** its bowls have thin bright rims all the way round, coral at the bottom, and dark glass inside. Ours were round 35's broad crescents (8.5 units at 6 o'clock, the main reference's measure), peach-white, with the fine edge line nearly gone at the sides: they read as heavy.
+- **The crescent is 4.5 units at 6 o'clock** and coral toward its core (`BTN_THIN`), a little dimmer (`BTN_RIM.x` 1.15), and the fine line at each bowl's edge runs round the whole bowl (`BTN_RIM.w` .6), plainest at the top and bottom.
+- Seen as the opaque base, refracting over dark and colourful windows, and with real covers (`mercury-still-round51.png`).
+
 ## What changed on 14 November 2026 at the owner's word (the cursor's light; item 12 in part)
 
 - The owner found the light round the cursor "far too bright ... essentially completely white" and the title hard to read under it. Its core is now .55 (was 3.2) and its soft light .12 (was .2), it lies under the words, and words turn dark where it is bright behind them (`CURSOR_LIGHT`, `WORD_FLIP`). `mercury-cursor-light.png` shows before and after.

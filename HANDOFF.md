@@ -4,7 +4,9 @@
 
 ## Current status
 
-Updated 16 November 2026, after round 49 (checkpoint). Step 2 of the owner's order of work is complete; **step 3 (polish the still) is under way: rounds 11 to 49 are done.** Nothing is half-finished. **Start the next round in a fresh session from this file.**
+Updated 16 November 2026, after round 51 (checkpoint). Step 2 of the owner's order of work is complete; **step 3 (polish the still) is under way: rounds 11 to 51 are done.** Nothing is half-finished. **Start the next round in a fresh session from this file** (this one ran rounds 45 to 51 and is long).
+
+**Rounds 50 and 51 (the owner said "Yes, carry on"):** the cover's seat as the front of a thick glossy ledge: 7 units below the cover, its top lit in front of the cover, a warm outer face, no shade behind it there (`L.seat.gap`, `SEAT_LEDGE`); and the bowls' rims thin and coral, a full thin ring round each, the crescent at 6 o'clock 4.5 units where it was 8.5 (`BTN_THIN`, `BTN_RIM`).
 
 **Round 49 (the owner asked for it in this session; their words in `AUDIT.md`, "What round 49 changed"): the cover sits on the lip's own edge.** Round 47's shelf was wrong: "It should be the same exact line ... that runs underneath the artist name and title and up over the buttons. That line should run and should be what the album cover sits on ... a little bit heavy squishing into it." Now the edge runs on under the cover, 3.5 units below its tilted lower edge, sagging under its middle, to the bulb's rim (`L.seat`, `runY` in `shape.js`; `lipFade` 92 to 128); the cover presses deeper (`press` 6). **The cover is turned 12 degrees, its right side back** ("maybe 10 to 15 [degrees] ... just to match what the actual reference picture shows"): `L.cover.yaw` and `persp` in `tilePlane`, JS and GLSL, its thickness now on its left side. **One crisp highlight along the roll over the pod** (`POD_RIDGE`), as the flow reference's. `test=passthrough` 14 of 14. Round 47's shelf is gone (`shelfAt` remains only to keep the old hard lines out under the cover). **Mind:** the shaders are JavaScript template strings, so a backtick in a GLSL comment ends the string and the page fails to load ("Unexpected identifier"); the capture tool then reports only "Script failed to execute". `npx electron` scripts outside the repository that reach `__dirname` fail silently.
 
@@ -16,9 +18,9 @@ Updated 16 November 2026, after round 49 (checkpoint). Step 2 of the owner's ord
 - Scratch profilers used (not committed; simple to rewrite, each samples the reference through the `outline.js` mapping): across the lip's edge round the right end along `archSdf`'s normal, and down the right side a few units inside the silhouette; the timeline followed column by column in both references from its left end (keep to the line within 4 px of the last column's middle, or the tracer jumps to other highlights).
 
 **Next, largest first** (the owner's three requests are done once; what is still short of the flow still in those three parts comes first):
-1. The cover's seat (round 49) as the front edge of a thick glossy ledge, as the flow still's, not a thin bright line; the small hook where the edge turns from the run to the cover at its lower right corner (`L.seat.blend`); the cover's turn, slight to the eye, could go to 15 degrees if the owner wants it plainer. (Round 49 put the crisp highlight along the roll over the pod: done.)
-2. The bowls' rims: thin coral rims as in both references, not round 35's thick white crescents.
-3. The bulb's lower left beside the cover coral, not a white wash.
+1. ~~The seat as a thick ledge~~ (round 50) and ~~the bowls' rims~~ (round 51). The cover's turn, slight to the eye, could go to 15 degrees if the owner wants it plainer (`L.cover.yaw`).
+2. The bulb's lower left beside the cover coral, not a white wash.
+3. The flow still's dark glass inside the bowls with a soft coral glow low in each; ours are a little lighter.
 4. The right end: the curl as a broad coral mass (`CURL_MASS`); at x 772 the glass between the curl and the edge dark, as the reference's.
 5. The flat white glare in the bulb's upper left (`RING_KEY`'s silver), against both references' softer coral-white light there.
 6. Fine silver reflections in the pod; the ribbon under the words brightening as it rises.
