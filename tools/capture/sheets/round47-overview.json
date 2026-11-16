@@ -1,0 +1,12 @@
+{ "out": "design/captures/mercury-still-round47.png", "width": 1616,
+  "title": "Mercury still, rounds 45 to 47: the timeline curved as the references' is, the cover seated on a rounded glass shelf, the right end's curl as lit glass (generated test cover)",
+  "rows": [
+  [ { "label": "flow reference: the cover, its shelf and the timeline", "src": "design/references/widget-mercury-flow.png", "crop": [28, 187, 887, 557] },
+    { "label": "rounds 45 to 47: the same part", "src": "design/captures/raw/round47/dark.png", "crop": [125, 125, 537, 337] } ],
+  [ { "label": "main reference: the same part", "src": "design/references/widget-mercury.png", "crop": [23, 159, 887, 557] },
+    { "label": "round 44, before (a straight timeline; two hard lines under the cover)", "src": "design/captures/raw/round44/dark.png", "crop": [125, 125, 537, 337] } ],
+  [ { "label": "reference: widget-mercury.png", "src": "design/references/widget-mercury.png", "crop": [0, 110, 1586, 797] },
+    { "label": "round 47, refracting in the real window: dark window behind", "src": "design/captures/raw/round47-refract/window-dark.png", "crop": [12, 12, 936, 456] } ],
+  [ { "label": "round 47, the opaque base: dark desktop", "src": "design/captures/raw/round47/dark.png", "crop": [90, 50, 1022, 513] },
+    { "label": "round 47, refracting: colourful window behind", "src": "design/captures/raw/round47-refract/window-busy.png", "crop": [12, 12, 936, 456] } ]
+] }

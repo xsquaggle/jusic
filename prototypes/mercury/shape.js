@@ -91,7 +91,11 @@ export const L = {
     { c: [716, 195], r: 27.5 },   // next (2 left and 2 down, so its rim keeps clear of the lip's edge)
   ],
 
-  seek: { x0: 214, x1: 646, y0: 279, y1: 247, bow: 1.5 },
+  // The timeline: level under the cover (y0, as far as x 'rise'), rising in one smooth S to its
+  // crest under the waist, then easing a little down again to its right end (y1). Followed off both
+  // references column by column (round 46, at the owner's word: "curve it gently downward beneath
+  // the album-cover area, then sweep it smoothly upward"); it was one straight rise, 279 to 247.
+  seek: { x0: 214, x1: 646, y0: 283, y1: 255, rise: 270, crest: [520, 248] },
   // (Round 41: 97 units long, from x 645 to 742, and 3.5 higher, as the reference's line is; it was
   // 86 long from 628 at y 127. The speaker keeps 23 units before it, level with it.)
   vol: { x0: 645, x1: 742, y: 123.5, icon: [622, 123.5] },
@@ -220,11 +224,21 @@ function sample(tab, t) {
 export const SEEK_N = 33;
 export const VOL_N = 9;
 
-// The timeline is one long, nearly straight rise, like the lower edge it runs above: wide of
-// the edge under the cover, closest to it at the waist (but clear of the lip's crest), wide
-// of it again under the buttons. It does not follow the edge's dip under the right lobe.
-const SEEK_TAB = table(SEEK_N, L.seek.x0, L.seek.x1, (x, t) =>
-  mix(L.seek.y0, L.seek.y1, t) + L.seek.bow * Math.sin(Math.PI * t), 0);
+// The timeline is a shallow flowing curve, as both references' is: level under the cover, so the
+// cover has room to sit in the glass above it; then one S rising to its crest under the waist,
+// steeper in its first half (the references' rise, measured: a smoothstep begun a little early);
+// then easing down by a few units under the buttons to its end. (Round 46. It was one straight
+// rise, which ran up close under the cover's lower right corner.)
+const seekPath = (x) => {
+  const { y0, y1, rise, crest } = L.seek;
+  if (x <= crest[0]) {
+    const t = (x - rise) / (crest[0] - rise);
+    const r = (smoothstep(0, 1, (t + 0.12) / 1.12) - smoothstep(0, 1, 0.12 / 1.12)) / (1 - smoothstep(0, 1, 0.12 / 1.12));
+    return t <= 0 ? y0 : mix(y0, crest[1], r);
+  }
+  return mix(crest[1], y1, smoothstep(crest[0], L.seek.x1, x));
+};
+const SEEK_TAB = table(SEEK_N, L.seek.x0, L.seek.x1, seekPath, 1);
 
 // Volume lies level across the flat of the upper lip, between the crest of the outer edge
 // and the roll of the lip's leading edge.

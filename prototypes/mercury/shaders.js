@@ -255,6 +255,10 @@ const float END_FLOOR = .7;
 // how bright the coral in the lower right below the edge; how deep the dark line just above the
 // edge; how plain the edge's outer face is there (1 as bright as before).
 const vec4 END_CURL = vec4(6.5, .12, .55, .4);
+// The curl as a mass of lit glass (round 45): how far its middle rises up the lip toward the right
+// side (units, over x 745 to 788); how bright its broad body; its thin hot core; the soft light it
+// spreads up the lip above it.
+const vec4 CURL_MASS = vec4(22., .55, .5, .18);
 // The tip where the right end curls under: where it is (xy), how far its glow reaches (z), how bright (w).
 const vec4 END_TIP = vec4(780., 230., 12., 1.5);      // (its glow reached 20 units and lit the 'end' cut 26 units off: 8s where the reference has 5s)
 // The copper line along the upper silhouette: how bright.
@@ -291,6 +295,21 @@ const float TUBE_CLEAR = .6;
 
 // How high the tube of glass between the bulb's outline and the cover's pocket is crowned.
 const float TUBE_H = 7.;
+// The shelf the cover sits on (round 47): a broad rounded ridge of glass along the cover's lower
+// side, round its lower corners: where its crest lies (units beyond the tile's edge), how wide,
+// how high. Its light: the one crest line along its top; the floor's colour on its front face.
+const vec3 SHELF = vec3(7., 8.5, 9.);
+const vec3 SHELF_LIGHT = vec3(.95, .35, .35);   // (z: how dark the strip below its front face, where the timeline runs)
+// Where the shelf is: x, how far from its crest line (positive toward the strip below); y, how much
+// of it there is. Round the cover's lower left corner it follows the cover; past the lower right
+// corner it runs straight on, as the cover's lower edge carried on, into the lip's edge under the
+// words (both references: the shelf and that edge are one line).
+vec2 shelfAt(vec2 p, float dTile) {
+  vec2 tq = tilePlane(p, uTile.xy) / (2. * COVER_HALF);
+  float dB = (tq.y - .5) * 2. * COVER_HALF;
+  float d = mix(dTile, dB, smoothstep(.3, .5, tq.x));
+  return vec2(d - SHELF.x, smoothstep(.2, .46, tq.y) * smoothstep(1.05, .75, tq.x));
+}
 
 // The form itself: the rolled edge, the crown of the body, slow liquid swells
 // and the waves the music sends along it. Sampled with a wide step, so its
@@ -355,6 +374,15 @@ float base(vec2 p0) {
     float uu = gapT / max(gapIn + gapT, 20.);
     h += TUBE_H * 4. * uu * (1. - uu) * tube;
   }
+  // The shelf the cover sits on (round 47, at the owner's word: the ridge under the cover "a
+  // continuous, rounded glass shelf that flows into the surrounding body", as both references
+  // have it): a broad ridge along the cover's lower side, round its two lower corners, in the soft
+  // form so that what it mirrors is soft and unbroken. (It was the pocket's narrow bank alone, lit
+  // with two hard lines.)
+  {
+    vec2 sh = shelfAt(p, dTile);
+    h += SHELF.z * exp(-sh.x * sh.x / (2. * SHELF.y * SHELF.y)) * sh.y * pressed;
+  }
 
   // The bulb is crowned: full in the middle and falling away to its rim all round, so the
   // part of it toward the lamps carries a sheen and the part toward the floor its colour.
@@ -412,6 +440,8 @@ float detail(vec2 p0) {
     float pressed = smoothstep(.72, 1., uForm);
     float tw = 1. - clamp(dTile / POCKET.y, 0., 1.);
     float bank = dTile > POCKET.y ? exp(-pow((dTile - POCKET.y) / POCKET.w, 2.)) : 1.;
+    // (Under the cover the shelf in base() takes the bank's place: a sharp bank there drew a hard line.)
+    bank *= 1. - .75 * shelfAt(p, dTile).y;
     h += (POCKET.z * bank - (POCKET.x + POCKET.z) * (1. - sqrt(max(1. - tw * tw, 0.)))) * pressed;
   }
 
@@ -762,7 +792,19 @@ void main() {
       // (Along the lower edge it thins toward the right and is gone before the far corner: of even
       // width all the way it drew a second outline round the cover.)
       float floorP = max(dot(nP, vec2(-.35, .94)), 0.) * smoothstep(uTile.x + 62., uTile.x - 34., pw.x);
-      float ribbon = smoothstep(.7, -.7, abs(dT - POCKET.y * .8) - RIBBON.x * floorP * floorP + .6);
+      // The shelf under the cover (round 47): one unbroken crest line along its top, a little on the
+      // cover's side of the crest where the ridge faces up toward the lamps, soft-sided and brightest
+      // under the cover's lower left; below it the front face, which looks down at the floor, soft
+      // with the album's colour. (In its place was a hard ribbon under the lower left corner and the
+      // bank's own line beside it: two neon lines, the owner's "rough ridge".)
+      vec2 shS = shelfAt(pw, dT);
+      float underS = shS.y * born;
+      float sdS = shS.x;
+      float alongS = .55 + .45 * smoothstep(uTile.x + 70., uTile.x - 40., pw.x);
+      col *= 1. - SHELF_LIGHT.z * smoothstep(8., 13., sdS) * smoothstep(28., 17., sdS) * underS;
+      col += mix(vec3(1., .97, .94), hotA, .25) * SHELF_LIGHT.x * exp(-pow((sdS + 2.) / 1.3, 2.)) * alongS * underS;
+      col += mix(hotA, vec3(1., .8, .7), .25) * SHELF_LIGHT.y * smoothstep(-1., 2., sdS) * exp(-max(sdS - 2., 0.) / 5.) * underS;
+      float ribbon = smoothstep(.7, -.7, abs(dT - POCKET.y * .8) - RIBBON.x * floorP * floorP + .6) * (1. - underS);
       col += vec3(1., .98, .95) * 1.5 * pow(towardP, 3.) * glintP * born + mix(hotA, vec3(1.), .6) * RIBBON.y * ribbon * born;
 
       // The light in the ring of glass round the cover, laid out by the clock as it lies in the
@@ -812,7 +854,7 @@ void main() {
         // shade just outside it, cut as cleanly as the ribbon is. Light with an edge needs dark
         // with an edge next to it.
         // (Only under the lower edge. Round the corner the floor's light lies beside the ribbon, not shade.)
-        col *= 1. - RIBBON.z * smoothstep(.8, -.8, abs(dT - POCKET.y * .8 - RIBBON.x * floorP * floorP - 2.2) - 1.6 * floorP) * smoothstep(.3, .7, floorP) * smoothstep(.7, .97, nP.y) * born;
+        col *= 1. - RIBBON.z * smoothstep(.8, -.8, abs(dT - POCKET.y * .8 - RIBBON.x * floorP * floorP - 2.2) - 1.6 * floorP) * smoothstep(.3, .7, floorP) * smoothstep(.7, .97, nP.y) * born * (1. - underS);
 
         // Seen from the front and a little to the right, the pocket's wall on the left shows its
         // whole inner face: a broad stretch of deep clear glass between the cover and the
@@ -1088,11 +1130,27 @@ void main() {
       // Round the right end the lip curls over: in the reference its light lies 15 to 30 units above
       // the edge, white over coral, with a dark line between it and the edge (2s to 4s just above it),
       // and its outer face there is plain. Ours was a white band lying on the edge itself.
-      col *= 1. - END_CURL.z * curl * smoothstep(1.8, 3.6, ar) * smoothstep(10., 7., ar) * qE;
-      hC += 1.5 * curl;
+      // (Round 45: the dark line is a thin one just above the edge; across ten units it put out the
+      // crest, which in the reference stays low and lit, 6s and 7s, as far as x 745.)
+      col *= 1. - END_CURL.z * curl * smoothstep(1.8, 3., ar) * smoothstep(5., 3.8, ar) * qE;
       vec3 cC = mix(vec3(1., .98, .95), mix(hotA, vec3(1., .85, .72), .5), .5 * wide * (1. - swC));
-      cC = mix(cC, mix(hotA, vec3(1., .9, .82), .55), .5 * curl * smoothstep(17., 26., ar));
-      col += cC * LIP_EDGE.y * smoothstep(aaE, -aaE, abs(ar - (5.3 + hC + LIP_RIBBON.z * wide + END_CURL.x * curl)) - hC) * max(.1 + .9 * swC, .55 * wide) * (1. - .4 * wide) * (1. - .25 * overPod) * (1. - .35 * rise) * qE;
+      // The crest stays on the edge round the right end and dies away before the side (the reference:
+      // 1s and 2s across the edge at x 772); the curl above it is a light of its own.
+      col += cC * LIP_EDGE.y * smoothstep(aaE, -aaE, abs(ar - (5.3 + hC + LIP_RIBBON.z * wide)) - hC) * max(.1 + .9 * swC, .55 * wide) * (1. - .4 * wide) * (1. - .25 * overPod) * (1. - .35 * rise) * (1. - .75 * smoothstep(750., 772., s)) * qE;
+      // The curl: a mass of lit glass lying 15 to 30 units above the edge where the end turns down, a
+      // hot core coral on its lower side and white on its upper, a broad body round it, and a soft
+      // light spreading up the lip above it (the reference across the edge at x 745: 9s from 16 to 24
+      // units up, warmth 4 below and 0 above, then 6s to 3s for 20 units more). Toward the right side
+      // it turns up, so between it and the edge the glass is dark where they meet the side. (It was a
+      // flat white band of even width lying along the edge: paint.)
+      float cB = smoothstep(718., 752., s) * smoothstep(250., 180., pw.y);
+      float tc = ar - (21. + CURL_MASS.x * smoothstep(745., 788., s));
+      float cBody = exp(-tc * tc / 40.5);
+      float cCore = smoothstep(aaE, -aaE, abs(tc + 1.) - 2.2) * (.75 + .25 * smoothstep(760., 742., s));
+      float cTail = smoothstep(-2., 5., tc) * exp(-max(tc - 5., 0.) / 14.);
+      vec3 cCoral = mix(hotA, vec3(1., .74, .58), .45);
+      col += mix(cCoral, vec3(1., .96, .92), smoothstep(-3., 4., tc)) * (CURL_MASS.y * cBody + CURL_MASS.z * cCore) * cB * qE;
+      col += mix(cCoral, vec3(1., .9, .84), .35) * CURL_MASS.w * cTail * cB * qE;
       col += vec3(1., .97, .94) * LIP_EDGE.z * smoothstep(aaE, -aaE, abs(ar - (11.5 + 1.5 * rise)) - .45) * rise * qE;
     }
 

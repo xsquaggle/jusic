@@ -560,6 +560,46 @@ Done on 16 November 2026, in the same session as rounds 34 to 43.
 - Only the light changed. Seen as the opaque base over dark, light and white, refracting over dark and colourful windows, and with real covers (`mercury-still-round44.png`).
 - **Still short in the pod:** the reference's carries fine silver reflections that make it read as glass; ours is a smooth glow.
 
+## What round 45 changed (items 1 and 4: the right end's curl as lit glass)
+
+Done on 16 November 2026, in a fresh session (Opus 5.5).
+
+- **Measured first**, across the lip's edge round the right end along its normal at six places (a scratch profiler: from 12 units on the pod side to 45 on the lip, the reference sampled through the `outline.js` mapping), and down the right side 4 units inside the silhouette. The reference keeps the edge's crest low and lit as far as x 745 (6s and 7s from 0 to 9 units up); its curl is a light of its own 15 to 30 units up, a hot core (9s) coral on its lower side and white on its upper, with a soft light spreading 20 units further up the lip; toward the side it turns up, so where the curl and the edge meet the right side the glass between them is dark (3s and 4s from y 152 to 176). Ours had lifted the crest itself into one flat white band of even width that ran on down to the side: 8s from y 164 to 176 there.
+- **The crest stays on the edge** round the right end and dies away before the side; the dark line above the edge is a thin one (it put out ten units of the crest). **The curl is its own light** (`CURL_MASS` in `shaders.js`): a broad body and a thin hot core, coral below and white above, and a soft tail up the lip; its middle rises by 22 units from x 745 to the side.
+- Measured: down the right side, y 164 to 176, ours now 2s to 5s against the reference's 3s and 4s (round 44: 8s); across the edge at x 745, from the edge up:
+
+```
+x 745  ref   |432556644689999976555444443333
+x 745  r44   |643334433588877775211111256575
+x 745  r45   |544445888887777777776653566763
+```
+
+- **Still short at the right end:** across the edge at x 772 ours is still bright (7s and 8s from 7 to 18 units up) where the reference's glass is dark; the curl is still a band, not the reference's broad coral mass. Left for later: the owner's three requests (rounds 46 to 48) came first.
+
+## What round 46 changed (item 10, at the owner's word: the timeline's curve)
+
+- **The owner, on 16 November 2026**, with an annotated picture of the widget and the flow reference: "Curve it gently downward beneath the album-cover area, then sweep it smoothly upward toward the right, following the reference's shallow flowing curve. This should create enough space to properly seat the cover."
+- **Measured first:** the timeline followed column by column in both references (a scratch tracer that keeps to the line from its left end), in stage units. Both are level under the cover, rise in one smooth S to a crest under the waist (about x 510 to 530) and ease a few units down again under the buttons. Ours was one straight rise from 279 to 247.
+
+```
+x      206  235  264  293  322  351  381  410  439  468  497  526  555  584  613  642
+main   270  272  271  268  265  261  256  252  248  245  243  243  245  248  251  253
+flow   268  268  268  267  265  262  259  255  252  250  247  247  247  248  250  252
+r45    279  278  276  274  272  270  268  266  264  262  260  258  256  253  251  248
+r46    283  283  283  281  277  273  267  262  257  252  249  248  248  250  253  255
+```
+
+- **The timeline is that curve** (`L.seek` and `seekPath` in `shape.js`: level at y 283 to x 270, the references' S up to its crest at (520, 248), easing down to 255 at its right end). It lies a few units lower than the references' on the left because our cover does (the mapping puts our cover's lower edge about 8 units below theirs); the gap from the cover to the timeline is now the references' 30 units (it was 25 to 27). Everything reads the curve from `shape.js`: the line, its pool, the times at its ends, the hit test, the ripples.
+- `test=passthrough`: 14 of 14.
+
+## What round 47 changed (items 1, 4 and 9, at the owner's word: the shelf the cover sits on)
+
+- **The owner:** "Smooth the rough ridge into a continuous, rounded glass shelf that flows into the surrounding body. The cover should look nestled into this soft, jelly-like surface, with convincing contact, depth, and subtle reflections." In both references the cover's lower edge sits just above a broad rounded ledge of glass: a dark contact line, one bright crest line 5 to 7 units below the cover, a soft front face in the album's colour falling to a darker strip, the timeline about 30 units below the cover; and the ledge runs straight on past the cover's lower right corner into the lip's edge under the words, as one line. Ours had the pocket's narrow sharp bank lit with two hard lines (round 26's ribbon under the lower left corner and the bank's own), curling up round the corner: the "rough ridge", read as a neon frame.
+- **The shelf is geometry, in the soft form** (`SHELF` and `shelfAt` in `shaders.js`, in `base()`): a ridge 9 high and 8.5 wide (6 and 7 at first: too faint beside the flow reference's thick ledge), its crest 7 units below the cover, round the lower left corner and straight on past the lower right one; the pocket's sharp bank is mostly taken out under it (`detail()`). So what it mirrors is soft and unbroken.
+- **Its light** (`SHELF_LIGHT`): one crest line, soft-sided, brightest under the lower left corner and never gone along its length; the floor's colour on its front face; and below that a darker strip where the timeline runs, as in both references. Round 26's hard ribbon and the shade beside it are taken out under the cover (they stay round the lower left corner of the ring).
+- Seen beside both references under the cover and whole (`mercury-still-round47.png`, first two rows). Only the cover's surroundings changed; the cover, its pocket wall and the hit test did not.
+- **Still short under the cover:** the shelf's crest is softer and paler than the references' (theirs is a crisp bright line with a darker strip below the front face); the bulb's lower left beside the cover is a white wash where both references are coral.
+
 ## What changed on 14 November 2026 at the owner's word (the cursor's light; item 12 in part)
 
 - The owner found the light round the cursor "far too bright ... essentially completely white" and the title hard to read under it. Its core is now .55 (was 3.2) and its soft light .12 (was .2), it lies under the words, and words turn dark where it is bright behind them (`CURSOR_LIGHT`, `WORD_FLIP`). `mercury-cursor-light.png` shows before and after.
