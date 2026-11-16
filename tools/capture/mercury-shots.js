@@ -30,6 +30,12 @@ const PORT = 5191;
 const BASE = args.base || `http://127.0.0.1:${PORT}/prototypes/mercury/`;
 const REPO = path.resolve(__dirname, '..', '..');
 app.commandLine.appendSwitch('force-device-scale-factor', args.dsf || '1.25');
+// The window opens behind whatever the owner has on the second monitor. Covered, Chromium stops
+// painting it, and capturePage then returns the last frame it did paint: shots that need the
+// pretend pointer came out as if it had never moved. Keep it painting while covered.
+app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
+app.commandLine.appendSwitch('disable-renderer-backgrounding');
+app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion');
 
 // Where the reference images have their cursor: on the lower edge, right of the middle.
 const HOVER = `(() => { const m = window.__mercury; m.pointer('move', 300, 300); m.step(6); m.pointer('move', 400, 262); m.step(6);
@@ -38,6 +44,15 @@ const HOVER = `(() => { const m = window.__mercury; m.pointer('move', 300, 300);
 // On the title, so that the cursor's light lies behind the words.
 const HOVER_TITLE = `(() => { const m = window.__mercury; m.pointer('move', 300, 260); m.step(6); m.pointer('move', 340, 220); m.step(6);
   m.pointer('move', 372, 196); m.step(50); })()`;
+
+// Over the right end, so the two beads come out beside it: half way out, all the way out, and with
+// the pointer on the upper one.
+// (Stage units, as all of these are.)
+const toEnd = (frames, last = '') => `(() => { const m = window.__mercury; m.pointer('move', 640, 260); m.step(6);
+  m.pointer('move', 730, 215); m.step(2); m.pointer('move', 760, 200); m.step(${frames}); ${last} })()`;
+const HOVER_END_SOON = toEnd(4);
+const HOVER_END = toEnd(60);
+const HOVER_BEAD = toEnd(40, "m.pointer('move', 786, 190); m.step(6); m.pointer('move', 807, 184); m.step(40);");
 
 /** name, query, content size in CSS px, frames to run before the photo, extra script. */
 const SHOTS = [
@@ -48,6 +63,10 @@ const SHOTS = [
   { name: 'dark-hover', q: 'bg=studio&play&scale=1', w: 960, h: 480, warm: 720, after: HOVER },
   { name: 'light-hover', q: 'bg=wallpaper&play&scale=1', w: 960, h: 480, warm: 720, after: HOVER },
   { name: 'dark-hover-title', q: 'bg=studio&play&scale=1', w: 960, h: 480, warm: 720, after: HOVER_TITLE },
+  { name: 'dark-beads-coming', q: 'bg=studio&play&scale=1', w: 960, h: 480, warm: 720, after: HOVER_END_SOON },
+  { name: 'dark-beads', q: 'bg=studio&play&scale=1', w: 960, h: 480, warm: 720, after: HOVER_END },
+  { name: 'dark-bead-hover', q: 'bg=studio&play&scale=1', w: 960, h: 480, warm: 720, after: HOVER_BEAD },
+  { name: 'window-beads', q: 'bg=window&play&scale=1', w: 960, h: 480, warm: 720, after: HOVER_END },
   { name: 'window-hover-title', q: 'bg=window&play&scale=1', w: 960, h: 480, warm: 720, after: HOVER_TITLE },
   { name: 'dark-paused', q: 'bg=studio&scale=1', w: 960, h: 480, warm: 360 },
   { name: 'dark-small', q: 'bg=studio&play&scale=0.6', w: 600, h: 300, warm: 720 },
@@ -83,7 +102,11 @@ async function shoot(shot) {
       width: shot.w, height: shot.h, useContentSize: true, show: false, frame: false,
       backgroundColor: '#000000',
       webPreferences: { backgroundThrottling: false, contextIsolation: true, sandbox: true },
+      focusable: false,
     });
+    // Above everything on the second monitor while it photographs (never focused): covered by
+    // another window it stopped presenting frames, and a shot then showed the page's first frame.
+    win.setAlwaysOnTop(true, 'screen-saver');
     win.webContents.on('console-message', (event) => {
       if (event.level === 'error' || (event.level === 'warning' && !event.message.includes('Electron Security Warning'))) messages.push(event.message);
     });
@@ -119,7 +142,18 @@ async function shoot(shot) {
   }
   const stepMs = (Date.now() - t0) / warm;
   if (shot.after) await run(shot.after);
+  // Read the state back before the photo (printed with trace=1). This round trip is kept always:
+  // without it a shot that moves the pretend pointer now and then came out as if it had not.
+  const state = await run(`(() => { const s = window.__mercury.mercury.springs;
+    return 'beads ' + s.util.x.toFixed(2) + ', presence ' + s.presence.x.toFixed(2) + ', form ' + s.form.x.toFixed(2) + ', widget ' + JSON.stringify(document.getElementById('widget').getBoundingClientRect()); })()`);
+  if (args.trace) console.log(`  ${shot.name} state: ${state}`);
+  await sleep(100);
   await run('window.__mercury.step(2, 1 / 60, true); window.__mercury.mercury.gl.finish(); 0');
+  // Wait until the page has really painted twice since: capturePage copies the last frame the
+  // compositor presented, and now and then (the window behind others on the second monitor) that
+  // was still the frame from before the pretend pointer moved.
+  wc.invalidate();
+  await Promise.race([run('new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => r(0))))'), sleep(2000)]);
   await sleep(250);             // two or three compositor frames
   const image = await wc.capturePage();
   const file = path.join(OUT, shot.name + '.png');

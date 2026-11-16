@@ -505,7 +505,7 @@ function onMove(event) {
   } else if (!dragging) {
     tipState = null;
   }
-  document.body.style.cursor = !h.inside ? 'default'
+  document.body.style.cursor = !h.inside || h.target === 'gap' ? 'default'
     : ['button', 'seek', 'volume', 'mute', 'util'].includes(h.target) ? 'pointer' : 'grab';
 }
 
@@ -515,6 +515,7 @@ function onDown(event) {
   const h = mercury.pointerMove(x, y);
   if (!h.inside) return;            // outside the chrome: this click belongs to the desktop
   event.preventDefault();
+  if (h.target === 'gap') return;   // between the end and its beads: nothing to press, nothing to drag
   try { widget.setPointerCapture(event.pointerId); } catch { /* synthetic events have no capture */ }
   downTarget = h;
   const [sx, sy] = dragPoint(event);
@@ -599,11 +600,15 @@ function onUp(event) {
   passThrough(!h.inside);
 }
 
-widget.addEventListener('pointermove', onMove);
-widget.addEventListener('pointerdown', onDown);
-widget.addEventListener('pointerup', onUp);
-widget.addEventListener('pointercancel', onUp);
-widget.addEventListener('pointerleave', () => { if (!dragging) { mercury.pointerLeave(); tipState = null; passThrough(true); wake(); } });
+// While the capture tools are photographing (?capture=1) only their own pretend pointer counts: the
+// real mouse of whoever is using the PC crossing the capture window put the beads and the dimple
+// away in the middle of a shot.
+const real = (fn) => (CAPTURE ? () => {} : fn);
+widget.addEventListener('pointermove', real(onMove));
+widget.addEventListener('pointerdown', real(onDown));
+widget.addEventListener('pointerup', real(onUp));
+widget.addEventListener('pointercancel', real(onUp));
+widget.addEventListener('pointerleave', real(() => { if (!dragging) { mercury.pointerLeave(); tipState = null; passThrough(true); wake(); } }));
 widget.addEventListener('wheel', (event) => {
   const [x, y] = toStage(event);
   if (!mercury.hit(x, y).inside) return;

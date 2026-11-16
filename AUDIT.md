@@ -375,6 +375,18 @@ Done on 16 November 2026, the second round of the same session.
 - Seen refracting over dark, white and colourful windows, as the opaque base, and with real covers: holds on all (`mercury-still-round31.png`; its second row is the right end beside the reference's and round 30's).
 - **Honest verdict: a small step.** The silhouette was nearly right already, so the "curl" the reference shows is mostly light: their whole end is a mass of lit glass (white streaks down its right side, coral through its lower half, the upper lip's edge sweeping down into it as a broad white band), where ours has one white streak and the floor's light at the bottom. That is the next item, the upper lip as a clear sheet with its edge sweeping down toward the end.
 
+## What round 32 changed (item 8, at the owner's word: the two controls as beads beside the end)
+
+Done on 16 November 2026. The owner, asked whether the two utility dishes (open the full app, hide the widget) should leave the surface for a right-click and tray menu, answered that they should appear when the pointer comes over the right side of the drop, as two separate small beads of liquid glass to the right of it, not inside it.
+
+- **In `shape.js`** the two controls rest just clear of the right end (`L.utils`, now at x 807, 6 to 7 units beyond the edge, 27 apart), and `L.beads` says how they come out: each grows out of the end from 14 units further in and slides clear, joined to it by a neck (a smooth union of 6 units) until it pinches off (`beadAt`). `hit()` knows them while they are out (`f.beads`, the same spring the shader draws with): a bead is `util` within 4 units of its edge, and the narrow gap between the end and the beads is `gap`, which does nothing but keeps the pointer on the widget as it crosses (`demo.js` ignores a click there and shows the plain arrow).
+- **They come out** while the pointer is on the drop right of x 690, on a bead or in the gap (`pointerMove` in `mercury.js`), and go back in when it leaves.
+- **In `shaders.js`** the beads are part of the outline while they are out (`beads()`, `outlineB()`), so they have coverage, an underside, a shadow and the drop's glass and room, and each is a small round dome of its own (the end of `base()`): steep all round its rim, so its rim mirrors the lamps on every side. Only a sliver of a bead's underside shows (drawn as far down as the drop's, it was a second bead under each). A press dents the bead (`detail()`). The right end's laid-on lights keep off them (`inBead`), the end no longer dims while they show, and the icons are not split into blue and orange by the bead's slope. The old dishes in the lip, and their shade, are gone.
+- **`test=passthrough` has six new cases** and passes 14 of 14: where the upper bead rests a click reaches the window behind until the pointer comes; with the pointer on the right end, in the gap, on either bead, the widget takes the mouse; beyond the beads it goes to the window behind.
+- `mercury-shots.js` has four new shots: `dark-beads-coming` (part way out), `dark-beads`, `dark-bead-hover` (pointer on the upper bead), `window-beads`.
+- **A fault in the capture tool, found on the way:** a shot that moves the pretend pointer now and then came out as if it had never moved (one or two of the four bead shots in each run, a different one each time), although the page's own state read back right. Its exact cause is not pinned down. Not the real mouse (the cursor was on the main monitor; the page now ignores real pointer events anyway in `?capture=1`), and not covering alone (keeping the window painting while covered, and above everything, each helped but did not cure it). What cured it: reading the page's state back in a round trip of its own between the shot's script and the photo (printed with `trace=1`). With all of these, 12 of 12 bead shots over three runs came out right. Hover shots from earlier rounds (`dark-hover`, `dark-hover-title`) may have been hit by the same fault.
+- Seen: `mercury-still-round32.png` (the first row zooms on the right end with no pointer, budding, out and with the pointer on a bead). **Not yet seen by the owner on their screen.** Open for the owner: whether the beads are the size they want (radius 8.5 units, as the dishes were; the audit's first finding asked for about 12 for comfort at the small size).
+
 ## What changed on 14 November 2026 at the owner's word (the cursor's light; item 12 in part)
 
 - The owner found the light round the cursor "far too bright ... essentially completely white" and the title hard to read under it. Its core is now .55 (was 3.2) and its soft light .12 (was .2), it lies under the words, and words turn dark where it is bright behind them (`CURSOR_LIGHT`, `WORD_FLIP`). `mercury-cursor-light.png` shows before and after.
@@ -453,7 +465,7 @@ Against `widget-mercury.png`, measured by eye on the images, the proportions are
 
 Fix in `shape.js`: build the left lobe from a circle and an ellipse instead of a rounded box, replace the tail capsule with a rounded crest, curve the pinch. Replace the fin with a real second layer for the upper lip from the waist to the right end (the plan's two-layer approach), with an S-shaped leading edge that casts a soft shadow on the pod.
 
-### 8. Buttons and the control pod: buttons fixed in round 14, utility dishes open
+### 8. Buttons and the control pod: buttons fixed in round 14, the utility dishes made beads beside the end in round 32 (the owner's design)
 
 The original finding follows.
 

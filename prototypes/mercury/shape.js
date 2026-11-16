@@ -85,12 +85,18 @@ export const L = {
   seek: { x0: 214, x1: 646, y0: 279, y1: 247, bow: 1.5 },
   vol: { x0: 628, x1: 714, y: 127, icon: [604, 127] },
 
-  // Two small dishes set into the lip where it wraps round the right end.
-  // They only press in while the pointer is over the widget.
+  // Two small beads of liquid glass beside the right end, each holding one control. They bud off
+  // the end while the pointer is over its right side and rest just clear of it (the owner's word on
+  // 16 November 2026: two separate small beads of liquid glass to the right, not inside the drop;
+  // they were dishes pressed into the lip). c is where each rests; it grows out of the end from
+  // 'from' units further left, joined to it by a neck (smoothed by k) until it pinches off.
   utils: [
-    { c: [779, 185], r: 8.5 },    // open the full app
-    { c: [780, 210], r: 8.5 },    // hide the widget
+    { c: [807, 184], r: 8.5 },    // open the full app
+    { c: [807, 211], r: 8.5 },    // hide the widget
   ],
+  // side: the pointer brings the beads out anywhere right of this x on the drop; reach: how far
+  // beyond the end's edge the gap between it and the beads still counts as the widget's.
+  beads: { from: 14, k: 6, side: 690, reach: 26 },
 
   // The time preview is drawn in a parked corner of the label sheet and shown
   // through a small lens that rides above the bead.
@@ -233,12 +239,18 @@ export function tileSdf(x, y, cx = L.cover.c[0], cy = L.cover.c[1]) {
   return sdRBox(tx, ty, L.cover.half, L.cover.half, L.cover.r);
 }
 
+/** Where bead i is, and how big, when the beads have come out by s (0 hidden, 1 out). */
+export function beadAt(i, s) {
+  const u = L.utils[i], e = s * s * (3 - 2 * s);
+  return { c: [u.c[0] - L.beads.from * (1 - e), u.c[1]], r: u.r * smoothstep(0, 0.55, s) };
+}
+
 /* --------------------------------------------------------------- hit test --- */
 
 /**
  * What is under a point. The visible drop is three things: the top face, the
  * underside showing below it, and the cover tile floating over one end.
- * @param {{swell?:number, wall?:number[], tile?:number[]}} f live state: lobe swell, where the underside sits, where the tile is
+ * @param {{swell?:number, wall?:number[], tile?:number[], beads?:number}} f live state: lobe swell, where the underside sits, where the tile is, how far the beads are out
  * @returns {{inside:boolean, d:number, target:string|null, index?:number}}
  */
 export function hit(x, y, f = {}) {
@@ -248,6 +260,18 @@ export function hit(x, y, f = {}) {
   const dTop = bodySdf(x, y, swell);
   const dTile = tileSdf(x, y, tile[0], tile[1]);
   const d = Math.min(dTop, bodySdf(x - wall[0], y - wall[1], swell), dTile);
+  // The beads, while they are out, and the narrow gap between them and the end ('gap': it does
+  // nothing, but it keeps the pointer on the widget as it crosses from the drop to a bead).
+  const shown = f.beads || 0;
+  if (shown > 0.3) {
+    for (let i = 0; i < L.utils.length; i++) {
+      const b = beadAt(i, shown);
+      const db = Math.hypot(x - b.c[0], y - b.c[1]) - b.r;
+      if (db < 4) return { inside: true, d: Math.min(d, db), target: 'util', index: i };
+    }
+    const mid = (L.utils[0].c[1] + L.utils[1].c[1]) / 2;
+    if (d >= 0 && x > L.beads.side + 80 && dTop < L.beads.reach && Math.abs(y - mid) < 30) return { inside: true, d: 0, target: 'gap' };
+  }
   const out = { inside: d < 0, d, target: null };
   if (!out.inside) return out;
   if (dTile < 0) return { ...out, target: 'cover' };
@@ -256,10 +280,6 @@ export function hit(x, y, f = {}) {
   for (let i = 0; i < L.buttons.length; i++) {
     const b = L.buttons[i];
     if (Math.hypot(x - b.c[0], y - b.c[1]) < b.r + 2) return { ...out, target: 'button', index: i };
-  }
-  for (let i = 0; i < L.utils.length; i++) {
-    const u = L.utils[i];
-    if (Math.hypot(x - u.c[0], y - u.c[1]) < u.r + 4) return { ...out, target: 'util', index: i };
   }
   if (x > L.seek.x0 - 14 && x < L.seek.x1 + 14 && Math.abs(y - seekY(x)) < 13) return { ...out, target: 'seek' };
   if (x > L.vol.x0 - 12 && x < L.vol.x1 + 12 && Math.abs(y - volY(x)) < 13) return { ...out, target: 'volume' };
@@ -319,6 +339,7 @@ const vec3 BTN1 = vec3(${f1(L.buttons[1].c[0])}, ${f1(L.buttons[1].c[1])}, ${f1(
 const vec3 BTN2 = vec3(${f1(L.buttons[2].c[0])}, ${f1(L.buttons[2].c[1])}, ${f1(L.buttons[2].r)});
 const vec3 UTIL0 = vec3(${f1(L.utils[0].c[0])}, ${f1(L.utils[0].c[1])}, ${f1(L.utils[0].r)});
 const vec3 UTIL1 = vec3(${f1(L.utils[1].c[0])}, ${f1(L.utils[1].c[1])}, ${f1(L.utils[1].r)});
+const vec2 BEAD = vec2(${f1(L.beads.from)}, ${f1(L.beads.k)});
 const vec2 TIP_SLOT = ${v2(L.tipSlot)};
 const vec2 TIP_HALF = ${v2(L.tipHalf)};
 

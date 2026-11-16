@@ -1,0 +1,12 @@
+{ "out": "design/captures/mercury-still-round32.png", "width": 1616,
+  "title": "Mercury still, round 32: the two controls at the right end are beads of glass of their own, budding off the end when the pointer comes over its right side (generated test cover)",
+  "rows": [
+  [ { "label": "no pointer: nothing beside the end", "src": "design/captures/raw/round32/dark.png", "crop": [960, 150, 200, 210], "pixel": true },
+    { "label": "pointer over the right end: the beads bud off", "src": "design/captures/raw/round32/dark-beads-coming.png", "crop": [960, 150, 200, 210], "pixel": true },
+    { "label": "out, clear of the drop", "src": "design/captures/raw/round32/dark-beads.png", "crop": [960, 150, 200, 210], "pixel": true },
+    { "label": "pointer on the upper bead (open the app)", "src": "design/captures/raw/round32/dark-bead-hover.png", "crop": [960, 150, 200, 210], "pixel": true } ],
+  [ { "label": "round 32, the beads out: over a white window", "src": "design/captures/raw/round32/window-beads.png", "crop": [90, 50, 1022, 513] },
+    { "label": "round 32, the beads out: dark desktop", "src": "design/captures/raw/round32/dark-beads.png", "crop": [90, 50, 1022, 513] } ],
+  [ { "label": "reference: widget-mercury.png", "src": "design/references/widget-mercury.png", "crop": [0, 110, 1586, 797] },
+    { "label": "round 32, refracting in the real window: dark window behind", "src": "design/captures/raw/round32-refract/window-dark.png", "crop": [12, 12, 936, 456] } ]
+] }

@@ -131,6 +131,25 @@ vec2 warp(vec2 p) {
 // lobes will be, then meet through the neck. Letting go runs the same way back.
 float outline(vec2 p) { return bodySdf(p, uSwell) + (1. - uForm) * 132.; }
 
+// The two beads beside the right end (shape.js, L.utils and L.beads). While they come out
+// (uUtil.x from 0 to 1) each grows out of the end and slides clear of it. xy is the distance to
+// the nearer bead's edge (a long way off while they are in), z its radius now, and w how far from
+// its own centre the point is.
+vec4 beads(vec2 p) {
+  float s = uUtil.x, e = s * s * (3. - 2. * s), rb = UTIL0.z * smoothstep(0., .55, s);
+  if (rb <= 0.) return vec4(1e3, 1e3, 0., 1e3);
+  vec2 off = vec2(BEAD.x * (1. - e), 0.);
+  float r0 = length(p - UTIL0.xy + off), r1 = length(p - UTIL1.xy + off);
+  float rr = min(r0, r1);
+  return vec4(rr - rb, rr - rb, rb, rr);
+}
+// The drop's outline with the beads: joined by a neck while a bead buds off, apart once it is out.
+float outlineB(vec2 p) {
+  float d = outline(p);
+  vec4 b = beads(p);
+  return b.z > 0. ? smin(d, b.x, BEAD.y) : d;
+}
+
 vec2 turn(vec2 v, float a) { float c = cos(a), s = sin(a); return vec2(c * v.x - s * v.y, s * v.x + c * v.y); }
 
 // The cover tile. A stage point in the tile's own plane: turned into its frame, then the lean
@@ -252,7 +271,7 @@ const float TUBE_H = 7.;
 // reflections are soft and continuous.
 float base(vec2 p0) {
   vec2 p = warp(p0);
-  float d = outline(p);
+  float d = outlineB(p);
 
   // The lip: a rounded tube all the way round. Its outer face is vertical at the silhouette
   // and rolls over to a crest; its inner face falls gently to the body, which lies lower.
@@ -323,6 +342,15 @@ float base(vec2 p0) {
   h += (.15 + 2.8 * uAudio.x) * sin(p.x * .022 - uTime * 2.2 + .6 * sin(p.y * .03)) * lower;
   h += 1.1 * uAudio.y * sin(p.x * .052 + p.y * .02 - uTime * 3.4) * lower;
   h += .35 * uAudio.z * sin(p.x * .21 + uTime * 9.) * sin(p.y * .19 - uTime * 7.);
+
+  // A bead is a small round dome of its own, not rolled like the drop's edge: steep all round its
+  // rim, so the rim mirrors the lamps on every side, and full in the middle. (Near the drop, while
+  // it is still joined to the end by its neck, the drop's own edge carries on.)
+  vec4 bd = beads(p);
+  if (bd.z > .5) {
+    float own = smoothstep(-1., 4., outline(p)) * smoothstep(3., -1., bd.x);
+    h = mix(h, bd.z * 1.1 * sqrt(max(1. - bd.w * bd.w / (bd.z * bd.z), 0.)) - max(bd.x, 0.) * 3., own);
+  }
   return h;
 }
 
@@ -373,13 +401,12 @@ float detail(vec2 p0) {
     h -= (5. + 7. * press) * wall + (2.2 + 2. * press) * wall * (1. - rho * rho / (r * r));
   }
 
-  // Utility dishes: flush with the lip until the pointer arrives, then they press in.
+  // The beads beside the right end: a press dents the bead it lands on.
   for (int i = 0; i < 2; i++) {
     vec3 u = i == 0 ? UTIL0 : UTIL1;
     float press = i == 0 ? uUtil.y : uUtil.z;
     float rho = length(p - u.xy);
-    h += uUtil.x * (1.8 - press) * exp(-pow((rho - u.z) / 2.4, 2.));
-    h -= uUtil.x * (3. + 4.5 * press) * smoothstep(u.z + 1., u.z - 5., rho) * (1. - .5 * (rho * rho) / (u.z * u.z));
+    h -= uUtil.x * press * 4. * exp(-rho * rho / (2. * 4.5 * 4.5));
   }
 
   // The time preview: a small lens of liquid standing proud above the bead.
@@ -518,8 +545,12 @@ void main() {
   float loud = mix(.5, 1.2, uSeekPull.z) * uForm;   // the glow answers the volume
 
   /* ---- the three things that make up the drop ---- */
-  float d = outline(pw);                            // top face
-  float dU = outline(pw - uWall);                   // the same outline, lower: its underside
+  float d = outlineB(pw);                           // top face (with the beads beside the right end, while they are out)
+  // The same outline, lower: its underside. (A bead is small and round, so only a sliver of its
+  // underside shows: drawn as far down as the drop's, it was a second bead under each.)
+  float dU = outline(pw - uWall);
+  { vec4 bU = beads(pw - uWall * .3); if (bU.z > 0.) dU = smin(dU, bU.x, BEAD.y); }
+  float inBead = smoothstep(1.5, -1.5, beads(pw).x) * smoothstep(-2., 3., outline(pw));   // in a bead, clear of the drop
   float dT = tileSdf(pw, uTile.xy);                 // cover tile, floating above
   float dTw = tileSdf(pw - uTile.zw, uTile.xy);     // ...and the tile's own thickness
   float covTop = smoothstep(.75 * px, -.75 * px, d);
@@ -541,7 +572,7 @@ void main() {
   vec3 halo = hotA * .3 * pool * (life + .9 * uAudio.w) * window * loud;
   // The shadow falls straight down, so it shows only beneath the drop. On a light desktop
   // it is what lifts the drop off the page.
-  float shadow = (.3 * smoothstep(34., -22., outline(pw - vec2(0., 30.))) + .16 * smoothstep(9., -3., dU)) * window * uForm;
+  float shadow = (.3 * smoothstep(34., -22., outlineB(pw - vec2(0., 30.))) + .16 * smoothstep(9., -3., dU)) * window * uForm;
   oAura = vec4(halo, shadow);
 
   if (covBody <= 0. && covTile <= 0.) {
@@ -794,10 +825,6 @@ void main() {
       // A breath of the album's colour in the bottom of the bowl, more when pressed or on a beat.
       col += hotA * (.012 + .05 * uAudio.w + .2 * uBtn[i].w) * smoothstep(r - 2., r * .3, rho);
     }
-    for (int i = 0; i < 2; i++) {
-      vec3 u = i == 0 ? UTIL0 : UTIL1;
-      ao *= 1. - .45 * uUtil.x * smoothstep(u.z, u.z - 6., length(pw - u.xy));
-    }
     col *= ao;
 
     // The rims of the button bowls glow. Thick glass round a hollow gathers the light under
@@ -825,11 +852,11 @@ void main() {
       vec2 nE = gE / max(length(gE), 1e-3);
       float gapE = max(-d, 0.);
       // (It comes in gradually from the last button on: starting at a line, it drew that line.)
-      float quietE = (1. - clamp(calm, 0., 1.)) * (1. - .7 * uUtil.x) * smoothstep(640., 730., pw.x) * born;
+      float quietE = (1. - clamp(calm, 0., 1.)) * (1. - inBead) * smoothstep(640., 730., pw.x) * born;
       float faceE = smoothstep(END_KEY.x, END_KEY.y, nE.x);
       float hK = END_KEY.z * pow(faceE, .5) - 1.;
       col += vec3(1., .98, .96) * END_KEY.w * smoothstep(.7, -.7, abs(gapE - 10.) - hK) * quietE;
-      col *= 1. - .5 * smoothstep(.8, -.8, abs(gapE - (13.5 + hK)) - 1.4) * smoothstep(.2, .6, faceE) * born;
+      col *= 1. - .5 * smoothstep(.8, -.8, abs(gapE - (13.5 + hK)) - 1.4) * smoothstep(.2, .6, faceE) * born * (1. - inBead);
       float faceF = smoothstep(.55, .95, dot(nE, vec2(.6, .8)));
       // The tip, where the end curls under to a point: in the reference the hottest colour on the
       // whole drop, and just inside it a dark crease where the curled lip tucks under. The floor's
@@ -837,7 +864,7 @@ void main() {
       float tipN = exp(-dot(pw - END_TIP.xy, pw - END_TIP.xy) / (2. * END_TIP.z * END_TIP.z));
       col += hotA * END_FLOOR * (.45 * smoothstep(30., 6., gapE) + .8 * smoothstep(.8, -.8, abs(gapE - 6.5) - 2.2 * faceF + .6)) * faceF * quietE;
       col += mix(hotA, vec3(1., .86, .74), .2 + .45 * tipN) * END_TIP.w * tipN * smoothstep(.8, -.8, abs(gapE - 5.) - 1.2 - 2.6 * tipN) * quietE;
-      col *= 1. - .6 * smoothstep(.8, -.8, abs(gapE - (11.5 + 2. * tipN)) - .9) * smoothstep(.2, .8, tipN) * born;
+      col *= 1. - .6 * smoothstep(.8, -.8, abs(gapE - (11.5 + 2. * tipN)) - .9) * smoothstep(.2, .8, tipN) * born * (1. - inBead);
     }
 
     // The upper silhouette carries a fine line of the album's colour warmed toward copper, just
@@ -990,7 +1017,7 @@ void main() {
       if (lensMask > 0.) { qi = TIP_SLOT + (pw - uTip.xy); gain = lensMask; }
 
       // A little colour separation where the surface is steep: glass, not paper.
-      vec2 fringe = wordBend * .3;
+      vec2 fringe = wordBend * .3 * (1. - inBead);      // (not in a bead: steep all over, it split each icon into blue and orange)
       vec3 word = vec3(ink(qi - fringe, 0.), ink(qi, 0.), ink(qi + fringe, 0.));
       float glow = ink(qi, 3.4);
       // Where the cursor's light lies behind them, white words would be white on white. There

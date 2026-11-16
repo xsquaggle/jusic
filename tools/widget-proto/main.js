@@ -656,12 +656,19 @@ async function runPassThroughTest() {
   // label, where the pretend pointer goes (stage units), where Windows is asked, what should be there
   const cases = [
     ['no pointer yet, asked at the play button', null, [642, 198], 'the window behind'],
+    ['no pointer yet, asked where the upper bead rests', null, [807, 184], 'the window behind'],
     ['pointer on the play button', [642, 198], [642, 198], 'the widget'],
     ['pointer on the body, by the title', [400, 235], [400, 235], 'the widget'],
     ['pointer on the cover tile', [172, 152], [172, 152], 'the widget'],
     ['pointer in the notch above the waist', [430, 120], [430, 120], 'the window behind'],
     ['pointer in the corner of the window', [20, 20], [20, 20], 'the window behind'],
     ['pointer just below the lower edge', [430, 330], [430, 330], 'the window behind'],
+    // The two beads bud off the right end while the pointer is over its right side.
+    ['pointer on the right end (the beads come out)', [760, 200], [760, 200], 'the widget'],
+    ['pointer in the gap between the end and its beads', [799, 197], [799, 197], 'the widget'],
+    ['pointer on the upper bead', [807, 184], [807, 184], 'the widget'],
+    ['pointer on the lower bead', [807, 211], [807, 211], 'the widget'],
+    ['pointer beyond the beads', [842, 197], [842, 197], 'the window behind'],
     ['pointer back on the timeline', [430, 268], [430, 268], 'the widget'],
   ];
   let failed = 0;

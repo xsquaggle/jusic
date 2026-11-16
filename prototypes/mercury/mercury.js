@@ -477,7 +477,9 @@ export function createMercury(canvas, { reducedMotion = false, family, maxRender
     const nearness = Math.min(1, Math.max(0, (46 - h.d) / 50));     // begins 46 units out
     sp.presence.target = nearness * ((h.target === 'button' || h.target === 'util') ? 0.25 : 1);
     sp.lean.to((x - STAGE.w / 2) / (STAGE.w / 2), (y - STAGE.h / 2) / (STAGE.h / 2));
-    sp.util.target = h.inside ? 1 : 0;
+    // The two beads bud off the right end while the pointer is over its right side, and stay out
+    // while it is on them or crossing the gap to them.
+    sp.util.target = h.inside && (x > L.beads.side || h.target === 'util' || h.target === 'gap') ? 1 : 0;
     // A small wake behind the cursor as it travels over the liquid.
     const dx = x - st.lastWake[0], dy = y - st.lastWake[1];
     const dist = Math.hypot(dx, dy);
@@ -573,7 +575,7 @@ export function createMercury(canvas, { reducedMotion = false, family, maxRender
   // The cover tile floats, so it shifts a little against the body.
   const tile = () => (st.reducedMotion ? L.cover.c : [L.cover.c[0] - 2.5 * sp.lean.x, L.cover.c[1] - 2.5 * sp.lean.y]);
   const hit = (x, y) => (formed()
-    ? hitShape(x, y, { swell: sp.swell.x, wall: wall(), tile: tile() })
+    ? hitShape(x, y, { swell: sp.swell.x, wall: wall(), tile: tile(), beads: sp.util.x })
     : { inside: false, d: 999, target: null });
 
   /* ----------------------------------------------------------- simulation --- */
