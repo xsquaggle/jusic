@@ -4,7 +4,16 @@
 
 ## Current status
 
-Updated 16 November 2026, after round 51 (checkpoint). Step 2 of the owner's order of work is complete; **step 3 (polish the still) is under way: rounds 11 to 51 are done.** Nothing is half-finished. **Start the next round in a fresh session from this file** (this one ran rounds 45 to 51 and is long).
+Updated 16 November 2026, after round 53. Step 2 of the owner's order of work is complete; **step 3 (polish the still) is under way: rounds 11 to 53 are done.** Nothing is half-finished.
+
+**Rounds 52 and 53 (a fresh session, Opus 5.5, from the list below):** the bulb's lower left beside the cover is coral, not a pale pink wash: the ring's floor light (7 to 8 o'clock) carried white and left the glass's haze in under it; now it is the album's colour deepened over cleared glass (`RING_FLOOR_C`, `RING_FLOOR.w`), and the seat's left end takes the same coral (`SEAT_WARM`). Along the down-left ray the middle is 4s and 5s at warmth 4, as the main reference's 5s at warmth 4 (it was 6s to 8s at warmth 0 to 2). And the bowls' lower rims are thin coral lines: measured part by part, the bowls' insides were already as dark as the flow reference's and their lower rims twice as bright (a mean of 190 to 207 against 123 to 147); the glass's own reflection gives the reference's level, so the drawn crescent is thin and dim now (`BTN_THIN` 3.2, `BTN_RIM.x` .5): 151 to 169. `test=passthrough` 14 of 14. Sheet: `mercury-still-round53.png`. Two scratch tools for this, in `design/captures/raw/` (ignored, simple to rewrite): `grid.js` prints a picture's colours as a grid of digits over any box of its own pixels; `bowlstat.js` the mean colour of six parts of each bowl. A `npx electron` script in the scratchpad would not start at all (exit 127, no output): keep such scripts inside the repository.
+
+**Next, largest first** (replaces the list below; the owner's three requests of 16 November stay the target for their parts):
+1. The pod round the buttons as the flow reference's bright silver-pink glass with long reflections, most of all along its lower half (ours an even dusky pink), and the bowls' rims crisp bright edges all round.
+2. The right end: the curl as a broad coral mass (`CURL_MASS`); at x 772 the glass between the curl and the edge dark, as the reference's.
+3. The flat white glare in the bulb's upper left (`RING_KEY`'s silver), against both references' softer coral-white light there.
+4. Just outside the cover's lower left corner, a bright line along the pocket wall's crest (the main reference's 7s, ours dark); the coral there a graded sheen sweeping round under the cover rather than an even fill.
+5. The ribbon under the words brightening as it rises.
 
 **Rounds 50 and 51 (the owner said "Yes, carry on"):** the cover's seat as the front of a thick glossy ledge: 7 units below the cover, its top lit in front of the cover, a warm outer face, no shade behind it there (`L.seat.gap`, `SEAT_LEDGE`); and the bowls' rims thin and coral, a full thin ring round each, the crescent at 6 o'clock 4.5 units where it was 8.5 (`BTN_THIN`, `BTN_RIM`).
 
@@ -17,7 +26,7 @@ Updated 16 November 2026, after round 51 (checkpoint). Step 2 of the owner's ord
 - **Round 48 (request 3):** the pod round the buttons as one soft pocket (`POD_SOFT`, `podDepth`): one rounded distance to its boundary, its left end round instead of a wedge, falling over 10 units level at both ends; the lip's roll over it round and 13 units wide (7 elsewhere), its strokes soft-sided and the dark seam all but gone. Sent to the owner with rounds 45 to 47's sheet before it.
 - Scratch profilers used (not committed; simple to rewrite, each samples the reference through the `outline.js` mapping): across the lip's edge round the right end along `archSdf`'s normal, and down the right side a few units inside the silhouette; the timeline followed column by column in both references from its left end (keep to the line within 4 px of the last column's middle, or the tracer jumps to other highlights).
 
-**Next, largest first** (the owner's three requests are done once; what is still short of the flow still in those three parts comes first):
+**Next, largest first, as it stood after round 51** (items 2 and 3 done in rounds 52 and 53; the list above replaces it):
 1. ~~The seat as a thick ledge~~ (round 50) and ~~the bowls' rims~~ (round 51). The cover's turn is settled at 12 degrees: the owner left it to us ("12 or 15 degrees, whatever the reference still looks to be"), and the flow reference's cover is about 5% shorter on its right edge than its left (272 px against 258), which is what 12 degrees with `persp` 600 gives.
 2. The bulb's lower left beside the cover coral, not a white wash.
 3. The flow still's dark glass inside the bowls with a soft coral glow low in each; ours are a little lighter.

@@ -247,8 +247,11 @@ vec3 pools(vec2 p) {
 // by more than x, fully from y; its half-width as a share of the ring's width; its strength.
 const vec4 RING_KEY = vec4(.84, .975, .25, 1.);
 // The floor's light in the ring, down and to the left: from x, fully from y; how bright the
-// album's colour is there. (w is spare.)
-const vec4 RING_FLOOR = vec4(.8, .97, .78, 0.);
+// album's colour is there; how much white it carries at the rim (.22 until round 52).
+const vec4 RING_FLOOR = vec4(.8, .97, .78, .06);
+// The same light as coral, not a wash (round 52): how much of the clearing of the glass's own haze is
+// held back under it (.8 until round 52); how deep its colour (.45); its strength mid-ring (.6).
+const vec3 RING_FLOOR_C = vec3(.25, .7, .8);
 // The ribbon of light on the pocket's crest under the cover's lower left corner: how wide it
 // swells (units), how bright, and how deep the line of shade beside it.
 const vec3 RIBBON = vec3(2.1, 1., .6);
@@ -257,10 +260,10 @@ const vec3 RIM = vec3(.6, .5, .6);
 // The lit rims of the button bowls: how bright the crescent of the floor's light in the lower rim;
 // how bright that light on the pod just below the edge; how dark the rest of the inside of the rim;
 // how bright the fine line at the edge elsewhere. And the key lamp's short arc at 1:30.
-const vec4 BTN_RIM = vec4(1.15, .35, .4, .6);     // (x 1.3 and w .5 until round 51)
+const vec4 BTN_RIM = vec4(.5, .35, .4, .5);     // (x 1.3 and w .5 until round 51; x 1.15 and w .6 in round 51)
 // The bowls' rims thin and coral (round 51): how wide the crescent at 6 o'clock (units, for a bowl of
-// radius 37); how far its colour is toward coral at its core.
-const vec2 BTN_THIN = vec2(4.5, .45);
+// radius 37); how far its colour is toward coral at its core; how bright its hot core (.35 until round 53).
+const vec3 BTN_THIN = vec3(3.2, .55, .22);
 const float BTN_KEY = .7;
 // The pod round the bowls: how bright the floor's light rising toward its lower rim; how bright it
 // gathers at the pod's right end; a little light in the gaps at the bowls' middle height.
@@ -299,6 +302,9 @@ const vec4 POD_RIDGE = vec4(.9, 10.5, 1.6, .4);
 // The cover's seat as a thick ledge (round 50): how bright the ledge's top in front of the cover; how
 // bright the warm outer face of its edge.
 const vec2 SEAT_LEDGE = vec2(.28, .3);
+// Its left end coral where it runs out to the bulb's rim (round 52): how far toward the floor's coral;
+// how much of the ledge's pale top is taken out there; from x z (all of it) to x w (none).
+const vec4 SEAT_WARM = vec4(.85, .5, 165., 118.);
 // The leading edge as a broad ribbon under the words: how much (0 the old hairline); how bright the
 // glass through its middle; how far its crest moves up from the old hairline (units).
 const vec3 LIP_RIBBON = vec3(1., .8, 5.);
@@ -851,7 +857,10 @@ void main() {
         float faceDL = smoothstep(RING_FLOOR.x, RING_FLOOR.y, toDL);
 
         // Clear glass: wherever no light lies the ring is dark, not milky.
-        col *= 1. - TUBE_CLEAR * tubeS * (1. - silver) * (1. - .6 * faceU) * (1. - .8 * faceDL);
+        // (Round 52: under the floor's light too, most of the haze is taken out, so the coral laid on
+        // below is seen on dark glass and keeps its colour; it was let stay there, and the two
+        // together came out a pale pink wash.)
+        col *= 1. - TUBE_CLEAR * tubeS * (1. - silver) * (1. - .6 * faceU) * (1. - RING_FLOOR_C.x * faceDL);
         // 12 o'clock: an even soft light with a little of the album in it, a shade brighter toward the rim.
         col += mix(vec3(.47, .48, .5), hotA, .25) * RING_TOP * (.75 + .25 * uu) * faceU * tubeS;
         col += vec3(1., .99, .97) * RING_KEY.w * (silver + skirt) * tubeS;
@@ -859,7 +868,11 @@ void main() {
         // short of it, and it is bright again close by the cover's corner.
         float hotRim = smoothstep(.5, .88, uu) * smoothstep(.9 + aa, .9 - aa, uu);
         float hotIn = exp(-pow((uu - .09) / .07, 2.));
-        col += (mix(hotA, hotA * hotA * 1.2, .45) * RING_FLOOR.z * (.6 + .55 * hotRim + .4 * hotIn) + vec3(.22) * hotRim) * faceDL * tubeS;
+        // (Round 52: coral, as the main reference's lower left is, an even salmon across the ring
+        // (5s, warmth 4 along the down-left ray) growing lighter toward the rim. The album's colour
+        // deepened, and only a little white at the rim: with .22 of white there and the colour half
+        // as deep it came out 7s and 8s at warmth 1, the white wash.)
+        col += (mix(hotA, hotA * hotA * 1.2, RING_FLOOR_C.y) * RING_FLOOR.z * (RING_FLOOR_C.z + .55 * hotRim + .4 * hotIn) + vec3(RING_FLOOR.w) * hotRim) * faceDL * tubeS;
         float faceC = smoothstep(.3, .97, dot(nO, vec2(.22, .975)));      // facing the floor, for the lower edge below
         // Beside the ribbon under the cover's corner the glass is near black: a line of deep
         // shade just outside it, cut as cleanly as the ribbon is. Light with an edge needs dark
@@ -967,7 +980,7 @@ void main() {
       // (Peach-white at its core, 231,196,183 in the reference, coral toward its sides; the bowl's
       // wall under it mirrors a neutral light of its own, which takes the same warmth.)
       col *= mix(vec3(1.), vec3(1., .64, .5), max(cres, glowIn * 2.) * smoothstep(-1., 1., t));
-      col += mix(hotA, vec3(1., .62, .42), BTN_THIN.y + .4 * (1. - u)) * BTN_RIM.x * big * (cres * .85 + .35 * hot);
+      col += mix(hotA, vec3(1., .62, .42), BTN_THIN.y + .4 * (1. - u)) * BTN_RIM.x * big * (cres * .85 + BTN_THIN.z * hot);
       col += hotA * BTN_RIM.x * big * glowIn * glowIn;
       col += hotA * BTN_RIM.y * big * low * smoothstep(-6.5 * sc, -.5, t) * smoothstep(.6, -.6, t);
       col += mix(hotA, vec3(1., .96, .92), .6) * BTN_KEY * big * key * smoothstep(.6, -.6, abs(t - 1.2) - 1.6);
@@ -1123,6 +1136,10 @@ void main() {
       // the cover's lower left as round 26's ribbon was.)
       float seatL = exp(-pow((s - 170.) / 60., 2.)) * smoothstep(92., 128., s);
       float seatM = smoothstep(92., 128., s) * smoothstep(300., 262., s);   // the whole of the cover's seat (round 50)
+      // Where the seat runs out to the bulb's rim, left of the cover's lower left corner, its light is the
+      // floor's coral, as the ring's is there: white, it lay over the coral as a pale wash (round 52).
+      float seatW = SEAT_WARM.x * smoothstep(SEAT_WARM.z, SEAT_WARM.w, s) * seatM;
+      vec3 seatCoral = mix(hotA, hotA * hotA * 1.2, .6);
       swO = max(swO, .9 * seatL);
       swC = max(swC, .85 * seatL);
       swO = max(swO, END_CURL.w * sweep);
@@ -1143,7 +1160,7 @@ void main() {
       // cut hard; broad where it swells, a sliver between.
       float hO = .7 + 1.1 * swO;
       float face = smoothstep(aaE, -aaE, abs(arS - (3.75 - hO)) - hO) * (.45 + .55 * smoothstep(3.75 - 2. * hO, 3.6, arS));
-      col += mix(hotA, vec3(1., .86, .74), .3 + .3 * swO) * LIP_EDGE.x * face * (.25 + .9 * swO) * (1. - .55 * overPod) * qE;
+      col += mix(mix(hotA, vec3(1., .86, .74), .3 + .3 * swO), seatCoral, seatW) * LIP_EDGE.x * face * (.25 + .9 * swO) * (1. - .55 * overPod) * qE;
       // Where it rises through the waist the edge is a broad ribbon of glass, not two lines: the
       // glass between its strokes is lit too, silver with the album's colour in it.
       col += mix(vec3(.75, .74, .76), hotA, .3 + .2 * wide) * .22 * max(max(rise, .8 * sweep * smoothstep(8., 11., ar)), LIP_RIBBON.y * wide) * smoothstep(-.5, 1., ar) * smoothstep(17. - 2. * wide + 9. * curl, 12. - 1. * wide + 9. * curl, ar) * qE;
@@ -1159,6 +1176,7 @@ void main() {
       // crest, which in the reference stays low and lit, 6s and 7s, as far as x 745.)
       col *= 1. - END_CURL.z * curl * smoothstep(1.8, 3., ar) * smoothstep(5., 3.8, ar) * qE;
       vec3 cC = mix(vec3(1., .98, .95), mix(hotA, vec3(1., .85, .72), .5), .5 * wide * (1. - swC));
+      cC = mix(cC, seatCoral * 1.2, seatW);
       // The crest stays on the edge round the right end and dies away before the side (the reference:
       // 1s and 2s across the edge at x 772); the curl above it is a light of its own.
       col += cC * LIP_EDGE.y * smoothstep(aaE, -aaE, abs(arS - (5.3 + hC + LIP_RIBBON.z * wide)) - hC) * max(.1 + .9 * swC, .55 * wide) * (1. - .4 * wide) * (1. - .25 * overPod) * (1. - .35 * rise) * (1. - .75 * smoothstep(750., 772., s)) * qE;
@@ -1189,7 +1207,7 @@ void main() {
       // ledge's top, between the edge's crest and the cover, is lit glossy glass, a broad pale band in
       // front of the cover as in the flow reference, falling off toward the cover, which keeps a thin
       // contact shadow of its own; the edge's outer face below the crest is warmer and broader there.
-      col += mix(vec3(.86, .84, .86), hotA, .3) * SEAT_LEDGE.x * smoothstep(5., 8., ar) * smoothstep(17., 10., ar) * smoothstep(1.5, 4., dT) * seatM * qE;
+      col += mix(mix(vec3(.86, .84, .86), hotA, .3), seatCoral, seatW) * SEAT_LEDGE.x * (1. - SEAT_WARM.y * seatW) * smoothstep(5., 8., ar) * smoothstep(17., 10., ar) * smoothstep(1.5, 4., dT) * seatM * qE;
       col += mix(hotA, vec3(1., .8, .68), .4) * SEAT_LEDGE.y * smoothstep(-.5, 1., ar) * smoothstep(5.5, 2.5, ar) * seatM * qE;
     }
 

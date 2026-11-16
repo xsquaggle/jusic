@@ -1,0 +1,14 @@
+{ "out": "design/captures/mercury-still-round53.png", "width": 1616,
+  "title": "Mercury still, rounds 52 and 53: the bulb's lower left coral, not a white wash; the bowls' rims thin coral lines (generated test cover)",
+  "rows": [
+  [ { "label": "main reference: the bulb's lower left beside the cover", "src": "design/references/widget-mercury.png", "crop": [20, 330, 480, 440] },
+    { "label": "round 51: a pale pink wash", "src": "design/captures/raw/round51/dark.png", "crop": [110, 200, 300, 275] },
+    { "label": "round 53: coral", "src": "design/captures/raw/round53/dark.png", "crop": [110, 200, 300, 275] } ],
+  [ { "label": "flow reference: the bowls", "src": "design/references/widget-mercury-flow.png", "crop": [990, 370, 480, 190] },
+    { "label": "round 51", "src": "design/captures/raw/round51/dark.png", "crop": [720, 230, 300, 119] },
+    { "label": "round 53: the lower rims thin", "src": "design/captures/raw/round53/dark.png", "crop": [720, 230, 300, 119] } ],
+  [ { "label": "reference: widget-mercury.png", "src": "design/references/widget-mercury.png", "crop": [0, 200, 1586, 620] },
+    { "label": "round 53, refracting in the real window: dark window behind", "src": "design/captures/raw/round53-refract/window-dark.png", "crop": [12, 12, 936, 456] } ],
+  [ { "label": "round 53, the opaque base: dark desktop", "src": "design/captures/raw/round53/dark.png", "crop": [90, 50, 1022, 513] },
+    { "label": "round 53, refracting: colourful window behind", "src": "design/captures/raw/round53-refract/window-busy.png", "crop": [12, 12, 936, 456] } ]
+] }

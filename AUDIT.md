@@ -631,6 +631,33 @@ r46    283  283  283  281  277  273  267  262  257  252  249  248  248  250  253
 - **The crescent is 4.5 units at 6 o'clock** and coral toward its core (`BTN_THIN`), a little dimmer (`BTN_RIM.x` 1.15), and the fine line at each bowl's edge runs round the whole bowl (`BTN_RIM.w` .6), plainest at the top and bottom.
 - Seen as the opaque base, refracting over dark and colourful windows, and with real covers (`mercury-still-round51.png`).
 
+## What round 52 changed (items 1 and 4: the bulb's lower left coral, not a white wash)
+
+Done on 16 November 2026, in a fresh session (Opus 5.5).
+
+- **Measured first**, with `ring-profile.js` and `area-map.js` (box 56,150 to 200,330) and close crops beside both references. The main reference's ring left of and below the cover's lower left corner is an even salmon, 5s at warmth 4 along the down-left ray, lighter toward the rim (6s and 7s at warmth 2 and 3); the flow reference's is dark glass with a few lit strokes. Ours was a pale pink haze: 6s to 8s at warmth 0 to 2 through the middle of the ray.
+- **Found by switching parts off** (the ring's floor light, then the bloom, each shot alone): the haze is the ring's floor light (the 7 to 8 o'clock fill). It carried .22 of white toward the rim, its colour was only half deepened, and under it the glass's own haze was left in (the clearing of the tube held back by .8), so the two together came out pale. The bloom adds nothing there.
+- **The fill is coral** (`RING_FLOOR_C` in `shaders.js`, and `RING_FLOOR.w`): the album's colour deepened (.7 where it was .45), only .06 of white at the rim, the glass's haze taken out under it as elsewhere in the ring (held back .25, not .8), and its strength in the middle of the ring .8 of what it was at the rim's foot. The seat's left end, where it runs out to the bulb's rim, takes the same coral in its strokes and the ledge's pale top is halved there (`SEAT_WARM`); it barely shows in the numbers but keeps a white line from crossing the coral.
+- Measured after, along the down-left ray from the cover's edge to the silhouette:
+
+```
+down-left  ref   1466:755555555555555555666666777463   warm 1333:244434444444444433333322210111
+down-left  r51   1122:323456677788654444445566677777   warm 2222:123332211100123344333322221122
+down-left  r52   1112:323445566666644444444555576665   warm 2222:123443322221244444444444323333
+```
+
+  `area-map.js` over the same box: mean colour 104,69,68 against the reference's 106,73,72 (round 51: 106,74,74, the same brightness spread as a wash).
+- **Still short there:** the first few units outside the cover's corner are dark in ours where the reference has a bright line (7) along the pocket wall's crest; the coral is an even fill where the reference's has a softly graded sheen sweeping round under the cover.
+
+## What round 53 changed (item 8: the bowls' rims as thin coral lines over dark glass)
+
+- **Measured first**, with a scratch sampler that takes the mean colour of six parts of each bowl (upper inside, middle, lower inside, and the outer fifth of the radius at the top, bottom and sides; the glyph left out) in the flow reference and in ours. The insides were already as dark as the flow reference's (middles 32 to 44 against 30 to 34, upper insides 43 to 52 against 51 to 68). What was not: the lower rim, a mean of 190 to 207 against 123 to 147, and the rims' sides, 74 to 96 against 46 to 53. So "ours are a little lighter" was the rims, not the glass inside.
+- **With every drawn rim light off,** the lower rim already measured 105 to 133: the bowl's own reflection of the room gives the flow reference's level, and the drawn crescent was adding 60 to 80 on top.
+- **The crescent is a thin coral line** (`BTN_THIN` 3.2 units at 6 o'clock where it was 4.5, more coral at its core, .55; its hot core .22 where it was .35; `BTN_RIM.x` .5 where it was 1.15) and the fine line round each bowl a little dimmer (`BTN_RIM.w` .5).
+- Measured after: lower rim 151 to 169, warmer (the play bowl 169,143,135); the sides 65 to 91; the insides unchanged.
+- Rounds 52 and 53 seen beside both references, as the opaque base and refracting over dark and colourful windows (`mercury-still-round53.png`), and with real covers: the lower left's fill takes each album's own colour (blue with a blue cover, a pale gold with a white one). Only light in the shader changed; `test=passthrough` 14 of 14.
+- **Still short in the pod:** the glass round the bowls. The flow reference's pod is bright silver-pink lit glass with long reflections, most of all along its lower half; ours is an even dusky pink. Next to it, the bowls' rims are crisp bright edges all round in the reference and softer in ours.
+
 ## What changed on 14 November 2026 at the owner's word (the cursor's light; item 12 in part)
 
 - The owner found the light round the cursor "far too bright ... essentially completely white" and the title hard to read under it. Its core is now .55 (was 3.2) and its soft light .12 (was .2), it lies under the words, and words turn dark where it is bright behind them (`CURSOR_LIGHT`, `WORD_FLIP`). `mercury-cursor-light.png` shows before and after.
