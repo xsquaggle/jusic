@@ -1,0 +1,11 @@
+{ "out": "design/captures/mercury-still-round33.png", "width": 1616,
+  "title": "Mercury still, round 33: the upper lip's edge comes down round the right end as a broad white band; the tip's glow kept close (generated test cover)",
+  "rows": [
+  [ { "label": "reference: the right lobe", "src": "design/references/widget-mercury.png", "crop": [960, 230, 626, 470] },
+    { "label": "round 33: the same part", "src": "design/captures/raw/round33/dark.png", "crop": [740, 110, 400, 300] },
+    { "label": "round 31, before", "src": "design/captures/raw/round31/dark.png", "crop": [740, 110, 400, 300] } ],
+  [ { "label": "reference: widget-mercury.png", "src": "design/references/widget-mercury.png", "crop": [0, 110, 1586, 797] },
+    { "label": "round 33, refracting in the real window: dark window behind", "src": "design/captures/raw/round33-refract/window-dark.png", "crop": [12, 12, 936, 456] } ],
+  [ { "label": "round 33, the opaque base: dark desktop", "src": "design/captures/raw/round33/dark.png", "crop": [90, 50, 1022, 513] },
+    { "label": "round 33, refracting: colourful window behind", "src": "design/captures/raw/round33-refract/window-busy.png", "crop": [12, 12, 936, 456] } ]
+] }

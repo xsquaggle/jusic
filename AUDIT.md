@@ -387,6 +387,23 @@ Done on 16 November 2026. The owner, asked whether the two utility dishes (open 
 - **A fault in the capture tool, found on the way:** a shot that moves the pretend pointer now and then came out as if it had never moved (one or two of the four bead shots in each run, a different one each time), although the page's own state read back right. Its exact cause is not pinned down. Not the real mouse (the cursor was on the main monitor; the page now ignores real pointer events anyway in `?capture=1`), and not covering alone (keeping the window painting while covered, and above everything, each helped but did not cure it). What cured it: reading the page's state back in a round trip of its own between the shot's script and the photo (printed with `trace=1`). With all of these, 12 of 12 bead shots over three runs came out right. Hover shots from earlier rounds (`dark-hover`, `dark-hover-title`) may have been hit by the same fault.
 - Seen: `mercury-still-round32.png` (the first row zooms on the right end with no pointer, budding, out and with the pointer on a bead). **Not yet seen by the owner on their screen.** Open for the owner: whether the beads are the size they want (radius 8.5 units, as the dishes were; the audit's first finding asked for about 12 for comfort at the small size).
 
+## What round 33 changed (items 1 and 4: the upper lip's edge sweeping down round the right end)
+
+Done on 16 November 2026.
+
+- **Where the upper lip's edge comes down round the right end it is a broad white band** (`sweep` in the `LIP_EDGE` block of `shaders.js`: from x 722 on, brightest high up and gone by y 250). Its crest is up to 2.4 units wider there, its outer face is at full width, the glass between its strokes is lit as in the waist, and the dimming the edge takes over the pod does not apply to it. Round 31's right leg carried only a grey hairline.
+- **The tip's glow reaches 12 units, not 20** (`END_TIP.z`), as round 31's measurement asked.
+- Measured (`cut-profile.js`, the `end` cut):
+
+```
+end    ref   131  2554322233469972552111233344566754555536
+end    ours  118  3432222222222358877754432222454234456776   (round 31: 5222222222111111233544332222454344556886)
+```
+
+  The band is there now (`58877` where the reference has `46997`), but about 12 units lower down the cut than theirs: at that x our lip's edge is where the arch circle leaves the pod (y about 177), and theirs is higher. Moving it is a change to the arch's geometry (`L.arch`, `L.end` in `shape.js`), not to the light. The last columns are a shade calmer (`6776` against round 31's `6886`; the reference's `5536`): what is left there is the floor's light along the end's underside (`END_FLOOR`), not the tip.
+- Only the light changed, not the outline or the hit test. Seen as the opaque base, refracting over dark and colourful windows, and with real covers (`mercury-still-round33.png`; its first row is the right lobe beside the reference's and round 31's).
+- **Still short on the right lobe:** the reference's band is thicker and reads as the lip curling over (white over coral, with a dark line inside); ours is a band laid along the edge. Their upper lip is a clear, warm sheet; ours is grey. Their bowls' rims are lit thickness; ours are lines.
+
 ## What changed on 14 November 2026 at the owner's word (the cursor's light; item 12 in part)
 
 - The owner found the light round the cursor "far too bright ... essentially completely white" and the title hard to read under it. Its core is now .55 (was 3.2) and its soft light .12 (was .2), it lies under the words, and words turn dark where it is bright behind them (`CURSOR_LIGHT`, `WORD_FLIP`). `mercury-cursor-light.png` shows before and after.
