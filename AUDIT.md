@@ -470,6 +470,17 @@ r36  1111246653100000111125788888765543211111110000
 - The ring round the cover's `down` ray, past the silhouette: ours `|43311` against the reference's `|31111` (round 35: `|34311`). Only the light and the underside's see-through changed. Seen as the opaque base over dark, light and white, refracting over dark and colourful windows, and with real covers (`mercury-still-round36.png`).
 - **Still short on the lower edge:** the reference's lower lip is a broad rounded tube whose light breaks into separate white and coral streaks with soft gradients between them; ours is one even ribbon.
 
+## What round 37 changed (items 1 and 4: the band under the words as a broad ribbon)
+
+Done on 16 November 2026, in the same session as rounds 34 to 36.
+
+- **Seen beside the reference's** (`mercury-still-round37.png`, first row): under the words their upper lip's leading edge is a ribbon of glass some 16 units deep, below the artist's name and rising into the waist: a copper line along its foot, warm, darker glass through its middle and a white-to-copper stroke along its top. Ours was a white hairline over a copper line, 3 units in all (round 30's verdict, first of what was still short).
+- **The edge is a broad ribbon under the words too** (`LIP_RIBBON` in the `LIP_EDGE` block of `shaders.js`), carrying on into the ribbon it already was where it rises through the waist: its crest moves up 5 units and widens, warmed toward copper where it is thin; lit warm glass fills the space between it and the copper line at its foot; the shade behind the roll moves up with it. It fades in from x 292 beside the cover's bank and hands over to the waist's own ribbon.
+- Measured: the `title` cut of `cut-profile.js` now has the ribbon where the reference has it, a quarter of the way along the title: ours `...2337545222...` against the reference's `...2245362273...` (round 36: `...4323321642...`); its top stroke was an 8 at first, where the reference's is a 4 or 5 at that point, and is dimmer along the ribbon now. The other cuts are unchanged.
+- Only the light changed. Seen as the opaque base over dark, light and white, refracting over dark and colourful windows, and with real covers.
+- `test=gpu dsf=1.25` after rounds 34 to 37, refracting, second monitor, with the card already 70% busy with something else: 2.1% idle and 6.0% playing (round 28: 1.9% and 10.8%). The four rounds added nothing that matters.
+- **Still short under the words:** the reference's ribbon brightens to white as it rises, with a coral streak in it; ours is even along its length. The plateau the words sit on is lighter, silvery glass in the reference and dark in ours (round 30's second point).
+
 ## What changed on 14 November 2026 at the owner's word (the cursor's light; item 12 in part)
 
 - The owner found the light round the cursor "far too bright ... essentially completely white" and the title hard to read under it. Its core is now .55 (was 3.2) and its soft light .12 (was .2), it lies under the words, and words turn dark where it is bright behind them (`CURSOR_LIGHT`, `WORD_FLIP`). `mercury-cursor-light.png` shows before and after.

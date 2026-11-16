@@ -1,0 +1,11 @@
+{ "out": "design/captures/mercury-still-round37.png", "width": 1616,
+  "title": "Mercury still, round 37: the band under the words as a broad ribbon of glass: a copper line along its foot, warm glass through its middle, a stroke along its top (generated test cover)",
+  "rows": [
+  [ { "label": "reference: under the words", "src": "design/references/widget-mercury.png", "crop": [470, 440, 600, 200] },
+    { "label": "round 37: the same part", "src": "design/captures/raw/round37/dark.png", "crop": [414, 307, 326, 88] },
+    { "label": "round 36, before", "src": "design/captures/raw/round36/dark.png", "crop": [414, 307, 326, 88] } ],
+  [ { "label": "reference: widget-mercury.png", "src": "design/references/widget-mercury.png", "crop": [0, 110, 1586, 797] },
+    { "label": "round 37, refracting in the real window: dark window behind", "src": "design/captures/raw/round37-refract/window-dark.png", "crop": [12, 12, 936, 456] } ],
+  [ { "label": "round 37, the opaque base: dark desktop", "src": "design/captures/raw/round37/dark.png", "crop": [90, 50, 1022, 513] },
+    { "label": "round 37, refracting: colourful window behind", "src": "design/captures/raw/round37-refract/window-busy.png", "crop": [12, 12, 936, 456] } ]
+] }

@@ -256,6 +256,9 @@ const float RING_TOP = .15;
 // floor's light on its outer face, the white streak on its crest, the second line behind it in
 // the waist; and how deep the shade behind the roll.
 const vec4 LIP_EDGE = vec4(.75, 1.1, .45, .55);
+// The leading edge as a broad ribbon under the words: how much (0 the old hairline); how bright the
+// glass through its middle; how far its crest moves up from the old hairline (units).
+const vec3 LIP_RIBBON = vec3(1., .8, 5.);
 // The lower lip: how bright the streak just inside the lower edge, how bright the copper line at
 // the edge itself, how deep the line of shade above the streak; how much of the soft glow from
 // the floor is taken out round it.
@@ -1010,9 +1013,14 @@ void main() {
       float swC = max(max(.8 * exp(-pow((s - 335.) / 22., 2.)), .9 * exp(-pow((s - 430.) / 20., 2.))), max(rise, .7 * exp(-pow((s - 690.) / 30., 2.))));
       swO = max(swO, sweep);
       swC = max(swC, sweep);
+      // Under the words the edge is a broad ribbon too, as it is where it rises through the waist:
+      // in the reference a band of glass some 16 units deep below the artist's name, a copper line
+      // along its foot, warm glass through its middle and a white-to-copper stroke along its top.
+      // Ours was a white hairline over a copper line, 3 units in all.
+      float wide = LIP_RIBBON.x * smoothstep(292., 330., s) * (1. - rise);
       float qE = (1. - clamp(ink(qWord, 7.) * 2.5, 0., 1.)) * lipF * born * (1. - .7 * lensMask);
       float aaE = .65;
-      col *= 1. - LIP_EDGE.w * smoothstep(8., 10., ar) * smoothstep(21. + 12. * rise, 13. + 8. * rise, ar) * (.8 - .5 * overPod + .2 * rise) * qE;
+      col *= 1. - LIP_EDGE.w * smoothstep(8. + 7. * wide, 10. + 7. * wide, ar) * smoothstep(21. + 12. * rise + 6. * wide, 13. + 8. * rise + 6. * wide, ar) * (.8 - .5 * overPod + .2 * rise) * qE;
       // The outer face: brightest just under the seam and falling off toward its foot, where it is
       // cut hard; broad where it swells, a sliver between.
       float hO = .7 + 1.1 * swO;
@@ -1020,13 +1028,14 @@ void main() {
       col += mix(hotA, vec3(1., .86, .74), .3 + .3 * swO) * LIP_EDGE.x * face * (.25 + .9 * swO) * (1. - .55 * overPod) * qE;
       // Where it rises through the waist the edge is a broad ribbon of glass, not two lines: the
       // glass between its strokes is lit too, silver with the album's colour in it.
-      col += mix(vec3(.75, .74, .76), hotA, .3) * .22 * max(rise, .8 * sweep) * smoothstep(-.5, 1., ar) * smoothstep(17., 12., ar) * qE;
+      col += mix(vec3(.75, .74, .76), hotA, .3 + .2 * wide) * .22 * max(max(rise, .8 * sweep), LIP_RIBBON.y * wide) * smoothstep(-.5, 1., ar) * smoothstep(17. - 2. * wide, 12. - 1. * wide, ar) * qE;
       col *= 1. - .65 * smoothstep(aaE, -aaE, abs(ar - 4.3) - .38) * qE;
       // The crest: a hairline that swells into a streak where it faces the key lamp, and is gone between.
       // (In the waist the reference's streak is about 12 units across at two thirds of white, with
       // dark on both sides: broader and brighter than that, it was a sheen again.)
-      float hC = .35 + .7 * swC + 1.4 * rise + .3 * overPod + 2.4 * sweep;
-      col += vec3(1., .98, .95) * LIP_EDGE.y * smoothstep(aaE, -aaE, abs(ar - (5.3 + hC)) - hC) * (.1 + .9 * swC) * (1. - .25 * overPod) * (1. - .35 * rise) * qE;
+      float hC = .35 + .7 * swC + 1.4 * rise + .3 * overPod + 2.4 * sweep + .9 * wide;
+      vec3 cC = mix(vec3(1., .98, .95), mix(hotA, vec3(1., .85, .72), .5), .5 * wide * (1. - swC));
+      col += cC * LIP_EDGE.y * smoothstep(aaE, -aaE, abs(ar - (5.3 + hC + LIP_RIBBON.z * wide)) - hC) * max(.1 + .9 * swC, .55 * wide) * (1. - .4 * wide) * (1. - .25 * overPod) * (1. - .35 * rise) * qE;
       col += vec3(1., .97, .94) * LIP_EDGE.z * smoothstep(aaE, -aaE, abs(ar - (11.5 + 1.5 * rise)) - .45) * rise * qE;
     }
 
