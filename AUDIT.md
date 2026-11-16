@@ -404,6 +404,30 @@ end    ours  118  3432222222222358877754432222454234456776   (round 31: 52222222
 - Only the light changed, not the outline or the hit test. Seen as the opaque base, refracting over dark and colourful windows, and with real covers (`mercury-still-round33.png`; its first row is the right lobe beside the reference's and round 31's).
 - **Still short on the right lobe:** the reference's band is thicker and reads as the lip curling over (white over coral, with a dark line inside); ours is a band laid along the edge. Their upper lip is a clear, warm sheet; ours is grey. Their bowls' rims are lit thickness; ours are lines.
 
+## What round 34 changed (items 1 and 4: the upper lip as a clear, warm sheet)
+
+Done on 16 November 2026, in a fresh session (Opus 5.5).
+
+- **Measured first, with a new tool:** `npx electron tools/capture/area-map.js shot=<a dark shot> box=x0,y0,x1,y1 step=N [part=lip]` (no window) prints a grid of brightness and warmth over any part of the drop, the reference beside our shot, in stage units (the reference mapped onto the stage as `outline.js` maps it), and the mean colour of the cells; `part=lip` keeps to the upper lip. One cut through the play button could not say whether the lip reads as a sheet; this can. Over four areas the bulb and the waist were already the reference's (mean colour 131,96,95 against 131,93,91, and 97,81,82 against 101,82,81); the upper lip was too bright and grey (125,110,110 against 112,90,89), and the lower right lobe, with the bowls and the floor, too dark (92,75,76 against 119,90,85: rounds 35 and 36).
+- **What the grey was:** the inner face of the lip's top rim and its crown mirrored the room's cool wash all over: 3s to 5s, neutral, from 8 units inside the outline to the volume line, where the reference's clear glass is 2s and 1s with a rose cast. And the volume bead's glow lit the glass for 11 units round it.
+- **The lip's glass takes the album's colour and lets the wash go** (`LIP_SHEET` in `shaders.js`): from 5 units inside the outline and clear of the leading edge, its reflections and its body are tinted toward the album's colour (pinkish with a pink cover, olive with a cream one) and the wash is taken down by .6, a little less on the lobe's left shoulder, where it curls up toward the lamps.
+- **A broad white band along the top of the lip, on the lobe's left shoulder** (`LIP_TOP`), with a fine line of the album's colour inside it: measured across the rim at nine places from x 570 to 750, the reference's brightest stroke on the upper lip is there (8s and 9s from 4 to 10 units in at x 585 to 600, a 7 three units in at x 630, a 5 at x 660, nothing by 690). Cut hard at both sides, hottest in its middle, drawing out toward the outline and thinning to the right.
+- **The volume line:** the bead's glow is kept close (as round 27 did for the timeline's), and the part not yet played is dim, as the reference's is (4s beside the played part's 8s; ours was 7s). That is item 11 in part.
+- Measured: the upper lip's mean colour is 114,97,96 against the reference's 112,90,89 (round 33: 125,110,110). Across the rim, from the outline inward:
+
+```
+x 585  ref   4445689975443332222222   (peak 9 six units in, then clear)
+x 585  r33   2355322233344555667654   (a 5 at the outline, grey after it)
+x 585  r34   2355445788765555445543
+x 600  ref   1354456885433322222211
+x 600  r33   3455333344445544543346
+x 600  r34   3455457887655443333224
+```
+
+  The ring round the cover and the five cuts are unchanged except where the lip and the volume line cross them.
+- Only the light changed, not the outline or the hit test. Seen as the opaque base, refracting over dark and colourful windows, and with real covers (`mercury-still-round34.png`; its first row is the upper lip beside the reference's and round 33's).
+- **Still short on the upper lip:** inside the band the glass is still a 5 for a few units where the reference's is a 3 (a soft light ours carries there, which the sheet's tint does not reach); the reference's volume line is longer (about 102 units against our 86) and sits 4 units higher, under a "VOLUME" label we do not have (item 11); its band carries on along the top as a thin white line into the broad band down the right end, which in ours begins 12 units too low (round 33).
+
 ## What changed on 14 November 2026 at the owner's word (the cursor's light; item 12 in part)
 
 - The owner found the light round the cursor "far too bright ... essentially completely white" and the title hard to read under it. Its core is now .55 (was 3.2) and its soft light .12 (was .2), it lies under the words, and words turn dark where it is bright behind them (`CURSOR_LIGHT`, `WORD_FLIP`). `mercury-cursor-light.png` shows before and after.

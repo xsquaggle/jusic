@@ -257,6 +257,13 @@ const vec4 LIP_EDGE = vec4(.75, 1.1, .45, .55);
 // the edge itself, how deep the line of shade above the streak; how much of the soft glow from
 // the floor is taken out round it.
 const vec4 LOW_EDGE = vec4(1., .55, .55, .78);
+// The upper lip's sheet over the pod: how far its glass takes on the album's colour; how much of
+// the room's wash is taken out of it, from x z to x w (its left end, where it curls up toward the
+// lamps, keeps the light).
+const vec4 LIP_SHEET = vec4(.55, .6, 585., 640.);
+// The broad white band along the top of the upper lip: how bright; how bright the fine line of
+// the album's colour inside it; from x z it draws out toward the outline; by x w + 30 it is gone.
+const vec4 LIP_TOP = vec4(.85, .3, 600., 660.);
 // The inner face of the pocket's wall on the left: how far it reaches beyond the wall, how dark
 // it is, and how bright the line that closes it.
 const vec3 WALL_L = vec3(12., .32, 0.);
@@ -661,6 +668,18 @@ void main() {
     lumen *= 1. - .93 * clamp(max(calm, pl.x), 0., 1.);
     vec3 inner = (uPalC * (.3 + .25 * depth) * (.6 + .8 * smoke) + lumen * (.7 + .4 * depth)) * (1. - .5 * under) * (1. - .75 * clamp(calm, 0., 1.));
 
+    // The upper lip over the pod is a clear, warm sheet, as the reference's is: dark glass with
+    // the album's colour in it (pinkish with a pink cover), lit where it curls up on its left and
+    // darker toward the right. Ours mirrored the room's grey wash across its whole crown: a grey
+    // haze, 4s and 5s where theirs is 2s (area-map.js, part=lip). Its rim is left alone.
+    float lipSheet = smoothstep(3., 16., ar) * lipF * smoothstep(545., 575., pw.x) * smoothstep(-5., -12., d) * (1. - inBead);
+    {
+      vec3 warmT = mix(vec3(1.), hotA / max(hotA.r, max(hotA.g, max(hotA.b, 1e-3))), LIP_SHEET.x);
+      float clearR = LIP_SHEET.y * mix(.85, 1., smoothstep(LIP_SHEET.z, LIP_SHEET.w, pw.x));
+      refl *= mix(vec3(1.), warmT * (1. - clearR), lipSheet);
+      inner *= mix(vec3(1.), warmT, lipSheet);
+    }
+
     col = inner * (1. - .5 * F) + refl * F;
 
     // Light that came in through the edge: thick glass shows it again as a broad soft band
@@ -879,6 +898,24 @@ void main() {
       col += mix(hotA, vec3(1., .72, .5), .5) * RIM_TOP * smoothstep(.7, -.6, abs(-d - 2.4) - .9 * swell) * up * swell * born;
     }
 
+    // Inside that line, on the right lobe's upper-left shoulder, the upper lip's thick glass shows
+    // the lamps overhead as one broad white band, with the clear glass inside it dark: the
+    // reference's brightest stroke on the upper lip (measured across the rim from x 570 to 750:
+    // 8s and 9s from 4 to 10 units in at x 585 to 600; at x 630 a 7 three units in; a 5 at x 660;
+    // nothing by 690). Ours had a 5 at the outline and grey after it.
+    if (-d < 14. && pw.x > LIP_TOP.z - 50. && pw.x < LIP_TOP.w + 35.) {
+      vec2 gR = vec2(outline(pw + vec2(1.5, 0.)) - d, outline(pw + vec2(0., 1.5)) - d) / 1.5;
+      float up = smoothstep(.3, .8, -gR.y / max(length(gR), 1e-3));
+      float t = smoothstep(LIP_TOP.z, LIP_TOP.z + 40., pw.x);
+      float c0 = mix(7., 3.2, t), hw = mix(1.9, .9, t);
+      float along = smoothstep(LIP_TOP.z - 40., LIP_TOP.z - 15., pw.x) * mix(1., .45, smoothstep(LIP_TOP.z + 5., LIP_TOP.w - 30., pw.x)) * smoothstep(LIP_TOP.w + 32., LIP_TOP.w, pw.x);
+      // Cut hard at both sides, hottest in its middle.
+      float x0 = (-d - c0) / hw;
+      col += vec3(1., .97, .94) * LIP_TOP.x * smoothstep(.65, -.65, abs(-d - c0) - hw) * (.7 + .3 * (1. - x0 * x0)) * along * up * (1. - inBead) * born;
+      // ...and a fine line of the album's colour on its inner side, where the glass turns away.
+      col += mix(hotA, vec3(1., .8, .7), .3) * LIP_TOP.y * smoothstep(.6, -.6, abs(-d - (c0 + hw + 1.6)) - .45) * along * (1. - t) * up * (1. - inBead) * born;
+    }
+
     // The tile floats above the liquid: its shadow, and the picture's own light spilling round it.
     // (It lies in the hollow it has pressed, so its shadow is close in all round, where the
     // liquid meets it, and only a little longer on the side away from the lamps.)
@@ -1056,12 +1093,15 @@ void main() {
     float dv = length(vec2(q.x - vxc, q.y - volY(vxc)));
     float vplayed = smoothstep(vx + 1., vx - 1., q.x) * (1. - uVol.w);
     float vcore = smoothstep(3. + .5 * uVol.z, 1.5, dv);
-    emis += mix(vec3(.82, .82, .86) * .8, warmWhite * 1.35, vplayed) * vcore;
+    // (The part not yet played is dim, as the reference's is: 4s beside the played part's 8s. It was 7s.)
+    emis += mix(vec3(.82, .82, .86) * .45, warmWhite * 1.35, vplayed) * vcore;
     emis += hotA * vplayed * .6 * exp(-dv * dv / 24.);
     float dvb = length(q - vec2(vx, volY(vx)));
     float vr = 5.6 * (1. + .5 * uVol.y);
     emis += warmWhite * 1.9 * smoothstep(vr + .8, vr - .8, dvb) * (1. - .6 * uVol.w);
-    emis += hotA * (.5 + 1.4 * uVol.y) * exp(-dvb * dvb / (2. * vr * vr * 4.)) * (1. - uVol.w);
+    // (Its glow is kept close, as the timeline's bead's is: at twice its radius it lit the clear
+    // glass of the upper lip for 11 units round it, 4s and 5s where the reference has 1s and 2s.)
+    emis += hotA * (.5 + 1.4 * uVol.y) * exp(-dvb * dvb / (2. * vr * vr)) * (1. - uVol.w);
 
     col += emis * (1. - .3 * F) * born * mix(.7, 1.12, uSeekPull.z);
 

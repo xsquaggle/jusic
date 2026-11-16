@@ -1,0 +1,14 @@
+{ "out": "design/captures/mercury-still-round34.png", "width": 1616,
+  "title": "Mercury still, round 34: the upper lip a clear, warm sheet, with a broad white band along its top on the left shoulder (generated test cover)",
+  "rows": [
+  [ { "label": "reference: the upper lip", "src": "design/references/widget-mercury.png", "crop": [1075, 238, 495, 206] },
+    { "label": "round 34: the same part", "src": "design/captures/raw/round34/dark.png", "crop": [765, 150, 301, 126] },
+    { "label": "round 33, before", "src": "design/captures/raw/round33/dark.png", "crop": [765, 150, 301, 126] } ],
+  [ { "label": "reference: the right lobe", "src": "design/references/widget-mercury.png", "crop": [960, 230, 626, 470] },
+    { "label": "round 34: the same part", "src": "design/captures/raw/round34/dark.png", "crop": [740, 110, 400, 300] },
+    { "label": "round 33, before", "src": "design/captures/raw/round33/dark.png", "crop": [740, 110, 400, 300] } ],
+  [ { "label": "reference: widget-mercury.png", "src": "design/references/widget-mercury.png", "crop": [0, 110, 1586, 797] },
+    { "label": "round 34, refracting in the real window: dark window behind", "src": "design/captures/raw/round34-refract/window-dark.png", "crop": [12, 12, 936, 456] } ],
+  [ { "label": "round 34, the opaque base: dark desktop", "src": "design/captures/raw/round34/dark.png", "crop": [90, 50, 1022, 513] },
+    { "label": "round 34, refracting: colourful window behind", "src": "design/captures/raw/round34-refract/window-busy.png", "crop": [12, 12, 936, 456] } ]
+] }
