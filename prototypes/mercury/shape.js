@@ -28,13 +28,14 @@ export const L = {
   pinch: { c: [425, -41], r: 210, k: 30 },
 
   // The upper lip is a second layer lying over the pod the buttons sit in. Its leading edge is
-  // an arch: a flat arc over the top of the pod, a leg coming down round the right end, and
+  // an arch: a flat arc over the top of the pod that runs on as a long diagonal down to the right
+  // silhouette (since round 38; before, a leg turned it down inside the end), and
   // at the waist a leg that sweeps down and away to the left under the words, so the whole
   // edge is an S. Under the arch lie the pod and, below the pod's own soft rim, the strip
   // that carries the timeline.
   arch: { c: [629, 420], r: 273, kl: 36, kr: 40 },   // the arc over the pod, and how softly it turns into each leg
   band: { c: [441, 150], r: 93 },                    // the waist leg is the edge of this circle
-  end: { c: [700, 196], r: 68 },                     // the right leg: the right half of this circle
+  end: { c: [700, 196], r: 68, leg: false },        // the right leg, the right half of this circle: off since round 38 (the arc runs on to the silhouette)
   rim: { c: [642, -33], r: 271 },                    // the pod's lower rim
   // Past the bottom of the band circle the waist leg runs on under the words, nearly level and
   // falling a little, to the cover's lower right corner, as the reference's does: it is one S from
@@ -161,13 +162,17 @@ export function archSdf(x, y) {
   let d = smax(Math.hypot(x - arch.c[0], y - arch.c[1]) - arch.r, band.r - Math.hypot(x - band.c[0], y - band.c[1]), arch.kl);
   // Under the words the waist leg runs on as a nearly level line (positive above it, on the lip).
   d = mix(run.y + run.fall * Math.max(run.x - x, 0) - y, d, smoothstep(run.blend[0], run.blend[1], x));
-  // The right leg bounds the arch only on its own side: left of its centre it says nothing.
-  return x < end.c[0] ? d : smax(d, Math.hypot(x - end.c[0], y - end.c[1]) - end.r, arch.kr);
+  // On the right the arc runs on as a long diagonal down to the silhouette, meeting it at about
+  // (790, 198), as the reference's edge does: the lower right below it is open body, where the
+  // coral point lies. (Round 38. Before, the right leg, the edge of the 'end' circle, turned it
+  // down inside the end and closed the pod off there, so the whole end lay under the lip and the
+  // light along the edge came out 10 to 15 units lower than the reference's at x 750 to 765.)
+  return L.end.leg ? (x < end.c[0] ? d : smax(d, Math.hypot(x - end.c[0], y - end.c[1]) - end.r, arch.kr)) : d;
 }
 
 /**
- * Where the arch exists as an edge at all: over and round the pod, down the right leg to the
- * crest (the lip's end is the crest), and along the waist leg, which melts away to the left.
+ * Where the arch exists as an edge at all: over and round the pod, down its diagonal to the right
+ * silhouette, and along the waist leg, which melts away to the left.
  * Under the pod's rim, between the two legs, there is no edge: that is the strip.
  */
 export function archOn(x, y) {
@@ -386,11 +391,11 @@ float archSdf(vec2 p) {
   float d = smax(length(p - ARCH_C) - ARCH_R, BAND_R - length(p - BAND_C), ${f1(L.arch.kl)});
   // Under the words the waist leg runs on as a nearly level line (positive above it, on the lip).
   d = mix(${f1(L.run.y)} + ${f1(L.run.fall)} * max(${f1(L.run.x)} - p.x, 0.) - p.y, d, smoothstep(${f1(L.run.blend[0])}, ${f1(L.run.blend[1])}, p.x));
-  // The right leg bounds the arch only on its own side: left of its centre it says nothing.
-  return p.x < END_C.x ? d : smax(d, length(p - END_C) - END_R, ${f1(L.arch.kr)});
+  // On the right the arc runs on as a diagonal down to the silhouette (round 38: no right leg).
+  return ${L.end.leg ? `p.x < END_C.x ? d : smax(d, length(p - END_C) - END_R, ${f1(L.arch.kr)})` : 'd'};
 }
 
-// Where the arch exists as an edge: over and round the pod, down the right leg to the crest,
+// Where the arch exists as an edge: over and round the pod, down its diagonal to the right silhouette,
 // and along the waist leg, which melts away to the left. Under the pod's rim, between the
 // two legs, there is no edge: that is the strip.
 float archOn(vec2 p) {

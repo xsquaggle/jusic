@@ -1,0 +1,15 @@
+{ "out": "design/captures/mercury-still-round38.png", "width": 1616,
+  "title": "Mercury still, round 38: the upper lip's edge runs on as a diagonal down to the right silhouette, as the reference's does, instead of turning down inside the end (generated test cover)",
+  "rows": [
+  [ { "label": "reference: the right end", "src": "design/references/widget-mercury.png", "crop": [1325, 279, 248, 309] },
+    { "label": "round 38: the same part", "src": "design/captures/raw/round38/dark.png", "crop": [915, 175, 150, 188] },
+    { "label": "round 37, before", "src": "design/captures/raw/round37/dark.png", "crop": [915, 175, 150, 188] },
+    { "label": "the geometry over the reference (orange: the lip's edge)", "src": "design/captures/raw/outline-r38.png", "crop": [1360, 200, 240, 300] } ],
+  [ { "label": "reference: the right lobe", "src": "design/references/widget-mercury.png", "crop": [960, 230, 626, 470] },
+    { "label": "round 38: the same part", "src": "design/captures/raw/round38/dark.png", "crop": [740, 110, 400, 300] },
+    { "label": "round 38 over a white window", "src": "design/captures/raw/round38/window.png", "crop": [740, 110, 400, 300] } ],
+  [ { "label": "reference: widget-mercury.png", "src": "design/references/widget-mercury.png", "crop": [0, 110, 1586, 797] },
+    { "label": "round 38, refracting in the real window: dark window behind", "src": "design/captures/raw/round38-refract/window-dark.png", "crop": [12, 12, 936, 456] } ],
+  [ { "label": "round 38, the opaque base: dark desktop", "src": "design/captures/raw/round38/dark.png", "crop": [90, 50, 1022, 513] },
+    { "label": "round 38, refracting: colourful window behind", "src": "design/captures/raw/round38-refract/window-busy.png", "crop": [12, 12, 936, 456] } ]
+] }

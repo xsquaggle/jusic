@@ -481,6 +481,24 @@ Done on 16 November 2026, in the same session as rounds 34 to 36.
 - `test=gpu dsf=1.25` after rounds 34 to 37, refracting, second monitor, with the card already 70% busy with something else: 2.1% idle and 6.0% playing (round 28: 1.9% and 10.8%). The four rounds added nothing that matters.
 - **Still short under the words:** the reference's ribbon brightens to white as it rises, with a coral streak in it; ours is even along its length. The plateau the words sit on is lighter, silvery glass in the reference and dark in ours (round 30's second point).
 
+## What round 38 changed (item 7 in part: the lip's edge round the right end)
+
+Done on 16 November 2026, in the same session as rounds 34 to 37, at the owner's word to carry on.
+
+- **Seen first, with `outline.js` over the reference and a zoom on the right end:** the reference's lip edge does not turn down inside the end. It runs on from over the next button as a long diagonal down to the right silhouette, meeting it at about (790, 200), and the lower right below it is open body, where the coral point lies. Ours turned down into a vertical leg some 25 units inside the end (the edge of the `end` circle), which closed the pod off there and kept the whole end under the lip; the light laid along the edge (round 33's `sweep`) followed that leg, so on the `end` cut it came out lower than the reference's band. Round 33 had put this down as "about 12 units lower".
+- **The right leg is gone** (`L.end.leg: false` in `shape.js`; `archSdf` in JS and in the generated GLSL returns the arc alone): the arch circle on its own already runs down to the silhouette at about (795, 201), within a few units of the reference's edge from x 700 rightward. Over the buttons nothing moved. The outline and the hit test are unchanged (neither uses the arch).
+- `test=passthrough`: 14 of 14.
+- The light needed no change: the edge's strokes and round 33's broad white band follow the edge, so they now lie along the diagonal.
+- Measured (`cut-profile.js`, the `end` cut):
+
+```
+end    ref   131  2554322233469972552111233344566754555536
+end    ours  118  5221111111147774477444222222454233444666   (round 37: 3432111111112358877754432222454234456776)
+```
+
+  The band's first stroke now sits where the reference's 9s are; the second (`77` a few columns on) is the glow through the fold just under the edge.
+- **Still short at the right end:** the reference's band along the diagonal is a curl, white over coral with a dark line inside it, and its lower right is a mass of lit coral glass; ours is a white band and the floor's light at the point. The reference's edge enters the right lobe about 8 units higher than ours at x 680.
+
 ## What changed on 14 November 2026 at the owner's word (the cursor's light; item 12 in part)
 
 - The owner found the light round the cursor "far too bright ... essentially completely white" and the title hard to read under it. Its core is now .55 (was 3.2) and its soft light .12 (was .2), it lies under the words, and words turn dark where it is bright behind them (`CURSOR_LIGHT`, `WORD_FLIP`). `mercury-cursor-light.png` shows before and after.
