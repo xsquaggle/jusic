@@ -658,6 +658,28 @@ down-left  r52   1112:323445566666644444444555576665   warm 2222:123443322221244
 - Rounds 52 and 53 seen beside both references, as the opaque base and refracting over dark and colourful windows (`mercury-still-round53.png`), and with real covers: the lower left's fill takes each album's own colour (blue with a blue cover, a pale gold with a white one). Only light in the shader changed; `test=passthrough` 14 of 14.
 - **Still short in the pod:** the glass round the bowls. The flow reference's pod is bright silver-pink lit glass with long reflections, most of all along its lower half; ours is an even dusky pink. Next to it, the bowls' rims are crisp bright edges all round in the reference and softer in ours.
 
+## What round 54 changed (items 1, 4 and 8: the pod's lower rim as one rolled lip)
+
+- **Measured first**, the pod against both references (`area-map.js part=pod`, colour grids over the pod in each picture, and vertical cuts below the bowls). By the numbers the pod was already close: its mean colour 133,104,101 against the main reference's 126,94,91, and the cuts' levels alike. What differs is form. Seen close beside the flow reference, its pod ends below in one bulging rolled lip that catches a broad soft silver light along its middle, then falls to dark glass and the timeline. Ours fell from the strip to the pod's floor in an S over 10 units, and both bends of the S caught light: two thin pale lines with a flat band between, a rail.
+- **The lower rim is a rolled lip, as geometry** (`POD_BEAD` in `shaders.js`, in `detail()`): a soft bead 5 high and 5 wide whose crest lies 2.5 units inside the pod's lower rim circle, only along the lower rim (not where the lip's edge bounds the pod) and only over the pod. So it lights once, along its upper flank. **Its light** (`POD_LIP`): one soft silver highlight along that flank, a little of the album in it, a little brighter under the gaps between the bowls, kept out of the bowls' rims.
+- Measured after, down the cuts below the bowls: the roll peaks at 7 (the flow reference's at 6 to 8) and falls to 1s below it, as theirs does; the rail's two lines are gone.
+
+## What round 55 changed (items 1 and 4: the right end's curl a hot core in coral)
+
+- **Measured first** with the 'end' cut of `cut-profile.js` (between the last button and the right end, top to bottom):
+
+```
+end    ref   2554322233469972552111233344566754555536   warm 2554211112230042411111111111111013443423
+end    r54   4341111456777888444654444556776334445666   warm 2100011111112000111222333332111233333233
+end    r55   4341111235687546763534444456776334445666   warm 2100011122211111001222333332111233333233
+```
+
+  The reference's curl is a narrow hot streak (9s over about 6 units), white at its core and coral either side (warmth 0 inside 4s), with the lip's edge below it dim (2s and 5s) and dark glass just under the edge (2s and 1s). Ours had a band of 7s and 8s some 20 units deep.
+- **Two causes.** The curl's body was broad and white (`CURL_MASS`); and the broad ribbon the edge carries under the words (`wide`, round 37) had never been switched off past the pod, so round the right end the edge was drawn as a ribbon too.
+- **The curl is a hot core in coral shoulders:** its body narrower (`CURL_W.x` 30 where it was 40.5), coral on both sides of the core and only the core white, the core hotter (1.1 where it was .5) and a little narrower; its tail fainter. **The ribbon stops where the edge sweeps down round the end;** the edge's own crest dies away there sooner (from x 735 to 760, `CURL_W.zw`; it was 750 to 772). **Under the edge at the end:** the pod's end light lies low toward its rim (`.1 + .9 * low` where it was `.4 + .6 * low`) and the glow through the fold ends a little sooner (760 to 728 where it was 772 to 740; it still answers the music over the buttons).
+- **Still short at the right end:** the reference's end is a rounded lobe of glass, a broad sheen on its body and a bright highlight down its outer right side; ours now has the reference's light down the cut but drawn as thin lines on a flat surface. That is geometry: the curl as a real tube in the height, and the end's lower lobe rounded.
+- Only light and the pod's height changed; the outline and the hit test did not. Seen as the opaque base, refracting over dark and colourful windows (`mercury-still-round55.png`), and with real covers.
+
 ## What changed on 14 November 2026 at the owner's word (the cursor's light; item 12 in part)
 
 - The owner found the light round the cursor "far too bright ... essentially completely white" and the title hard to read under it. Its core is now .55 (was 3.2) and its soft light .12 (was .2), it lies under the words, and words turn dark where it is bright behind them (`CURSOR_LIGHT`, `WORD_FLIP`). `mercury-cursor-light.png` shows before and after.

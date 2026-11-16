@@ -180,6 +180,14 @@ float podMask(vec2 p, float ar) {
 // the lip's edge meets its own lower rim, is rounded with z.
 const vec3 POD_SOFT = vec3(13., 10., 16.);
 float overPodAt(float x) { return smoothstep(545., 590., x) * smoothstep(770., 730., x); }
+// The pod's lower rim as a rolled lip of glass (round 54): how high it stands, where its crest lies
+// (units from the pod's lower rim circle, negative toward the pod), how wide it is. The flow reference's
+// pod ends below in one bulging roll lit once along it, silver on its upper flank and coral below;
+// ours fell from the strip in an S whose two bends each drew a pale line, a rail.
+const vec3 POD_BEAD = vec3(5., -2.5, 5.);
+// ...and its light: one crisp highlight along its upper flank, where it faces the lamps overhead: how
+// bright, where (units from the pod's lower rim circle), how wide.
+const vec3 POD_LIP = vec3(.45, -5.5, 1.7);
 
 // How far down into the pod a point lies (0 on the strip, 1 on the pod's floor).
 // (Until round 48: under the arch the pod dropped away at once, because the lip stands over it,
@@ -283,7 +291,13 @@ const vec4 END_CURL = vec4(6.5, .12, .55, .4);
 // The curl as a mass of lit glass (round 45): how far its middle rises up the lip toward the right
 // side (units, over x 745 to 788); how bright its broad body; its thin hot core; the soft light it
 // spreads up the lip above it.
-const vec4 CURL_MASS = vec4(22., .55, .5, .18);
+const vec4 CURL_MASS = vec4(22., .5, 1.1, .08);   // (body .55, core .5, tail .18 until round 55)
+// Round 55: how wide the curl's body is (its variance, units squared; 40.5 until round 55) and half its
+// core's width (2.2). Measured down the 'end' cut, the reference's curl is a narrow hot streak, 9s over
+// about 6 units with 4s and 6s either side; ours was a band of 7s and 8s some 20 units deep.
+// And where the edge's own crest dies away below the curl (from x z to x w; 750 to 772 until round 55:
+// on the 'end' cut it was then brighter than the curl, 8s where the reference has 2s and 5s).
+const vec4 CURL_W = vec4(30., 1.7, 735., 760.);
 // The tip where the right end curls under: where it is (xy), how far its glow reaches (z), how bright (w).
 const vec4 END_TIP = vec4(780., 230., 12., 1.5);      // (its glow reached 20 units and lit the 'end' cut 26 units off: 8s where the reference has 5s)
 // The copper line along the upper silhouette: how bright.
@@ -445,6 +459,11 @@ float detail(vec2 p0) {
   float fade = archOn(p);
   float pod = podMask(p, ar);
   h -= POD_D * podDepth(p, ar);
+  {
+    float rimD = length(p - RIM_C) - RIM_R;
+    float lowRim = smoothstep(-4., 4., rimD - 3. - ar) * smoothstep(505., 545., p.x) * smoothstep(800., 775., p.x);
+    h += POD_BEAD.x * exp(-pow((rimD - POD_BEAD.y) / POD_BEAD.z, 2.)) * lowRim;
+  }
   float t = 1. - clamp(ar / LIP_ROLL, 0., 1.);
   // (Over the pod, round 48: a wide round roll whose foot leans into the pocket, not a quarter
   // round standing upright over it. The upright foot drew the pod's top as a hard line.)
@@ -705,7 +724,9 @@ void main() {
     float ar = archSdf(pw);                                  // the lip's leading edge: negative under it
     float lipF = archOn(pw);
     float podIn = podMask(pw, ar);
-    float fw = smoothstep(536., 572., pw.x) * smoothstep(772., 740., pw.x) * lipF;   // along the top of the arch
+    // (Round 55: it ends a little sooner at the right end, 760 to 728 where it was 772 to 740: past the last
+    // button the reference's glass just under the lip's edge is dark, 2s and 1s, and the glow lit it to 5s.)
+    float fw = smoothstep(536., 572., pw.x) * smoothstep(760., 728., pw.x) * lipF;   // along the top of the arch
 
     // Where things under the surface appear to be: bent by the slope above them.
     vec2 bend = clamp(slopeD, -1.2, 1.2) + clamp(slopeB, -1., 1.) * .16;
@@ -1004,8 +1025,15 @@ void main() {
       // (Never quite even along its length: it swells under each gap between the bowls and at the end.)
       float swP = .75 + .25 * smoothstep(14., 4., min(abs(pw.x - 604.), abs(pw.x - 680.)));
       float podL = podIn * outB * (1. - inBead) * born;
-      col += mix(hotA, vec3(1., .8, .66), .2) * (POD_LIGHT.x * low * swP + POD_LIGHT.y * endP * (.4 + .6 * low)) * podL;
+      // (Round 55: at the end it lies low, as the reference's does down the 'end' cut, dark just under the
+      // lip's edge (2s and 1s) and rising toward the rim (4s to 6s). A third of it lay everywhere in the
+      // end and lit the glass under the edge, 5s.)
+      col += mix(hotA, vec3(1., .8, .66), .2) * (POD_LIGHT.x * low * swP + POD_LIGHT.y * endP * (.1 + .9 * low)) * podL;
       col += mix(hotA, vec3(1., .9, .82), .4) * POD_LIGHT.z * smoothstep(-58., -42., rimD) * smoothstep(-6., -18., rimD) * (1. - endP) * podL * outB;
+      // The rolled lower lip (round 54): its highlight, silver with a little of the album, a little
+      // brighter under the gaps between the bowls, gone into the bowls' rims and toward either end.
+      float lipLow = smoothstep(-4., 4., rimD - 3. - ar) * smoothstep(515., 560., pw.x) * smoothstep(790., 755., pw.x);
+      col += mix(vec3(1., .97, .95), hotA, .15) * POD_LIP.x * swP * exp(-pow((rimD - POD_LIP.y) / POD_LIP.z, 2.)) * lipLow * outB * (1. - inBead) * born;
       // ...and the upper pod, under the glow through the fold, is an even warm mid-tone in the
       // reference (3s to 5s, warmth 2 to 3), where ours was 2s and 3s below a bright stripe.
       col += mix(hotA, vec3(1., .9, .84), .45) * POD_UPPER * smoothstep(-82., -70., rimD) * smoothstep(-44., -58., rimD) * (1. - endP) * podL;
@@ -1148,7 +1176,9 @@ void main() {
       // in the reference a band of glass some 16 units deep below the artist's name, a copper line
       // along its foot, warm glass through its middle and a white-to-copper stroke along its top.
       // Ours was a white hairline over a copper line, 3 units in all.
-      float wide = LIP_RIBBON.x * smoothstep(292., 330., s) * (1. - rise);
+      // (Round 55: not round the right end, where the edge sweeps down. It ran on there, and drew the edge
+      // as a broad ribbon of 7s some 15 units deep where the reference's is a hot curl over dark glass.)
+      float wide = LIP_RIBBON.x * smoothstep(292., 330., s) * (1. - rise) * (1. - sweep);
       float qE = (1. - clamp(ink(qWord, 7.) * 2.5, 0., 1.)) * lipF * born * (1. - .7 * lensMask);
       // (Over the pod, round 48: the roll there is wider and round, so its strokes lie further out
       // across it and have soft sides; the fine dark seam is all but gone. Cut hard and close together
@@ -1179,7 +1209,7 @@ void main() {
       cC = mix(cC, seatCoral * 1.2, seatW);
       // The crest stays on the edge round the right end and dies away before the side (the reference:
       // 1s and 2s across the edge at x 772); the curl above it is a light of its own.
-      col += cC * LIP_EDGE.y * smoothstep(aaE, -aaE, abs(arS - (5.3 + hC + LIP_RIBBON.z * wide)) - hC) * max(.1 + .9 * swC, .55 * wide) * (1. - .4 * wide) * (1. - .25 * overPod) * (1. - .35 * rise) * (1. - .75 * smoothstep(750., 772., s)) * qE;
+      col += cC * LIP_EDGE.y * smoothstep(aaE, -aaE, abs(arS - (5.3 + hC + LIP_RIBBON.z * wide)) - hC) * max(.1 + .9 * swC, .55 * wide) * (1. - .4 * wide) * (1. - .25 * overPod) * (1. - .35 * rise) * (1. - .75 * smoothstep(CURL_W.z, CURL_W.w, s)) * qE;
       // The curl: a mass of lit glass lying 15 to 30 units above the edge where the end turns down, a
       // hot core coral on its lower side and white on its upper, a broad body round it, and a soft
       // light spreading up the lip above it (the reference across the edge at x 745: 9s from 16 to 24
@@ -1188,11 +1218,13 @@ void main() {
       // flat white band of even width lying along the edge: paint.)
       float cB = smoothstep(718., 752., s) * smoothstep(250., 180., pw.y);
       float tc = ar - (21. + CURL_MASS.x * smoothstep(745., 788., s));
-      float cBody = exp(-tc * tc / 40.5);
-      float cCore = smoothstep(aaE, -aaE, abs(tc + 1.) - 2.2) * (.75 + .25 * smoothstep(760., 742., s));
+      float cBody = exp(-tc * tc / CURL_W.x);
+      float cCore = smoothstep(aaE, -aaE, abs(tc + 1.) - CURL_W.y) * (.75 + .25 * smoothstep(760., 742., s));
       float cTail = smoothstep(-2., 5., tc) * exp(-max(tc - 5., 0.) / 14.);
       vec3 cCoral = mix(hotA, vec3(1., .74, .58), .45);
-      col += mix(cCoral, vec3(1., .96, .92), smoothstep(-3., 4., tc)) * (CURL_MASS.y * cBody + CURL_MASS.z * cCore) * cB * qE;
+      // (Round 55: the reference's curl is a white-hot core, warmth 0, inside coral shoulders, warmth 4,
+      // so its body is coral on both sides of the core and only the core is white.)
+      col += (cCoral * CURL_MASS.y * cBody + mix(cCoral, vec3(1., .96, .92), .3 + .7 * smoothstep(-3., 2., tc)) * CURL_MASS.z * cCore) * cB * qE;
       col += mix(cCoral, vec3(1., .9, .84), .35) * CURL_MASS.w * cTail * cB * qE;
       col += vec3(1., .97, .94) * LIP_EDGE.z * smoothstep(aaE, -aaE, abs(ar - (11.5 + 1.5 * rise)) - .45) * rise * qE;
       // Over the pod the round roll carries one crisp highlight along its crest, unbroken from end to

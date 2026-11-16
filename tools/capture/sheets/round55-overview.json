@@ -1,0 +1,14 @@
+{ "out": "design/captures/mercury-still-round55.png", "width": 1616,
+  "title": "Mercury still, rounds 54 and 55: the pod's lower rim a rolled lip; the right end's curl a hot core in coral, no broad strap (generated test cover)",
+  "rows": [
+  [ { "label": "flow reference: the pod and the right end", "src": "design/references/widget-mercury-flow.png", "crop": [960, 250, 626, 420] },
+    { "label": "round 53", "src": "design/captures/raw/round53/dark.png", "crop": [700, 155, 380, 255] },
+    { "label": "round 55: one rolled lip under the bowls; a thin hot curl", "src": "design/captures/raw/round55/dark.png", "crop": [700, 155, 380, 255] } ],
+  [ { "label": "main reference: the right end", "src": "design/references/widget-mercury.png", "crop": [1280, 230, 306, 470] },
+    { "label": "round 53", "src": "design/captures/raw/round53/dark.png", "crop": [905, 160, 175, 270] },
+    { "label": "round 55", "src": "design/captures/raw/round55/dark.png", "crop": [905, 160, 175, 270] } ],
+  [ { "label": "reference: widget-mercury.png", "src": "design/references/widget-mercury.png", "crop": [0, 200, 1586, 620] },
+    { "label": "round 55, refracting in the real window: dark window behind", "src": "design/captures/raw/round55-refract/window-dark.png", "crop": [12, 12, 936, 456] } ],
+  [ { "label": "round 55, the opaque base: dark desktop", "src": "design/captures/raw/round55/dark.png", "crop": [90, 50, 1022, 513] },
+    { "label": "round 55, refracting: colourful window behind", "src": "design/captures/raw/round55-refract/window-busy.png", "crop": [12, 12, 936, 456] } ]
+] }

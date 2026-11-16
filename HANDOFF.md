@@ -4,16 +4,22 @@
 
 ## Current status
 
-Updated 16 November 2026, after round 53. Step 2 of the owner's order of work is complete; **step 3 (polish the still) is under way: rounds 11 to 53 are done.** Nothing is half-finished.
+Updated 16 November 2026, after round 55. Step 2 of the owner's order of work is complete; **step 3 (polish the still) is under way: rounds 11 to 55 are done.** Nothing is half-finished.
+
+**Rounds 54 and 55 (the same session):** the pod's lower rim is one rolled lip of glass, as the flow reference's: a soft bead along it in the height (`POD_BEAD`) with one silver highlight on its upper flank (`POD_LIP`), where the pod used to fall in an S whose two bends drew two pale lines, a rail. And the right end's curl is a hot core in coral shoulders, as the main reference's down the 'end' cut, not a broad white strap: the curl's body narrower and coral (`CURL_MASS`, `CURL_W`), the broad ribbon of the edge under the words switched off where the edge sweeps down round the end (`wide` had never stopped past the pod), the edge's crest dying sooner there, and the glass just under the edge darker (the pod's end light lies low; the fold's glow ends at 760, still answering the music over the buttons). `test=passthrough` 14 of 14. Sheet: `mercury-still-round55.png`. A third scratch tool: `col.js` (a vertical cut through any picture, in its own pixels, as digits of brightness and warmth).
 
 **Rounds 52 and 53 (a fresh session, Opus 5.5, from the list below):** the bulb's lower left beside the cover is coral, not a pale pink wash: the ring's floor light (7 to 8 o'clock) carried white and left the glass's haze in under it; now it is the album's colour deepened over cleared glass (`RING_FLOOR_C`, `RING_FLOOR.w`), and the seat's left end takes the same coral (`SEAT_WARM`). Along the down-left ray the middle is 4s and 5s at warmth 4, as the main reference's 5s at warmth 4 (it was 6s to 8s at warmth 0 to 2). And the bowls' lower rims are thin coral lines: measured part by part, the bowls' insides were already as dark as the flow reference's and their lower rims twice as bright (a mean of 190 to 207 against 123 to 147); the glass's own reflection gives the reference's level, so the drawn crescent is thin and dim now (`BTN_THIN` 3.2, `BTN_RIM.x` .5): 151 to 169. `test=passthrough` 14 of 14. Sheet: `mercury-still-round53.png`. Two scratch tools for this, in `design/captures/raw/` (ignored, simple to rewrite): `grid.js` prints a picture's colours as a grid of digits over any box of its own pixels; `bowlstat.js` the mean colour of six parts of each bowl. A `npx electron` script in the scratchpad would not start at all (exit 127, no output): keep such scripts inside the repository.
 
-**Next, largest first** (replaces the list below; the owner's three requests of 16 November stay the target for their parts):
-1. The pod round the buttons as the flow reference's bright silver-pink glass with long reflections, most of all along its lower half (ours an even dusky pink), and the bowls' rims crisp bright edges all round.
-2. The right end: the curl as a broad coral mass (`CURL_MASS`); at x 772 the glass between the curl and the edge dark, as the reference's.
-3. The flat white glare in the bulb's upper left (`RING_KEY`'s silver), against both references' softer coral-white light there.
+**Next, largest first** (replaces the lists below; the owner's three requests of 16 November stay the target for their parts):
+1. The right end as a rounded lobe of glass, which is geometry now, not light: the curl as a real tube in the height and the end's lower lobe rounded, so its light (now the reference's down the 'end' cut) lies on a form instead of as thin lines on a flat surface; and a bright highlight down the end's outer right side.
+2. The flat white glare in the bulb's upper left (`RING_KEY`'s silver), against both references' softer coral-white light there.
+3. The pod's glass between and below the bowls: the flow reference's is neutral silver (warmth 0 to 1) with long reflections, ours a little pink (1 to 2); the bowls' rims crisp bright edges all round. (Its mean colour and levels already match: measured in round 54.)
 4. Just outside the cover's lower left corner, a bright line along the pocket wall's crest (the main reference's 7s, ours dark); the coral there a graded sheen sweeping round under the cover rather than an even fill.
 5. The ribbon under the words brightening as it rises.
+
+**Next, as it stood after round 53** (items 1 and 2 done in rounds 54 and 55, in part):
+1. The pod round the buttons as the flow reference's bright silver-pink glass with long reflections, most of all along its lower half (ours an even dusky pink), and the bowls' rims crisp bright edges all round.
+2. The right end: the curl as a broad coral mass (`CURL_MASS`); at x 772 the glass between the curl and the edge dark, as the reference's.
 
 **Rounds 50 and 51 (the owner said "Yes, carry on"):** the cover's seat as the front of a thick glossy ledge: 7 units below the cover, its top lit in front of the cover, a warm outer face, no shade behind it there (`L.seat.gap`, `SEAT_LEDGE`); and the bowls' rims thin and coral, a full thin ring round each, the crescent at 6 o'clock 4.5 units where it was 8.5 (`BTN_THIN`, `BTN_RIM`).
 
