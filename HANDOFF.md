@@ -18,7 +18,7 @@ Updated 16 November 2026, after round 51 (checkpoint). Step 2 of the owner's ord
 - Scratch profilers used (not committed; simple to rewrite, each samples the reference through the `outline.js` mapping): across the lip's edge round the right end along `archSdf`'s normal, and down the right side a few units inside the silhouette; the timeline followed column by column in both references from its left end (keep to the line within 4 px of the last column's middle, or the tracer jumps to other highlights).
 
 **Next, largest first** (the owner's three requests are done once; what is still short of the flow still in those three parts comes first):
-1. ~~The seat as a thick ledge~~ (round 50) and ~~the bowls' rims~~ (round 51). The cover's turn, slight to the eye, could go to 15 degrees if the owner wants it plainer (`L.cover.yaw`).
+1. ~~The seat as a thick ledge~~ (round 50) and ~~the bowls' rims~~ (round 51). The cover's turn is settled at 12 degrees: the owner left it to us ("12 or 15 degrees, whatever the reference still looks to be"), and the flow reference's cover is about 5% shorter on its right edge than its left (272 px against 258), which is what 12 degrees with `persp` 600 gives.
 2. The bulb's lower left beside the cover coral, not a white wash.
 3. The flow still's dark glass inside the bowls with a soft coral glow low in each; ours are a little lighter.
 4. The right end: the curl as a broad coral mass (`CURL_MASS`); at x 772 the glass between the curl and the edge dark, as the reference's.
