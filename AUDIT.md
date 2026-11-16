@@ -537,6 +537,18 @@ Done on 16 November 2026, in the same session as rounds 34 to 41.
 - **That calm is wide and gentle now** (`WORD_CALM`: the letters blurred by 16 units, at .75), so the box has no edge and the glass round the words reads as the rest does, lighter at the top. The text's own shadow (`under`) and the pool are unchanged, and the words read as before over dark, light and white desktops, over the colourful window refracting, and on every real cover.
 - The means and the cuts are unchanged, as they should be: the round changes the shape of the dark round the words, not its amount.
 
+## What round 43 changed (items 1 and 4: the right end's light)
+
+Done on 16 November 2026, in the same session as rounds 34 to 42.
+
+- **Mapped first** (`area-map.js box=730,120,800,244 step=4`). Above the diagonal edge the reference's lip curls over: its light lies 10 to 25 units above the edge, 6s to 9s at y 148 to 164, warm, with a darker line (2s to 4s) at the edge itself. Ours was dark there (1s), and its white band lay on the edge. Down the right side, just inside the silhouette, the reference's light breaks into the curl above, a dimmer stretch where the edge meets the side, and coral below; ours was one even white streak (7s and 8s from y 130 to 215), a wire. Below the edge the lower right was as bright as theirs but neutral (warmth 1 to 2 against 3 to 5).
+- **The curl** (`END_CURL` and the `LIP_EDGE` block's `curl` in `shaders.js`): round the right end the edge's crest moves up the lip (6.5 units further, eased in from x 690 to 768: switched on over 28 units, it rose in a kink), wider and warmer toward its top; a dark line lies just above the edge, and the shade behind the roll gives way there; the edge's outer face is plainer.
+- **The streak down the right side** (`END_KEY`) gives way where the lip's edge meets the side, is warmer, and is weaker (.6, was .9).
+- **The lower right below the edge** is tinted and lit coral.
+- Measured: the `end` cut's band now lies where the reference's does, `...1111677843434655...` against `...2233469972552111...` (round 42: `...1111147774477444...`), with the darker stretch after it. The right end's mean is 152,127,123 against the reference's 154,120,116 (round 42: 147,126,124), its warmth 1.36 against 1.82 (1.08).
+- Only the light changed. Seen as the opaque base over dark, light and white, refracting over dark and colourful windows, and with real covers (`mercury-still-round43.png`).
+- **Still short at the right end:** the reference's is a mass of lit glass, coral and white in broad shapes with crisp edges; ours is still made of bands laid along the edges, a step nearer.
+
 ## What changed on 14 November 2026 at the owner's word (the cursor's light; item 12 in part)
 
 - The owner found the light round the cursor "far too bright ... essentially completely white" and the title hard to read under it. Its core is now .55 (was 3.2) and its soft light .12 (was .2), it lies under the words, and words turn dark where it is bright behind them (`CURSOR_LIGHT`, `WORD_FLIP`). `mercury-cursor-light.png` shows before and after.

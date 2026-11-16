@@ -1,0 +1,12 @@
+{ "out": "design/captures/mercury-still-round43.png", "width": 1616,
+  "title": "Mercury still, round 43: the right end's light: the lip curls over above its edge, with a dark line between, the streak down the right side gives way, and the lower right is coral (generated test cover)",
+  "rows": [
+  [ { "label": "reference: the right end", "src": "design/references/widget-mercury.png", "crop": [1325, 279, 248, 309] },
+    { "label": "round 43: the same part", "src": "design/captures/raw/round43/dark.png", "crop": [915, 175, 150, 188] },
+    { "label": "round 42, before", "src": "design/captures/raw/round42/dark.png", "crop": [915, 175, 150, 188] },
+    { "label": "round 43 over a white window", "src": "design/captures/raw/round43/window.png", "crop": [915, 175, 150, 188] } ],
+  [ { "label": "reference: widget-mercury.png", "src": "design/references/widget-mercury.png", "crop": [0, 110, 1586, 797] },
+    { "label": "round 43, refracting in the real window: dark window behind", "src": "design/captures/raw/round43-refract/window-dark.png", "crop": [12, 12, 936, 456] } ],
+  [ { "label": "round 43, the opaque base: dark desktop", "src": "design/captures/raw/round43/dark.png", "crop": [90, 50, 1022, 513] },
+    { "label": "round 43, refracting: colourful window behind", "src": "design/captures/raw/round43-refract/window-busy.png", "crop": [12, 12, 936, 456] } ]
+] }
