@@ -1,0 +1,12 @@
+{ "out": "design/captures/mercury-still-round40.png", "width": 1616,
+  "title": "Mercury still, round 40: the button bowls at the reference's size (radius 27.5, 39.5, 27.5; they were 24, 37, 24), nearly touching one another and the pod's rims, with larger previous and next glyphs (generated test cover)",
+  "rows": [
+  [ { "label": "reference: the three bowls", "src": "design/references/widget-mercury.png", "crop": [1000, 360, 560, 210] },
+    { "label": "round 40: the same part", "src": "design/captures/raw/round40/dark.png", "crop": [705, 238, 326, 108] } ],
+  [ { "label": "round 39, before", "src": "design/captures/raw/round39/dark.png", "crop": [705, 238, 326, 108] },
+    { "label": "the geometry over the reference (blue: the bowls)", "src": "design/captures/raw/outline-r40.png", "crop": [1024, 300, 520, 172] } ],
+  [ { "label": "reference: widget-mercury.png", "src": "design/references/widget-mercury.png", "crop": [0, 110, 1586, 797] },
+    { "label": "round 40, refracting in the real window: dark window behind", "src": "design/captures/raw/round40-refract/window-dark.png", "crop": [12, 12, 936, 456] } ],
+  [ { "label": "round 40, the opaque base: dark desktop", "src": "design/captures/raw/round40/dark.png", "crop": [90, 50, 1022, 513] },
+    { "label": "round 40, refracting: colourful window behind", "src": "design/captures/raw/round40-refract/window-busy.png", "crop": [12, 12, 936, 456] } ]
+] }

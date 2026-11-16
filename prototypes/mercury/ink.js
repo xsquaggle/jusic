@@ -158,10 +158,12 @@ export function createInk(gl, { family = 'Montserrat' } = {}) {
 
     // Transport. A control the source does not allow is dimmed (labels.dim names them: 'p', 't', 'n').
     const lit = (k) => (labels.dim.includes(k) ? 0.24 : 1);
-    icon('prev', L.buttons[0].c[0] - 0.5, L.buttons[0].c[1], 21, lit('p'));
+    // (Round 40: the bowls grew to the reference's size, and so the previous and next glyphs, to about
+    // 29% of their bowl's width as the reference's are; at 21 they were 22%.)
+    icon('prev', L.buttons[0].c[0] - 0.5, L.buttons[0].c[1], 26, lit('p'));
     ctx.globalAlpha = lit('t');
     playPause(L.buttons[1].c[0], L.buttons[1].c[1], 31, labels.morph);
-    icon('next', L.buttons[2].c[0] + 0.5, L.buttons[2].c[1], 21, lit('n'));
+    icon('next', L.buttons[2].c[0] + 0.5, L.buttons[2].c[1], 26, lit('n'));
 
     // Utility dishes.
     icon('open', L.utils[0].c[0], L.utils[0].c[1], 10.5, 0.95);

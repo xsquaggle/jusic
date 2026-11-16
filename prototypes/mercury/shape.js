@@ -77,10 +77,12 @@ export const L = {
   title: { x: 292, y: 197, maxW: 196, size: 24 },   // it stops short of the lip's waist leg; a long title is set smaller, down to three quarters
   artist: { x: 293, y: 222, size: 15.5, maxW: 180 },   // shorter than the title: the lip's waist leg passes its far end
 
+  // (Round 40: 3.5 and 2.5 units larger, as the reference's are, about 28, 40 and 27 measured on
+  // it, so that they nearly touch one another and the pod's rims. They were 24, 37 and 24.)
   buttons: [
-    { c: [566, 193], r: 24 },     // previous
-    { c: [642, 190], r: 37 },     // play / pause
-    { c: [718, 193], r: 24 },     // next
+    { c: [566, 193], r: 27.5 },   // previous
+    { c: [642, 190], r: 39.5 },   // play / pause
+    { c: [716, 195], r: 27.5 },   // next (2 left and 2 down, so its rim keeps clear of the lip's edge)
   ],
 
   seek: { x0: 214, x1: 646, y0: 279, y1: 247, bow: 1.5 },

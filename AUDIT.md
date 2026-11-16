@@ -509,6 +509,16 @@ Done on 16 November 2026, in the same session as rounds 34 to 38.
 - Only the light changed. Seen as the opaque base over dark, light and white, refracting over dark and colourful windows, and with real covers (`mercury-still-round39.png`).
 - **Still short on the pod:** the reference's carries silver streaks, between the bowls and along the pod's lower rim, which ours does not; ours is a smooth glow. Its bowls are larger and nearly touch (item 3 of HANDOFF's list).
 
+## What round 40 changed (item 8: the bowls at the reference's size)
+
+Done on 16 November 2026, in the same session as rounds 34 to 39.
+
+- **Measured on the reference** (its three bowls on a zoom of the picture, mapped as `outline.js` maps it): radii of about 28, 40 and 27 with gaps of about 9 and 8 between them, nearly touching the lip's edge above and the pod's rim below. Ours were 24, 37 and 24 with 15 between.
+- **The bowls are 27.5, 39.5 and 27.5** (`L.buttons` in `shape.js`); the next bowl moved 2 left and 2 down, so its rim keeps 3.8 units clear of the lip's edge (at 1.7 it would have run into the edge's rolled light). Gaps of 9.1 and 7.2. Everything reads them from `L.buttons`: the hit test, the bowls in `detail()`, their rims, the press springs. The row in the reference sits about 4 units further left than ours, which looks like the perspective of the mapping, so the positions are otherwise kept.
+- **The previous and next glyphs are 26 units, not 21** (`ink.js`), about 29% of their bowl's width as the reference's are (22% at 21 in the larger bowls).
+- Measured: on the play bowl at 6 o'clock ours reads `...334678888765|` against the reference's `...345688898544|`; the `play` cut `...111385521...` against `...112248453...`. The pod's mean stays near the reference's (133,105,103 against 130,97,94 with the larger bowls left out).
+- `test=passthrough` after the change: 14 of 14. Seen as the opaque base over dark, light and white, refracting over dark and colourful windows, and with real covers (`mercury-still-round40.png`).
+
 ## What changed on 14 November 2026 at the owner's word (the cursor's light; item 12 in part)
 
 - The owner found the light round the cursor "far too bright ... essentially completely white" and the title hard to read under it. Its core is now .55 (was 3.2) and its soft light .12 (was .2), it lies under the words, and words turn dark where it is bright behind them (`CURSOR_LIGHT`, `WORD_FLIP`). `mercury-cursor-light.png` shows before and after.
