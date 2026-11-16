@@ -1,0 +1,12 @@
+{ "out": "design/captures/mercury-still-round42.png", "width": 1616,
+  "title": "Mercury still, round 42: no dark box round the words: the calm that keeps them legible is wide and gentle, so the glass round them reads as the reference's does (generated test cover)",
+  "rows": [
+  [ { "label": "reference: round the words", "src": "design/references/widget-mercury.png", "crop": [440, 380, 640, 280] },
+    { "label": "round 42: the same part", "src": "design/captures/raw/round42/dark.png", "crop": [401, 251, 314, 125] } ],
+  [ { "label": "round 41, before (the dark box)", "src": "design/captures/raw/round41/dark.png", "crop": [401, 251, 314, 125] },
+    { "label": "round 42 over the light wallpaper", "src": "design/captures/raw/round42/light.png", "crop": [401, 251, 314, 125] } ],
+  [ { "label": "reference: widget-mercury.png", "src": "design/references/widget-mercury.png", "crop": [0, 110, 1586, 797] },
+    { "label": "round 42, refracting in the real window: dark window behind", "src": "design/captures/raw/round42-refract/window-dark.png", "crop": [12, 12, 936, 456] } ],
+  [ { "label": "round 42, the opaque base: dark desktop", "src": "design/captures/raw/round42/dark.png", "crop": [90, 50, 1022, 513] },
+    { "label": "round 42, refracting: colourful window behind", "src": "design/captures/raw/round42-refract/window-busy.png", "crop": [12, 12, 936, 456] } ]
+] }

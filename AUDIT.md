@@ -528,6 +528,15 @@ Done on 16 November 2026, in the same session as rounds 34 to 40.
 - **The volume line is 97 units, from x 645 to 742, at y 123.5** (`L.vol`), as the reference's lies (it was 86 units from 628 at y 127); over the reference, ours now sits on theirs from end to end. The speaker keeps 23 units before it, level with it. Round 34 had already made the part not yet played dim. The "VOLUME" label the main reference shows is still left out, as decided in round 15 (too small to read at the widget's size, in the lip's highlight, and two of the three references do without one).
 - `test=passthrough`: 14 of 14 with the new outline. Seen as the opaque base over dark, light and white, refracting over dark and colourful windows, and with real covers (`mercury-still-round41.png`; its second row has the geometry over the reference).
 
+## What round 42 changed (items 1 and 6: no dark box round the words)
+
+Done on 16 November 2026, in the same session as rounds 34 to 41.
+
+- **Seen and measured:** round 30 had put down "the plateau the words sit on is lighter, silvery glass in the reference and a dark box in ours". Mapped with `area-map.js` (x 270 to 520, y 150 to 250), the glass right round the words is dark in both (1s), and the means agree (ours 89,76,77, the reference's 90,74,74): the difference is not how dark but its shape. Ours sat the words in a dark rounded rectangle that hugged the text block, framed by the lit glass round it; the reference's dark has no such edge, and its glass is a little lighter toward the top behind the title. (The near-black strip just left of the title is round 27's dark glass beside the cover, and is meant.)
+- **What made the box:** the calm that keeps the words legible (`calm` in the top face's block of `shaders.js`) followed the letters blurred by 10 units and saturated at 1.6, taking 80% of the reflections out in the shape of the text block. The broad pool under the words (`pools()`) already keeps the surface there level.
+- **That calm is wide and gentle now** (`WORD_CALM`: the letters blurred by 16 units, at .75), so the box has no edge and the glass round the words reads as the rest does, lighter at the top. The text's own shadow (`under`) and the pool are unchanged, and the words read as before over dark, light and white desktops, over the colourful window refracting, and on every real cover.
+- The means and the cuts are unchanged, as they should be: the round changes the shape of the dark round the words, not its amount.
+
 ## What changed on 14 November 2026 at the owner's word (the cursor's light; item 12 in part)
 
 - The owner found the light round the cursor "far too bright ... essentially completely white" and the title hard to read under it. Its core is now .55 (was 3.2) and its soft light .12 (was .2), it lies under the words, and words turn dark where it is bright behind them (`CURSOR_LIGHT`, `WORD_FLIP`). `mercury-cursor-light.png` shows before and after.

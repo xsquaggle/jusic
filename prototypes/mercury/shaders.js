@@ -447,6 +447,9 @@ const vec2 CURSOR_LIGHT = vec2(.55, .12);
 // Words turn dark where the cursor's light behind them is brighter than the first number,
 // and are fully dark from the second.
 const vec2 WORD_FLIP = vec2(.2, .4);
+// How the glass is calmed round the words: how far the letters are blurred for it, and how strongly
+// (it was 10 and 1.6: a dark box round the text block).
+const vec2 WORD_CALM = vec2(16., .75);
 
 // How much of the lamps' light the glass rim carries through to its inner side.
 const float THROUGH = .27;
@@ -667,7 +670,11 @@ void main() {
     /* ---- the liquid: clear glass that mirrors like chrome ---- */
     float F = mix(.5, 1., pow(1. - ndv, 3.));
     vec3 tint = mix(vec3(.95, .96, 1.), mix(vec3(1.), normalize(dye + 1e-3) * 1.5, .5), dyeAmt * .32);
-    float calm = max(ink(qWord, 10.) * 1.6, .9 * still);
+    // (The calm that follows the letters is wide and never total: blurred by 10 units and saturated it
+    // took 80% of the reflections out in a rounded rectangle hugging the text block, and the lit glass
+    // round it framed it as a dark box, which the reference's glass round its words does not show.
+    // The broad pool under the words keeps the surface there level anyway. Round 42.)
+    float calm = max(ink(qWord, WORD_CALM.x) * WORD_CALM.y, .9 * still);
     vec3 refl = env(R) * tint * (1. + .16 * uAudio.w + .1 * uAudio.z) * (1. - .8 * clamp(calm, 0., 1.));
     float depth = smoothstep(0., 60., -d);
     float smoke = fbm2(p * .011 + vec2(uTime * .02, 0.) + flow * .0006);
