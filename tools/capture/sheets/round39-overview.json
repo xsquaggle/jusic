@@ -1,0 +1,12 @@
+{ "out": "design/captures/mercury-still-round39.png", "width": 1616,
+  "title": "Mercury still, round 39: the pod round the bowls as lit, warm glass: the floor's light rising toward its lower rim and gathering at its right end (generated test cover)",
+  "rows": [
+  [ { "label": "reference: the three bowls in their pod", "src": "design/references/widget-mercury.png", "crop": [1000, 360, 560, 210] },
+    { "label": "round 39: the same part", "src": "design/captures/raw/round39/dark.png", "crop": [705, 238, 326, 108] } ],
+  [ { "label": "round 38, before", "src": "design/captures/raw/round38/dark.png", "crop": [705, 238, 326, 108] },
+    { "label": "round 39 over a white window", "src": "design/captures/raw/round39/window.png", "crop": [705, 238, 326, 108] } ],
+  [ { "label": "reference: widget-mercury.png", "src": "design/references/widget-mercury.png", "crop": [0, 110, 1586, 797] },
+    { "label": "round 39, refracting in the real window: dark window behind", "src": "design/captures/raw/round39-refract/window-dark.png", "crop": [12, 12, 936, 456] } ],
+  [ { "label": "round 39, the opaque base: dark desktop", "src": "design/captures/raw/round39/dark.png", "crop": [90, 50, 1022, 513] },
+    { "label": "round 39, refracting: colourful window behind", "src": "design/captures/raw/round39-refract/window-busy.png", "crop": [12, 12, 936, 456] } ]
+] }

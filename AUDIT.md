@@ -499,6 +499,16 @@ end    ours  118  5221111111147774477444222222454233444666   (round 37: 34321111
   The band's first stroke now sits where the reference's 9s are; the second (`77` a few columns on) is the glow through the fold just under the edge.
 - **Still short at the right end:** the reference's band along the diagonal is a curl, white over coral with a dark line inside it, and its lower right is a mass of lit coral glass; ours is a white band and the floor's light at the point. The reference's edge enters the right lobe about 8 units higher than ours at x 680.
 
+## What round 39 changed (items 1 and 4: the pod round the bowls as lit glass)
+
+Done on 16 November 2026, in the same session as rounds 34 to 38.
+
+- **Measured first** with `area-map.js part=pod` (new: the pod the buttons sit in, less the bowls and 3 units round them). The reference's pod is lit, warm glass: 3s and 4s with warmth 2 to 3 along its lower half, 5s to 7s at its right end past the last bowl, 2s and 3s in the narrow gaps between the bowls; mean 129,96,93. Ours was a dark tray, 1s and 2s, neutral: 106,87,87. (Just under the lip's edge ours is brighter than theirs, 6s and 7s against 3s to 5s: that is the spectrum glowing through the fold, a designed reaction to the music, and was left.)
+- **The floor's light comes up into the pod** (`POD_LIGHT` in `shaders.js`): it rises toward the pod's own lower rim, swells a little under each gap between the bowls, gathers where the pod narrows to its end past the last bowl, and a little lies in the gaps at the bowls' middle height. The bowls themselves are left out, so their dark insides and lit rims stand in a lit tray as the reference's do.
+- Measured: the pod's mean is 125,98,96 after 360 frames and 136,109,107 after the full 720 (the pigment gathers), against the reference's 129,96,93 (round 38: 106,87,87); the whole lower right lobe 105,83,82 against 119,90,85 (round 38: 98,79,78; what is left there is mostly the strip below the pod, round the timeline). The `end` cut's lower half now rises as the reference's does.
+- Only the light changed. Seen as the opaque base over dark, light and white, refracting over dark and colourful windows, and with real covers (`mercury-still-round39.png`).
+- **Still short on the pod:** the reference's carries silver streaks, between the bowls and along the pod's lower rim, which ours does not; ours is a smooth glow. Its bowls are larger and nearly touch (item 3 of HANDOFF's list).
+
 ## What changed on 14 November 2026 at the owner's word (the cursor's light; item 12 in part)
 
 - The owner found the light round the cursor "far too bright ... essentially completely white" and the title hard to read under it. Its core is now .55 (was 3.2) and its soft light .12 (was .2), it lies under the words, and words turn dark where it is bright behind them (`CURSOR_LIGHT`, `WORD_FLIP`). `mercury-cursor-light.png` shows before and after.

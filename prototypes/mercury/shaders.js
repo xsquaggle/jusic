@@ -240,6 +240,9 @@ const vec3 RIM = vec3(.6, .5, .6);
 // how bright the fine line at the edge elsewhere. And the key lamp's short arc at 1:30.
 const vec4 BTN_RIM = vec4(1.3, .35, .4, .5);
 const float BTN_KEY = .7;
+// The pod round the bowls: how bright the floor's light rising toward its lower rim; how bright it
+// gathers at the pod's right end; a little light in the gaps at the bowls' middle height.
+const vec3 POD_LIGHT = vec3(.13, .3, .07);
 // The key lamp on the right end: it shows where the outline faces right by more than x, fully
 // from y; its half-width in units; its strength. And how bright the floor's light is there.
 const vec4 END_KEY = vec4(.72, .96, 5., .9);
@@ -900,6 +903,24 @@ void main() {
       col += mix(hotA, vec3(1., .96, .92), .6) * BTN_KEY * big * key * smoothstep(.6, -.6, abs(t - 1.2) - 1.6);
       // A fine line at the bowl's edge, plainest at the top and bottom and nearly gone at the sides.
       col += mix(hotA, vec3(1.), .5) * BTN_RIM.w * big * smoothstep(.5, -.5, abs(t - .6) - .3) * (.15 + .85 * max(nb.y * nb.y, key));
+    }
+
+    // The pod round the bowls is lit glass, not a dark tray. Measured with area-map.js part=pod (the
+    // bowls left out), the reference's is 3s and 4s with warmth 2 to 3 along its lower half, 5s to 7s
+    // at its right end past the last bowl, 2s and 3s in the narrow gaps between the bowls (mean
+    // 129,96,93); ours was 1s and 2s, neutral (106,87,87). The floor's light comes up into it from
+    // below, so it rises toward the pod's own lower rim, and gathers where the pod narrows to its end.
+    {
+      float rimD = length(pw - RIM_C) - RIM_R;                   // about -60 at the pod's top, 0 at its lower rim
+      float outB = 1.;
+      for (int i = 0; i < 3; i++) outB = min(outB, smoothstep(uBtn[i].z + .5, uBtn[i].z + 3.5, length(pw - uBtn[i].xy)));
+      float low = smoothstep(-44., -8., rimD) * smoothstep(1., -5., rimD);
+      float endP = smoothstep(728., 772., pw.x);
+      // (Never quite even along its length: it swells under each gap between the bowls and at the end.)
+      float swP = .75 + .25 * smoothstep(14., 4., min(abs(pw.x - 604.), abs(pw.x - 680.)));
+      float podL = podIn * outB * (1. - inBead) * born;
+      col += mix(hotA, vec3(1., .8, .66), .2) * (POD_LIGHT.x * low * swP + POD_LIGHT.y * endP * (.4 + .6 * low)) * podL;
+      col += mix(hotA, vec3(1., .9, .82), .4) * POD_LIGHT.z * smoothstep(-58., -42., rimD) * smoothstep(-6., -18., rimD) * (1. - endP) * podL * outB;
     }
 
     // The right end is a thick lip curled over, and it is the liveliest part of the reference

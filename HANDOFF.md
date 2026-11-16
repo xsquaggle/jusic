@@ -4,19 +4,20 @@
 
 ## Current status
 
-Updated 16 November 2026, after round 38 (checkpoint). Step 2 of the owner's order of work is complete; **step 3 (polish the still) is under way: rounds 11 to 38 are done.** Nothing is half-finished. **Start the next round in a fresh session from this file.**
+Updated 16 November 2026, after round 39 (checkpoint). Step 2 of the owner's order of work is complete; **step 3 (polish the still) is under way: rounds 11 to 39 are done.** Nothing is half-finished. **Start the next round in a fresh session from this file.**
 
-**16 November 2026, second session (Opus 5.5), rounds 34 to 38**, each measured before and after, photographed beside the reference, and sent to the owner with a private real-cover sheet:
+**16 November 2026, second session (Opus 5.5), rounds 34 to 39**, each measured before and after, photographed beside the reference, and sent to the owner with a private real-cover sheet:
 - **Round 34:** the upper lip a clear, warm sheet: its glass takes the album's colour and lets the room's grey wash go (`LIP_SHEET`), with a broad white band along its top on the right lobe's left shoulder (`LIP_TOP`); the volume bead's glow kept close and the unplayed part of the volume line dim. Measured with a new tool, **`tools/capture/area-map.js`**: a grid of brightness and warmth over any box of the drop, the reference beside our shot, with mean colours (`part=lip` keeps to the upper lip, `part=all` reads the floor too). Use it for any part a vertical cut does not describe.
 - **Round 35:** the bowls' rims as lit thickness: a crescent of the floor's light with a hard inner edge (the bowl's circle less a circle shifted up), a dark strip and a fine line at the edge, the rest of the inside dark (`BTN_RIM`, `BTN_KEY`). The tone curve turns strong light white, so warmth comes from moderate, saturated light and a warm tint on what lies under it.
 - **Round 36:** the lower edge as one line: the lower lip's streak runs to the silhouette with the copper as its outer side, and the underside falls off within a few units, clear glass below that over a light desktop (`LOW_EDGE`, `UNDER_FALL`). The floor already had the reference's mean colour and was left.
 - **Round 37:** the band under the words as a broad ribbon of glass, carrying on into the waist's (`LIP_RIBBON`).
 - **Round 38** (the owner said to carry on after the checkpoint): the upper lip's edge runs on as a long diagonal down to the right silhouette, as the reference's does, instead of turning down inside the end; the right leg is off (`L.end.leg: false` in `shape.js`). The light along the edge followed it without change. `test=passthrough` 14 of 14.
+- **Round 39:** the pod round the bowls as lit, warm glass: the floor's light rising toward its lower rim and gathering at its right end (`POD_LIGHT`), measured with `area-map.js part=pod` (pod mean 125,98,96 to 136,109,107 against the reference's 129,96,93; it was 106,87,87).
 - Scratch profilers used for these rounds (not committed; simple to rewrite): across the top rim from the silhouette inward at several x; across a bowl's rim along eight rays from its middle (reference bowls found at about 638, 189, radius 40 for play and 561, 190, radius 28 for previous); across the lower edge from 30 units inside to 16 below. Each samples the reference through the `outline.js` mapping.
 
 **Next, in this order** (largest difference first, as measured in `AUDIT.md`, "What round 34 changed" to "What round 38 changed"):
 1. ~~The upper lip's edge round the right end~~ (round 38). What is left there is light: the reference's band along the diagonal is a curl, white over coral with a dark line inside, and its lower right is a mass of lit coral glass.
-2. **The pod round the bowls is dark brown where the reference's is lit silvery-pink glass** (4s to 6s): most of what is left of the lower right lobe's darkness (`area-map.js box=560,180,800,290`: ours 98,79,78 against 119,90,85).
+2. ~~The pod round the bowls~~ (round 39). Left there: the reference's silver streaks between the bowls and along the pod's lower rim; the strip below the pod, round the timeline, is still a little dark (the lower right lobe: ours 105,83,82 against 119,90,85).
 3. **The bowls are about 3 units smaller in radius than the reference's** (24, 37, 24 against 28, 40, 27) and do not nearly touch each other and the pod's rims as theirs do: geometry (`L.buttons`), so `test=passthrough` after.
 4. **The volume line** is 86 units and sits 4 units lower than the reference's (about 102), which has a "VOLUME" label above it (item 11).
 5. **The plateau the words sit on** is lighter, silvery glass in the reference and dark in ours; the ribbon under the words brightens to white as it rises in theirs.
