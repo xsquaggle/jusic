@@ -1,0 +1,12 @@
+{ "out": "design/captures/mercury-still-round30.png", "width": 1616,
+  "title": "Mercury still, round 30: the upper lip's edge is one S from the cover to the right end, lit with hard strokes; the lower lip dark with one streak at its edge (generated test cover)",
+  "rows": [
+  [ { "label": "reference: widget-mercury.png", "src": "design/references/widget-mercury.png", "crop": [0, 110, 1586, 797] },
+    { "label": "round 30, refracting in the real window: dark window behind", "src": "design/captures/raw/round30-refract/window-dark.png", "crop": [12, 12, 936, 456] } ],
+  [ { "label": "reference: the waist and the band under the words", "src": "design/references/widget-mercury.png", "crop": [420, 330, 640, 430] },
+    { "label": "round 30: the same part", "src": "design/captures/raw/round30/dark.png", "crop": [378, 200, 410, 276] } ],
+  [ { "label": "round 30, the opaque base: dark desktop", "src": "design/captures/raw/round30/dark.png", "crop": [90, 50, 1022, 513] },
+    { "label": "round 29, before: dark desktop", "src": "design/captures/raw/round29/dark.png", "crop": [90, 50, 1022, 513] } ],
+  [ { "label": "round 30, refracting: white window with words behind", "src": "design/captures/raw/round30-refract/window-light.png", "crop": [12, 12, 936, 456] },
+    { "label": "round 30, refracting: colourful window behind", "src": "design/captures/raw/round30-refract/window-busy.png", "crop": [12, 12, 936, 456] } ]
+] }

@@ -33,7 +33,12 @@ export const L = {
   band: { c: [441, 150], r: 93 },                    // the waist leg is the edge of this circle
   end: { c: [700, 196], r: 68 },                     // the right leg: the right half of this circle
   rim: { c: [642, -33], r: 271 },                    // the pod's lower rim
-  lipFade: [432, 492],                               // the waist leg melts away to the left between these x
+  // Past the bottom of the band circle the waist leg runs on under the words, nearly level and
+  // falling a little, to the cover's lower right corner, as the reference's does: it is one S from
+  // the cover to the right end. (y at x, how much it falls per unit to the left, and the x over
+  // which it takes over from the band circle.)
+  run: { x: 441, y: 244, fall: 0.035, blend: [422, 442] },
+  lipFade: [266, 304],                               // the waist leg melts away into the cover's bank between these x (it ended at the waist: 432, 492)
   lipH: 7,            // how high the lip's rolled leading edge stands
   lipRoll: 7,         // how wide that roll is
   lipDome: 5,         // how full the lip is between its leading edge and the outline
@@ -143,8 +148,10 @@ export function bodySdf(x, y, swell = 0) {
  * strip below it), positive on the lip.
  */
 export function archSdf(x, y) {
-  const { arch, band, end } = L;
-  const d = smax(Math.hypot(x - arch.c[0], y - arch.c[1]) - arch.r, band.r - Math.hypot(x - band.c[0], y - band.c[1]), arch.kl);
+  const { arch, band, end, run } = L;
+  let d = smax(Math.hypot(x - arch.c[0], y - arch.c[1]) - arch.r, band.r - Math.hypot(x - band.c[0], y - band.c[1]), arch.kl);
+  // Under the words the waist leg runs on as a nearly level line (positive above it, on the lip).
+  d = mix(run.y + run.fall * Math.max(run.x - x, 0) - y, d, smoothstep(run.blend[0], run.blend[1], x));
   // The right leg bounds the arch only on its own side: left of its centre it says nothing.
   return x < end.c[0] ? d : smax(d, Math.hypot(x - end.c[0], y - end.c[1]) - end.r, arch.kr);
 }
@@ -353,6 +360,8 @@ float volY(float x) {
 // The upper lip's leading edge: negative under the arch, positive on the lip.
 float archSdf(vec2 p) {
   float d = smax(length(p - ARCH_C) - ARCH_R, BAND_R - length(p - BAND_C), ${f1(L.arch.kl)});
+  // Under the words the waist leg runs on as a nearly level line (positive above it, on the lip).
+  d = mix(${f1(L.run.y)} + ${f1(L.run.fall)} * max(${f1(L.run.x)} - p.x, 0.) - p.y, d, smoothstep(${f1(L.run.blend[0])}, ${f1(L.run.blend[1])}, p.x));
   // The right leg bounds the arch only on its own side: left of its centre it says nothing.
   return p.x < END_C.x ? d : smax(d, length(p - END_C) - END_R, ${f1(L.arch.kr)});
 }

@@ -228,6 +228,14 @@ const float RIM_TOP = .6;
 const float WALL_R = .66;
 // The soft light at the top of the ring.
 const float RING_TOP = .15;
+// The upper lip's leading edge, the S from the cover's corner to the right end: how bright the
+// floor's light on its outer face, the white streak on its crest, the second line behind it in
+// the waist; and how deep the shade behind the roll.
+const vec4 LIP_EDGE = vec4(.75, 1.1, .45, .55);
+// The lower lip: how bright the streak just inside the lower edge, how bright the copper line at
+// the edge itself, how deep the line of shade above the streak; how much of the soft glow from
+// the floor is taken out round it.
+const vec4 LOW_EDGE = vec4(1., .55, .55, .78);
 // The inner face of the pocket's wall on the left: how far it reaches beyond the wall, how dark
 // it is, and how bright the line that closes it.
 const vec3 WALL_L = vec3(12., .32, 0.);
@@ -266,7 +274,11 @@ float base(vec2 p0) {
   // detail(), where edges stay sharp) it falls slowly away toward the outline, so it reads
   // as a sheet curling up toward its edge.
   float ar = archSdf(p), on = archOn(p);
-  h -= LIP_H * .62 * smoothstep(LIP_ROLL, 48., ar) * on;
+  // (Under the words, where the leg runs on to the cover, the lip is a rolled ridge and nothing
+  // more: behind it the glass comes back down to the level of the strip, so where the leg fades in
+  // beside the cover nothing but the ridge rises. Over the right lobe the lip stays a raised sheet.)
+  float sheet = smoothstep(440., 500., p.x);
+  h -= LIP_H * mix(1., .62, sheet) * smoothstep(LIP_ROLL, mix(30., 48., sheet), ar) * on;
   // Between its edge and the outline the lip is full, not hollow: a broad crown, so its upper
   // half takes the light from above and its lower half the colour off the floor.
   float sx = max(ar, 0.), ox = max(-d, 0.);
@@ -861,6 +873,67 @@ void main() {
       // (Not level with the cover's upper third: there the body's upper flank carries its own even light.)
       float rightOf = smoothstep(.5, .53, tq0.x) * smoothstep(.68, .5, tq0.y) * smoothstep(-.42, -.1, tq0.y);
       col *= 1. - WALL_R * rightOf * smoothstep(2., 6., dT) * smoothstep(POCKET.y + 30., POCKET.y + 10., dT) * born;
+    }
+
+    // The upper lip's leading edge carries hard light along its whole length, as the bulb's ring
+    // does: in the reference it is one S of glass from the cover's lower right corner, under the
+    // words, up through the waist and over the pod, and it is lit as a rolled edge of thick glass,
+    // not a soft sheen. Across it, from the strip below to the lip above (ar from 0 up):
+    //   0.6 to 3.5  its outer face, which looks down at the floor: copper-white, cut hard at both sides
+    //   about 4.3   a fine dark seam
+    //   from 5      its crest, which looks up: a white streak, a hairline under the words and broad
+    //               where the band rises through the waist toward the key lamp
+    //   9 to 20     the hollow behind the roll, in shade; in the waist a second white line in it
+    // Along it: thin and quiet under the words, broad and bright through the waist, plainer over
+    // the pod, where its outer face hangs over the glow through the fold. (Measured: the 'title'
+    // and 'waist' cuts of tools/capture/cut-profile.js.)
+    if (lipF > 0. && ar > -2. && ar < 24.) {
+      float s = pw.x;
+      float rise = exp(-pow((s - 505.) / 42., 2.));
+      float overPod = smoothstep(545., 590., s) * smoothstep(770., 730., s);
+      // How strongly each part shows along the edge: it swells and dies, as a lamp's reflection
+      // does along a rolled edge, and is never the same for long (of even strength it is a
+      // drawn line, an outline).
+      float swO = max(max(exp(-pow((s - 292.) / 26., 2.)), exp(-pow((s - 395.) / 34., 2.))), max(rise, .8 * exp(-pow((s - 600.) / 28., 2.))));
+      float swC = max(max(.8 * exp(-pow((s - 335.) / 22., 2.)), .9 * exp(-pow((s - 430.) / 20., 2.))), max(rise, .7 * exp(-pow((s - 690.) / 30., 2.))));
+      float qE = (1. - clamp(ink(qWord, 7.) * 2.5, 0., 1.)) * lipF * born * (1. - .7 * lensMask);
+      float aaE = .65;
+      col *= 1. - LIP_EDGE.w * smoothstep(8., 10., ar) * smoothstep(21. + 12. * rise, 13. + 8. * rise, ar) * (.8 - .5 * overPod + .2 * rise) * qE;
+      // The outer face: brightest just under the seam and falling off toward its foot, where it is
+      // cut hard; broad where it swells, a sliver between.
+      float hO = .7 + 1.1 * swO;
+      float face = smoothstep(aaE, -aaE, abs(ar - (3.75 - hO)) - hO) * (.45 + .55 * smoothstep(3.75 - 2. * hO, 3.6, ar));
+      col += mix(hotA, vec3(1., .86, .74), .3 + .3 * swO) * LIP_EDGE.x * face * (.25 + .9 * swO) * (1. - .55 * overPod) * qE;
+      // Where it rises through the waist the edge is a broad ribbon of glass, not two lines: the
+      // glass between its strokes is lit too, silver with the album's colour in it.
+      col += mix(vec3(.75, .74, .76), hotA, .3) * .22 * rise * smoothstep(-.5, 1., ar) * smoothstep(17., 12., ar) * qE;
+      col *= 1. - .65 * smoothstep(aaE, -aaE, abs(ar - 4.3) - .38) * qE;
+      // The crest: a hairline that swells into a streak where it faces the key lamp, and is gone between.
+      // (In the waist the reference's streak is about 12 units across at two thirds of white, with
+      // dark on both sides: broader and brighter than that, it was a sheen again.)
+      float hC = .35 + .7 * swC + 1.4 * rise + .3 * overPod;
+      col += vec3(1., .98, .95) * LIP_EDGE.y * smoothstep(aaE, -aaE, abs(ar - (5.3 + hC)) - hC) * (.1 + .9 * swC) * (1. - .25 * overPod) * (1. - .35 * rise) * qE;
+      col += vec3(1., .97, .94) * LIP_EDGE.z * smoothstep(aaE, -aaE, abs(ar - (11.5 + 1.5 * rise)) - .45) * rise * qE;
+    }
+
+    // The lower lip: one thick streak of light just inside the lower edge, with hard sides, that
+    // swells white in places and runs copper between them, a line of shade above it and a fine
+    // copper line at the edge itself (the reference's lower edge from under the cover to the right
+    // lobe; ours was two broad soft bands of the floor's colour). It takes over from the bulb's
+    // own lines (RIM) toward the waist and gives way to the right end's (END_FLOOR).
+    if (-d < 26.) {
+      vec2 gL = vec2(outline(pw + vec2(1.5, 0.)) - d, outline(pw + vec2(0., 1.5)) - d) / 1.5;
+      float faceDn = smoothstep(.5, .85, gL.y / max(length(gL), 1e-3));
+      float gapL = max(-d, 0.);
+      float s = pw.x;
+      float swellL = max(exp(-pow((s - 372.) / 34., 2.)), max(exp(-pow((s - 492.) / 38., 2.)), .8 * exp(-pow((s - 600.) / 26., 2.))));
+      float qL = faceDn * smoothstep(300., 360., s) * smoothstep(690., 645., s) * born * (1. - clamp(ink(qWord, 7.) * 2.5, 0., 1.));
+      col *= 1. - LOW_EDGE.w * smoothstep(1., 3., gapL) * smoothstep(30., 20., gapL) * qL;
+      // (Its width and brightness both swell, and between the swells it thins to a sliver of copper.)
+      float hL = .35 + 2.3 * swellL;
+      col += mix(mix(hotA, vec3(1., .8, .64), .4), vec3(1., .97, .94), swellL * swellL) * LOW_EDGE.x * (.3 + .7 * swellL) * smoothstep(.7, -.7, abs(gapL - (4. + hL)) - hL) * qL;
+      col *= 1. - LOW_EDGE.z * smoothstep(.7, -.7, abs(gapL - (4. + 2. * hL + 1.7)) - .55) * (.3 + .7 * swellL) * qL;
+      col += mix(hotA, vec3(1., .72, .5), .5) * LOW_EDGE.y * smoothstep(.6, -.6, abs(gapL - 1.4) - .45) * (.2 + .8 * (1. - swellL)) * qL;
     }
 
     /* ---- the spectral surface glowing through the fold ---- */
