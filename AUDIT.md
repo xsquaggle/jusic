@@ -549,6 +549,17 @@ Done on 16 November 2026, in the same session as rounds 34 to 42.
 - Only the light changed. Seen as the opaque base over dark, light and white, refracting over dark and colourful windows, and with real covers (`mercury-still-round43.png`).
 - **Still short at the right end:** the reference's is a mass of lit glass, coral and white in broad shapes with crisp edges; ours is still made of bands laid along the edges, a step nearer.
 
+## What round 44 changed (items 1 and 4: the upper pod)
+
+Done on 16 November 2026, in the same session as rounds 34 to 43.
+
+- **Measured first**, at a 3-unit step: the "silver streaks" round 39 listed between the bowls and along the pod's lower rim are fine detail the numbers barely show. In the gaps between the bowls ours was one level darker than the reference's (1s and 2s against 2s and 3s); along the pod's lower rim the two matched. The clear difference was the upper pod, under the lip's edge (`area-map.js box=530,148,770,180 part=pod`): ours was a bright stripe (6s and 7s) right under the edge with darker glass (2s and 3s) below it, mean 154,130,126; the reference's is an even warm mid-tone, 3s to 5s, mean 124,94,92. The stripe is the spectrum glowing through the fold, which answers the music by design.
+- **The glow through the fold is calmer** (`FOLD_GLOW`, .6; it was 1 in effect). It still answers the music, from a lower level: this is visible while playing, and it is one number for the owner to turn back up.
+- **The upper pod under it has a soft warm light** (`POD_UPPER`).
+- Measured: the upper pod's mean is 130,105,102 against the reference's 124,94,92 (round 43: 154,130,126): 5s under the edge and 3s below. The whole pod 136,106,103 against 130,97,94.
+- Only the light changed. Seen as the opaque base over dark, light and white, refracting over dark and colourful windows, and with real covers (`mercury-still-round44.png`).
+- **Still short in the pod:** the reference's carries fine silver reflections that make it read as glass; ours is a smooth glow.
+
 ## What changed on 14 November 2026 at the owner's word (the cursor's light; item 12 in part)
 
 - The owner found the light round the cursor "far too bright ... essentially completely white" and the title hard to read under it. Its core is now .55 (was 3.2) and its soft light .12 (was .2), it lies under the words, and words turn dark where it is bright behind them (`CURSOR_LIGHT`, `WORD_FLIP`). `mercury-cursor-light.png` shows before and after.

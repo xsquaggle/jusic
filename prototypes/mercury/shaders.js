@@ -243,6 +243,10 @@ const float BTN_KEY = .7;
 // The pod round the bowls: how bright the floor's light rising toward its lower rim; how bright it
 // gathers at the pod's right end; a little light in the gaps at the bowls' middle height.
 const vec3 POD_LIGHT = vec3(.13, .3, .07);
+// The upper pod under the fold's glow (round 44): how bright its soft warm light.
+const float POD_UPPER = .07;
+// How strong the spectrum's glow through the fold under the lip's edge is (1 before round 44).
+const float FOLD_GLOW = .6;
 // The key lamp on the right end: it shows where the outline faces right by more than x, fully
 // from y; its half-width in units; its strength. And how bright the floor's light is there.
 const vec4 END_KEY = vec4(.72, .96, 5., .6);   // (its strength was .9 until round 43: a white wire down the right side)
@@ -932,6 +936,9 @@ void main() {
       float podL = podIn * outB * (1. - inBead) * born;
       col += mix(hotA, vec3(1., .8, .66), .2) * (POD_LIGHT.x * low * swP + POD_LIGHT.y * endP * (.4 + .6 * low)) * podL;
       col += mix(hotA, vec3(1., .9, .82), .4) * POD_LIGHT.z * smoothstep(-58., -42., rimD) * smoothstep(-6., -18., rimD) * (1. - endP) * podL * outB;
+      // ...and the upper pod, under the glow through the fold, is an even warm mid-tone in the
+      // reference (3s to 5s, warmth 2 to 3), where ours was 2s and 3s below a bright stripe.
+      col += mix(hotA, vec3(1., .9, .84), .45) * POD_UPPER * smoothstep(-82., -70., rimD) * smoothstep(-44., -58., rimD) * (1. - endP) * podL;
     }
 
     // The right end is a thick lip curled over, and it is the liveliest part of the reference
@@ -1121,8 +1128,10 @@ void main() {
     float sp = spectrumAt(along * .85);
     float seamW = 2.2 + 1.6 * uGap + 2.2 * sp;
     vec3 specCol = mix(mix(uPalA, vec3(1.), .12), mix(uPalB, vec3(1.), .08), along);
-    vec3 emis = specCol * fw * exp(-pow((ar + 1.5) / seamW, 2.)) * (.16 + 1.25 * sp + .5 * uAudio.w) * (.35 + .65 * uPlaying);
-    col += specCol * fw * exp(-pow((ar + 9.) / 13., 2.)) * (.02 + .16 * sp) * (.35 + .65 * uPlaying);
+    // (Its strength, FOLD_GLOW, since round 43: measured in the still, the band it lit just under the
+    // lip's edge was 6s and 7s where the reference's pod is an even 3 to 5. It still answers the music.)
+    vec3 emis = specCol * fw * exp(-pow((ar + 1.5) / seamW, 2.)) * (.16 + 1.25 * sp + .5 * uAudio.w) * (.35 + .65 * uPlaying) * FOLD_GLOW;
+    col += specCol * fw * exp(-pow((ar + 9.) / 13., 2.)) * (.02 + .16 * sp) * (.35 + .65 * uPlaying) * FOLD_GLOW;
 
     /* ---- the time-preview lens darkens what is under it ---- */
     col = mix(col, col * .3 + uPalC * .03, lensMask * .85);
