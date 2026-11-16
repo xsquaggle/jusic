@@ -600,6 +600,16 @@ r46    283  283  283  281  277  273  267  262  257  252  249  248  248  250  253
 - Seen beside both references under the cover and whole (`mercury-still-round47.png`, first two rows). Only the cover's surroundings changed; the cover, its pocket wall and the hit test did not.
 - **Still short under the cover:** the shelf's crest is softer and paler than the references' (theirs is a crisp bright line with a darker strip below the front face); the bulb's lower left beside the cover is a white wash where both references are coral.
 
+## What round 48 changed (items 1, 4 and 8, at the owner's word: the pod as a soft pocket)
+
+- **The owner:** "Smooth the oval enclosure into a softly sculpted glass pocket. Its edges and reflections should flow naturally into the main body"; and of the lip's edge over it, which they marked in red, "the ridge that we have now is very rough, whereas it's smooth and curvy in the reference image". Seen beside both references: theirs is one thick round roll of glass over a pod with a rounded left end and a soft rolled lower rim. Ours drew three hard lines over the pod (the edge's outer face, a dark seam, the crest), because the lip's quarter round stood upright over a pod that dropped away at once; and the pod's left end, where the lip's edge meets its lower rim, was a wedge (9 units tall at x 520, 51 at x 540).
+- **The pod is one soft pocket** (`POD_SOFT` and `podDepth` in `shaders.js`): its depth is worked out from one rounded distance to its boundary, the lip's edge and its lower rim joined round at the left end, and it falls from that boundary over 10 units, level at both ends. The old form is kept left of the pod, in the waist.
+- **The lip's roll over the pod is round and 13 units wide** (7 elsewhere), its foot leaning into the pocket; its strokes lie further out across it with soft sides, and the fine dark seam is all but gone there.
+- The pod's lower-rim light and its upper light are a little lower (`POD_LIGHT.x` .1, `POD_UPPER` .04): the softer rims spread them a level brighter.
+- Measured with `area-map.js part=pod` (x 530 to 780, y 140 to 250): the pod's mean colour is 138,107,104 against the reference's 127,94,91 (round 47: 147,118,115); its middle was already the reference's 2s and 3s, and its upper and lower rims are now within a level of theirs. Seen beside both references (`mercury-still-round48.png`, first two rows), as the opaque base over dark, light and white, refracting over dark and colourful windows, and with real covers.
+- Only the light and the pod's form in the shader changed; the outline, the bowls and the hit test did not.
+- **Still short in the pod:** the reference's ridge over the pod is a brighter silver roll with a crisp highlight along it; the bowls' crescents are thicker and whiter than the references' thin coral rims; the pod's glass has none of the references' fine silver reflections.
+
 ## What changed on 14 November 2026 at the owner's word (the cursor's light; item 12 in part)
 
 - The owner found the light round the cursor "far too bright ... essentially completely white" and the title hard to read under it. Its core is now .55 (was 3.2) and its soft light .12 (was .2), it lies under the words, and words turn dark where it is bright behind them (`CURSOR_LIGHT`, `WORD_FLIP`). `mercury-cursor-light.png` shows before and after.

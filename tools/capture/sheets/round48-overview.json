@@ -1,0 +1,12 @@
+{ "out": "design/captures/mercury-still-round48.png", "width": 1616,
+  "title": "Mercury still, round 48: the pod round the buttons as a soft glass pocket, the ridge over it one broad round roll (generated test cover)",
+  "rows": [
+  [ { "label": "flow reference: the pod and the ridge over it", "src": "design/references/widget-mercury-flow.png", "crop": [880, 270, 700, 420] },
+    { "label": "round 48: the same part", "src": "design/captures/raw/round48/dark.png", "crop": [620, 150, 425, 255] } ],
+  [ { "label": "main reference: the same part", "src": "design/references/widget-mercury.png", "crop": [880, 250, 700, 420] },
+    { "label": "round 47, before (three hard lines over the pod, a wedge at its left end)", "src": "design/captures/raw/round47/dark.png", "crop": [620, 150, 425, 255] } ],
+  [ { "label": "reference: widget-mercury-flow.png", "src": "design/references/widget-mercury-flow.png", "crop": [0, 220, 1586, 620] },
+    { "label": "round 48, refracting in the real window: dark window behind", "src": "design/captures/raw/round48-refract/window-dark.png", "crop": [12, 12, 936, 456] } ],
+  [ { "label": "round 48, the opaque base: dark desktop", "src": "design/captures/raw/round48/dark.png", "crop": [90, 50, 1022, 513] },
+    { "label": "round 48, refracting: colourful window behind", "src": "design/captures/raw/round48-refract/window-busy.png", "crop": [12, 12, 936, 456] } ]
+] }

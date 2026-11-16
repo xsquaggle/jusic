@@ -169,13 +169,27 @@ float podMask(vec2 p, float ar) {
   return smoothstep(.6, -.6, ar) * smoothstep(3., -7., length(p - RIM_C) - RIM_R);
 }
 
-// How far down into the pod a point lies (0 on the strip, 1 on the pod's floor). Under the
-// arch the pod drops away at once, because the lip stands over it. Its own lower rim is a
-// rolled shoulder: level where it leaves the strip and steep where it reaches the floor, so
-// it shows a soft graded light with a dark line at its foot instead of one thin line.
+// The pod as a soft pocket (round 48, at the owner's word: "a softly sculpted glass pocket"):
+// over the pod the lip's rolled edge is x units wide (LIP_ROLL elsewhere) and round, not a quarter
+// round standing upright; the pod falls away from its boundary over y units; its left end, where
+// the lip's edge meets its own lower rim, is rounded with z.
+const vec3 POD_SOFT = vec3(13., 10., 16.);
+float overPodAt(float x) { return smoothstep(545., 590., x) * smoothstep(770., 730., x); }
+
+// How far down into the pod a point lies (0 on the strip, 1 on the pod's floor).
+// (Until round 48: under the arch the pod dropped away at once, because the lip stands over it,
+// and its own lower rim was a rolled shoulder, level where it left the strip and steep where it
+// reached the floor; the two met at the pod's left end in a wedge. The light drew all three as
+// hard lines: the owner's "pretty rough" oval. Now it is one rounded distance to the pod's
+// boundary, the two edges joined round at the left end, and the pod falls from it level at both
+// ends, as a pocket pressed into soft glass. The old form is kept left of the pod, in the waist.)
 float podDepth(vec2 p, float ar) {
-  float t = clamp((5. - (length(p - RIM_C) - RIM_R)) / 12., 0., 1.);
-  return smoothstep(.6, -.6, ar) * (1. - sqrt(1. - t * t));
+  float rimD = length(p - RIM_C) - RIM_R;
+  float t = clamp((5. - rimD) / 12., 0., 1.);
+  float hard = smoothstep(.6, -.6, ar) * (1. - sqrt(1. - t * t));
+  float D = smax(ar, rimD - 3., POD_SOFT.z);
+  float soft = smoothstep(0., POD_SOFT.y, -D);
+  return mix(hard, soft, smoothstep(500., 560., p.x) * smoothstep(800., 770., p.x));
 }
 
 float ripples(vec2 p) {
@@ -242,9 +256,9 @@ const vec4 BTN_RIM = vec4(1.3, .35, .4, .5);
 const float BTN_KEY = .7;
 // The pod round the bowls: how bright the floor's light rising toward its lower rim; how bright it
 // gathers at the pod's right end; a little light in the gaps at the bowls' middle height.
-const vec3 POD_LIGHT = vec3(.13, .3, .07);
+const vec3 POD_LIGHT = vec3(.1, .3, .07);     // (x was .13 until round 48: the softer lower rim spread it a level brighter)
 // The upper pod under the fold's glow (round 44): how bright its soft warm light.
-const float POD_UPPER = .07;
+const float POD_UPPER = .04;                  // (.07 until round 48: the round roll over the pod lights its top already)
 // How strong the spectrum's glow through the fold under the lip's edge is (1 before round 44).
 const float FOLD_GLOW = .6;
 // The key lamp on the right end: it shows where the outline faces right by more than x, fully
@@ -344,7 +358,7 @@ float base(vec2 p0) {
   // more: behind it the glass comes back down to the level of the strip, so where the leg fades in
   // beside the cover nothing but the ridge rises. Over the right lobe the lip stays a raised sheet.)
   float sheet = smoothstep(440., 500., p.x);
-  h -= LIP_H * mix(1., .62, sheet) * smoothstep(LIP_ROLL, mix(30., 48., sheet), ar) * on;
+  h -= LIP_H * mix(1., .62, sheet) * smoothstep(mix(LIP_ROLL, POD_SOFT.x, overPodAt(p.x)), mix(30., 48., sheet), ar) * on;
   // Between its edge and the outline the lip is full, not hollow: a broad crown, so its upper
   // half takes the light from above and its lower half the colour off the floor.
   float sx = max(ar, 0.), ox = max(-d, 0.);
@@ -423,7 +437,10 @@ float detail(vec2 p0) {
   float pod = podMask(p, ar);
   h -= POD_D * podDepth(p, ar);
   float t = 1. - clamp(ar / LIP_ROLL, 0., 1.);
-  h += LIP_H * sqrt(max(1. - t * t, 0.)) * fade;
+  // (Over the pod, round 48: a wide round roll whose foot leans into the pocket, not a quarter
+  // round standing upright over it. The upright foot drew the pod's top as a hard line.)
+  float rollP = sin(1.5708 * clamp(ar / POD_SOFT.x, 0., 1.));
+  h += LIP_H * mix(sqrt(max(1. - t * t, 0.)), rollP, overPodAt(p.x)) * fade;
   // The gap under the edge, which the bass opens.
   float gapW = 2.2 + 2.2 * uGap;
   h -= (.8 + 3. * uGap) * exp(-pow((ar + 1.6) / gapW, 2.)) * pod;
@@ -1112,17 +1129,21 @@ void main() {
       // Ours was a white hairline over a copper line, 3 units in all.
       float wide = LIP_RIBBON.x * smoothstep(292., 330., s) * (1. - rise);
       float qE = (1. - clamp(ink(qWord, 7.) * 2.5, 0., 1.)) * lipF * born * (1. - .7 * lensMask);
-      float aaE = .65;
+      // (Over the pod, round 48: the roll there is wider and round, so its strokes lie further out
+      // across it and have soft sides; the fine dark seam is all but gone. Cut hard and close together
+      // they drew the pod's top as three lines, the owner's "very rough" ridge.)
+      float aaE = mix(.65, 1.8, overPod);
+      float arS = ar * mix(1., LIP_ROLL / POD_SOFT.x, overPod);
       col *= 1. - LIP_EDGE.w * smoothstep(8. + 7. * wide, 10. + 7. * wide, ar) * smoothstep(21. + 12. * rise + 6. * wide, 13. + 8. * rise + 6. * wide, ar) * (.8 - .5 * overPod + .2 * rise) * (1. - curl) * qE;
       // The outer face: brightest just under the seam and falling off toward its foot, where it is
       // cut hard; broad where it swells, a sliver between.
       float hO = .7 + 1.1 * swO;
-      float face = smoothstep(aaE, -aaE, abs(ar - (3.75 - hO)) - hO) * (.45 + .55 * smoothstep(3.75 - 2. * hO, 3.6, ar));
+      float face = smoothstep(aaE, -aaE, abs(arS - (3.75 - hO)) - hO) * (.45 + .55 * smoothstep(3.75 - 2. * hO, 3.6, arS));
       col += mix(hotA, vec3(1., .86, .74), .3 + .3 * swO) * LIP_EDGE.x * face * (.25 + .9 * swO) * (1. - .55 * overPod) * qE;
       // Where it rises through the waist the edge is a broad ribbon of glass, not two lines: the
       // glass between its strokes is lit too, silver with the album's colour in it.
       col += mix(vec3(.75, .74, .76), hotA, .3 + .2 * wide) * .22 * max(max(rise, .8 * sweep * smoothstep(8., 11., ar)), LIP_RIBBON.y * wide) * smoothstep(-.5, 1., ar) * smoothstep(17. - 2. * wide + 9. * curl, 12. - 1. * wide + 9. * curl, ar) * qE;
-      col *= 1. - .65 * smoothstep(aaE, -aaE, abs(ar - 4.3) - .38) * qE;
+      col *= 1. - .65 * smoothstep(aaE, -aaE, abs(arS - 4.3) - .38) * (1. - .8 * overPod) * qE;
       // The crest: a hairline that swells into a streak where it faces the key lamp, and is gone between.
       // (In the waist the reference's streak is about 12 units across at two thirds of white, with
       // dark on both sides: broader and brighter than that, it was a sheen again.)
@@ -1136,7 +1157,7 @@ void main() {
       vec3 cC = mix(vec3(1., .98, .95), mix(hotA, vec3(1., .85, .72), .5), .5 * wide * (1. - swC));
       // The crest stays on the edge round the right end and dies away before the side (the reference:
       // 1s and 2s across the edge at x 772); the curl above it is a light of its own.
-      col += cC * LIP_EDGE.y * smoothstep(aaE, -aaE, abs(ar - (5.3 + hC + LIP_RIBBON.z * wide)) - hC) * max(.1 + .9 * swC, .55 * wide) * (1. - .4 * wide) * (1. - .25 * overPod) * (1. - .35 * rise) * (1. - .75 * smoothstep(750., 772., s)) * qE;
+      col += cC * LIP_EDGE.y * smoothstep(aaE, -aaE, abs(arS - (5.3 + hC + LIP_RIBBON.z * wide)) - hC) * max(.1 + .9 * swC, .55 * wide) * (1. - .4 * wide) * (1. - .25 * overPod) * (1. - .35 * rise) * (1. - .75 * smoothstep(750., 772., s)) * qE;
       // The curl: a mass of lit glass lying 15 to 30 units above the edge where the end turns down, a
       // hot core coral on its lower side and white on its upper, a broad body round it, and a soft
       // light spreading up the lip above it (the reference across the edge at x 745: 9s from 16 to 24
