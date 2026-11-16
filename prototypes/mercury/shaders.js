@@ -222,6 +222,8 @@ const vec2 BTN_RIM = vec2(.75, .28);
 // from y; its half-width in units; its strength. And how bright the floor's light is there.
 const vec4 END_KEY = vec4(.72, .96, 5., .9);
 const float END_FLOOR = .7;
+// The tip where the right end curls under: where it is (xy), how far its glow reaches (z), how bright (w).
+const vec4 END_TIP = vec4(780., 230., 20., 1.5);
 // The copper line along the upper silhouette: how bright.
 const float RIM_TOP = .6;
 // How deep the shade is on the pocket's wall and bank to the right of the cover.
@@ -829,7 +831,13 @@ void main() {
       col += vec3(1., .98, .96) * END_KEY.w * smoothstep(.7, -.7, abs(gapE - 10.) - hK) * quietE;
       col *= 1. - .5 * smoothstep(.8, -.8, abs(gapE - (13.5 + hK)) - 1.4) * smoothstep(.2, .6, faceE) * born;
       float faceF = smoothstep(.55, .95, dot(nE, vec2(.6, .8)));
+      // The tip, where the end curls under to a point: in the reference the hottest colour on the
+      // whole drop, and just inside it a dark crease where the curled lip tucks under. The floor's
+      // light gathers there: brighter and whiter toward the point, a little wider, then the crease.
+      float tipN = exp(-dot(pw - END_TIP.xy, pw - END_TIP.xy) / (2. * END_TIP.z * END_TIP.z));
       col += hotA * END_FLOOR * (.45 * smoothstep(30., 6., gapE) + .8 * smoothstep(.8, -.8, abs(gapE - 6.5) - 2.2 * faceF + .6)) * faceF * quietE;
+      col += mix(hotA, vec3(1., .86, .74), .2 + .45 * tipN) * END_TIP.w * tipN * smoothstep(.8, -.8, abs(gapE - 5.) - 1.2 - 2.6 * tipN) * quietE;
+      col *= 1. - .6 * smoothstep(.8, -.8, abs(gapE - (11.5 + 2. * tipN)) - .9) * smoothstep(.2, .8, tipN) * born;
     }
 
     // The upper silhouette carries a fine line of the album's colour warmed toward copper, just

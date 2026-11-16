@@ -20,7 +20,10 @@ export const L = {
   crest: { c: [706, 198], r: 88, k: 50 },
   // What is cut away under the right end, so the outline comes over the top, down the end and
   // back along a rising lower edge: a soft crest instead of a tail.
-  cut: { c: [838.7, 422.6], r: 200, k: 24 },
+  // (Near the tip, where the cut meets the end, it is turned sharply, as the reference's end
+  // curls to a point: k there is kTip, eased in between the two x of 'tip'. Measured against the
+  // reference, the rest of the right end's silhouette already lies within three units of theirs.)
+  cut: { c: [838.7, 422.6], r: 200, k: 24, kTip: 8, tip: [745, 785] },
   // The top of the waist: one arc, struck from above, that both lobes run into without a corner.
   pinch: { c: [425, -41], r: 210, k: 30 },
 
@@ -139,7 +142,7 @@ export function bodySdf(x, y, swell = 0) {
   d = smin(d, Math.hypot(x - lobeR.c[0], y - lobeR.c[1]) - (lobeR.r + swell), lobeR.k);
   d = smin(d, Math.hypot(x - crest.c[0], y - crest.c[1]) - (crest.r + swell), crest.k);
   d = smax(d, -(Math.hypot(x - pinch.c[0], y - pinch.c[1]) - pinch.r), pinch.k);
-  d = smax(d, -(Math.hypot(x - cut.c[0], y - cut.c[1]) - cut.r), cut.k);
+  d = smax(d, -(Math.hypot(x - cut.c[0], y - cut.c[1]) - cut.r), mix(cut.k, cut.kTip, smoothstep(cut.tip[0], cut.tip[1], x)));
   return d;
 }
 
@@ -382,7 +385,7 @@ float bodySdf(vec2 p, float swell) {
   d = smin(d, length(p - ${v2(L.lobeR.c)}) - (${f1(L.lobeR.r)} + swell), ${f1(L.lobeR.k)});
   d = smin(d, length(p - ${v2(L.crest.c)}) - (${f1(L.crest.r)} + swell), ${f1(L.crest.k)});
   d = smax(d, -(length(p - ${v2(L.pinch.c)}) - ${f1(L.pinch.r)}), ${f1(L.pinch.k)});
-  d = smax(d, -(length(p - ${v2(L.cut.c)}) - ${f1(L.cut.r)}), ${f1(L.cut.k)});
+  d = smax(d, -(length(p - ${v2(L.cut.c)}) - ${f1(L.cut.r)}), mix(${f1(L.cut.k)}, ${f1(L.cut.kTip)}, smoothstep(${f1(L.cut.tip[0])}, ${f1(L.cut.tip[1])}, p.x)));
   return d;
 }
 `;
