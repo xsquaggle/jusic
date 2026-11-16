@@ -750,7 +750,9 @@ export function createMercury(canvas, { reducedMotion = false, family, maxRender
     gl.uniform2f(u.uWall, wx, wy);
     const [tx, ty] = tile();
     // (The tile lies in a pocket now, so little of its own side shows: the wall of glass stands over it.)
-    gl.uniform4f(u.uTile, tx, ty, 1 - 1.2 * sp.lean.x * quiet, 2.4 + 1.2 * sp.lean.y * quiet);
+    // (Round 49: the tile is turned with its right side pushed back, so its left side comes toward the
+    // eye and it is that side, not the right, whose thickness shows.)
+    gl.uniform4f(u.uTile, tx, ty, -1.6 - 1.2 * sp.lean.x * quiet, 2.4 + 1.2 * sp.lean.y * quiet);
     const span = L.seek.x1 - L.seek.x0;
     gl.uniform3f(u.uSeekPull, Math.max(-1, Math.min(1, sp.seekBead.v * span / 520)) * quiet, sp.seekPull.x, sp.muted.x > 0.5 ? 0 : sp.level.x);
     sampler(u.uBack, back.tex);

@@ -1,0 +1,12 @@
+{ "out": "design/captures/mercury-still-round49.png", "width": 1616,
+  "title": "Mercury still, round 49: the cover sits on the lip's own edge, run on under it; the cover turned 12 degrees; one crisp highlight along the roll over the buttons (generated test cover)",
+  "rows": [
+  [ { "label": "flow reference: the cover on its seat", "src": "design/references/widget-mercury-flow.png", "crop": [28, 187, 887, 557] },
+    { "label": "round 49: the same part", "src": "design/captures/raw/round49/dark.png", "crop": [125, 125, 537, 337] } ],
+  [ { "label": "round 48, before (a shelf of its own; the lip's edge melted away beside the cover)", "src": "design/captures/raw/round48/dark.png", "crop": [125, 125, 537, 337] },
+    { "label": "round 49: the pod, one crisp highlight along the roll", "src": "design/captures/raw/round49/dark.png", "crop": [620, 150, 425, 255] } ],
+  [ { "label": "reference: widget-mercury-flow.png", "src": "design/references/widget-mercury-flow.png", "crop": [0, 220, 1586, 620] },
+    { "label": "round 49, refracting in the real window: dark window behind", "src": "design/captures/raw/round49-refract/window-dark.png", "crop": [12, 12, 936, 456] } ],
+  [ { "label": "round 49, the opaque base: dark desktop", "src": "design/captures/raw/round49/dark.png", "crop": [90, 50, 1022, 513] },
+    { "label": "round 49, refracting: colourful window behind", "src": "design/captures/raw/round49-refract/window-busy.png", "crop": [12, 12, 936, 456] } ]
+] }

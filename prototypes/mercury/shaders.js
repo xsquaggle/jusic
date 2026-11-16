@@ -156,6 +156,11 @@ vec2 turn(vec2 v, float a) { float c = cos(a), s = sin(a); return vec2(c * v.x -
 // taken out (the tile leans back, so its far edge is drawn narrower and is widened back here).
 vec2 tilePlane(vec2 p, vec2 centre) {
   vec2 q = turn(p - centre, -COVER_ROT);
+  // (Round 49: it is turned about its upright axis too, its right side pushed back, as the reference's
+  // is; that turn is taken out here. The same sum as tilePlane() in shape.js.)
+  float sY = sin(COVER_YAW), cY = cos(COVER_YAW);
+  q.x = q.x * COVER_PERSP / (COVER_PERSP * cY - q.x * sY);
+  q.y = q.y * (COVER_PERSP + q.x * sY) / COVER_PERSP;
   float ty = q.y / (COVER_SQUASH + COVER_LEAN * q.y);
   return vec2(q.x * (1. - COVER_LEAN * ty), ty);
 }
@@ -285,6 +290,9 @@ const float RING_TOP = .15;
 // floor's light on its outer face, the white streak on its crest, the second line behind it in
 // the waist; and how deep the shade behind the roll.
 const vec4 LIP_EDGE = vec4(.75, 1.1, .45, .55);
+// The highlight along the round roll over the pod (round 49): how bright, where across the edge
+// (units up from it), how wide; and how dark the lip's glass just behind it.
+const vec4 POD_RIDGE = vec4(.9, 10.5, 1.6, .4);
 // The leading edge as a broad ribbon under the words: how much (0 the old hairline); how bright the
 // glass through its middle; how far its crest moves up from the old hairline (units).
 const vec3 LIP_RIBBON = vec3(1., .8, 5.);
@@ -309,20 +317,15 @@ const float TUBE_CLEAR = .6;
 
 // How high the tube of glass between the bulb's outline and the cover's pocket is crowned.
 const float TUBE_H = 7.;
-// The shelf the cover sits on (round 47): a broad rounded ridge of glass along the cover's lower
-// side, round its lower corners: where its crest lies (units beyond the tile's edge), how wide,
-// how high. Its light: the one crest line along its top; the floor's colour on its front face.
-const vec3 SHELF = vec3(7., 8.5, 9.);
-const vec3 SHELF_LIGHT = vec3(.95, .35, .35);   // (z: how dark the strip below its front face, where the timeline runs)
-// Where the shelf is: x, how far from its crest line (positive toward the strip below); y, how much
-// of it there is. Round the cover's lower left corner it follows the cover; past the lower right
-// corner it runs straight on, as the cover's lower edge carried on, into the lip's edge under the
-// words (both references: the shelf and that edge are one line).
+// Along the cover's lower side (round 47; since round 49 the lip's edge is the cover's seat there,
+// L.seat in shape.js): x, how far below the cover's lower edge carried on past its lower right corner;
+// y, how much of the cover's lower side this is. The pocket's sharp bank and round 26's hard ribbon
+// are taken out there: they drew the owner's "rough ridge".
 vec2 shelfAt(vec2 p, float dTile) {
   vec2 tq = tilePlane(p, uTile.xy) / (2. * COVER_HALF);
   float dB = (tq.y - .5) * 2. * COVER_HALF;
   float d = mix(dTile, dB, smoothstep(.3, .5, tq.x));
-  return vec2(d - SHELF.x, smoothstep(.2, .46, tq.y) * smoothstep(1.05, .75, tq.x));
+  return vec2(d, smoothstep(.2, .46, tq.y) * smoothstep(1.05, .75, tq.x));
 }
 
 // The form itself: the rolled edge, the crown of the body, slow liquid swells
@@ -388,15 +391,9 @@ float base(vec2 p0) {
     float uu = gapT / max(gapIn + gapT, 20.);
     h += TUBE_H * 4. * uu * (1. - uu) * tube;
   }
-  // The shelf the cover sits on (round 47, at the owner's word: the ridge under the cover "a
-  // continuous, rounded glass shelf that flows into the surrounding body", as both references
-  // have it): a broad ridge along the cover's lower side, round its two lower corners, in the soft
-  // form so that what it mirrors is soft and unbroken. (It was the pocket's narrow bank alone, lit
-  // with two hard lines.)
-  {
-    vec2 sh = shelfAt(p, dTile);
-    h += SHELF.z * exp(-sh.x * sh.x / (2. * SHELF.y * SHELF.y)) * sh.y * pressed;
-  }
+  // (Round 47 put a shelf of its own here, a ridge along the cover's lower side. The owner: the cover
+  // sits on the lip's own edge, the line under the words, run on under it. Since round 49 it does:
+  // L.seat in shape.js.)
 
   // The bulb is crowned: full in the middle and falling away to its rim all round, so the
   // part of it toward the lamps carries a sheen and the part toward the floor its colour.
@@ -809,18 +806,9 @@ void main() {
       // (Along the lower edge it thins toward the right and is gone before the far corner: of even
       // width all the way it drew a second outline round the cover.)
       float floorP = max(dot(nP, vec2(-.35, .94)), 0.) * smoothstep(uTile.x + 62., uTile.x - 34., pw.x);
-      // The shelf under the cover (round 47): one unbroken crest line along its top, a little on the
-      // cover's side of the crest where the ridge faces up toward the lamps, soft-sided and brightest
-      // under the cover's lower left; below it the front face, which looks down at the floor, soft
-      // with the album's colour. (In its place was a hard ribbon under the lower left corner and the
-      // bank's own line beside it: two neon lines, the owner's "rough ridge".)
-      vec2 shS = shelfAt(pw, dT);
-      float underS = shS.y * born;
-      float sdS = shS.x;
-      float alongS = .55 + .45 * smoothstep(uTile.x + 70., uTile.x - 40., pw.x);
-      col *= 1. - SHELF_LIGHT.z * smoothstep(8., 13., sdS) * smoothstep(28., 17., sdS) * underS;
-      col += mix(vec3(1., .97, .94), hotA, .25) * SHELF_LIGHT.x * exp(-pow((sdS + 2.) / 1.3, 2.)) * alongS * underS;
-      col += mix(hotA, vec3(1., .8, .7), .25) * SHELF_LIGHT.y * smoothstep(-1., 2., sdS) * exp(-max(sdS - 2., 0.) / 5.) * underS;
+      // Under the cover the lip's edge is the cover's seat now (round 49), lit as the rest of that
+      // edge is; round 26's hard ribbon under the lower left corner and its shade are taken out there.
+      float underS = shelfAt(pw, dT).y * born;
       float ribbon = smoothstep(.7, -.7, abs(dT - POCKET.y * .8) - RIBBON.x * floorP * floorP + .6) * (1. - underS);
       col += vec3(1., .98, .95) * 1.5 * pow(towardP, 3.) * glintP * born + mix(hotA, vec3(1.), .6) * RIBBON.y * ribbon * born;
 
@@ -1121,6 +1109,11 @@ void main() {
       // drawn line, an outline).
       float swO = max(max(exp(-pow((s - 292.) / 26., 2.)), exp(-pow((s - 395.) / 34., 2.))), max(rise, .8 * exp(-pow((s - 600.) / 28., 2.))));
       float swC = max(max(.8 * exp(-pow((s - 335.) / 22., 2.)), .9 * exp(-pow((s - 430.) / 20., 2.))), max(rise, .7 * exp(-pow((s - 690.) / 30., 2.))));
+      // (Round 49: under the cover, where the edge is the cover's seat, it is lit too, brightest under
+      // the cover's lower left as round 26's ribbon was.)
+      float seatL = exp(-pow((s - 170.) / 60., 2.)) * smoothstep(92., 128., s);
+      swO = max(swO, .9 * seatL);
+      swC = max(swC, .85 * seatL);
       swO = max(swO, END_CURL.w * sweep);
       swC = max(swC, sweep);
       // Under the words the edge is a broad ribbon too, as it is where it rises through the waist:
@@ -1173,6 +1166,14 @@ void main() {
       col += mix(cCoral, vec3(1., .96, .92), smoothstep(-3., 4., tc)) * (CURL_MASS.y * cBody + CURL_MASS.z * cCore) * cB * qE;
       col += mix(cCoral, vec3(1., .9, .84), .35) * CURL_MASS.w * cTail * cB * qE;
       col += vec3(1., .97, .94) * LIP_EDGE.z * smoothstep(aaE, -aaE, abs(ar - (11.5 + 1.5 * rise)) - .45) * rise * qE;
+      // Over the pod the round roll carries one crisp highlight along its crest, unbroken from end to
+      // end, with dark glass on the lip behind it (round 49: the flow reference across the edge at
+      // x 610 to 670, an 8 or 9 some 6 units wide with 1s on both sides; ours had a broad band of 6s
+      // and 7s on the roll's face and no highlight, the crest's stroke being all but out over the pod).
+      float pr = overPod * qE;
+      col *= 1. - POD_RIDGE.w * smoothstep(POD_RIDGE.y + 3., POD_RIDGE.y + 5.5, ar) * smoothstep(25., 19., ar) * pr;
+      col *= 1. - .3 * smoothstep(1., 3., ar) * smoothstep(POD_RIDGE.y - 2., POD_RIDGE.y - 4.5, ar) * pr;
+      col += vec3(1., .97, .95) * POD_RIDGE.x * exp(-pow((ar - POD_RIDGE.y) / POD_RIDGE.z, 2.)) * (.8 + .2 * exp(-pow((s - 640.) / 60., 2.))) * pr;
     }
 
     // The lower lip: one thick streak of light just inside the lower edge, with hard sides, that

@@ -48,7 +48,16 @@ export const L = {
   // the cover to the right end. (y at x, how much it falls per unit to the left, and the x over
   // which it takes over from the band circle.)
   run: { x: 441, y: 244, fall: 0.035, blend: [422, 442] },
-  lipFade: [266, 304],                               // the waist leg melts away into the cover's bank between these x (it ended at the waist: 432, 492)
+  // (Round 49, at the owner's word: "It should be the same exact line ... that runs underneath the
+  // artist name and title and up over the buttons. That line should run and should be what the album
+  // cover sits on. The album cover should look a little bit heavy squishing into it." So the line runs
+  // on left under the cover: between the x of 'blend' it turns from the run to follow the cover's
+  // tilted lower edge (y 'at' at x 'at', falling 'slope' per unit), 'gap' units below it, so the
+  // cover rests on the roll of the edge; and it sags by 'sag' under the cover's middle 'c' (over 'w')
+  // where its weight presses. It fades in from the bulb's rim at lipFade. Until round 48 it melted
+  // away beside the cover, between x 266 and 304, and the cover had no seat.)
+  seat: { blend: [305, 255], at: [190, 253.5], slope: -0.096, gap: 3.5, sag: 2.5, c: 188, w: 48 },
+  lipFade: [92, 128],
   lipH: 7,            // how high the lip's rolled leading edge stands
   lipRoll: 7,         // how wide that roll is
   lipDome: 5,         // how full the lip is between its leading edge and the outline
@@ -72,10 +81,15 @@ export const L = {
   // into the liquid, and it leans back: its far (upper) edge is drawn a little narrower and
   // the whole a little shorter, as a slab seen from in front and above.
   // (Its place in the bulb is the main reference's, measured: tools/capture/ring-profile.js.)
-  cover: { c: [188, 175], half: 74, r: 19, rot: -0.07, lean: 0.0012, squash: 0.965 },
+  // (Round 49, at the owner's word: it is also turned about its upright axis, its right side pushed
+  // back by 'yaw' (12 degrees), seen in perspective from 'persp' units away, so its right edge is
+  // drawn about 5% shorter than its left, as the flow reference's cover is.)
+  cover: { c: [188, 175], half: 74, r: 19, rot: -0.07, lean: 0.0012, squash: 0.965, yaw: 0.21, persp: 600 },
   // The hollow it presses: how deep, how far out the liquid starts to sink toward it, and how
   // high what it pushes aside stands up beyond that.
-  press: { d: 4, w: 24, swell: 0 },
+  // (Round 49, the owner: the cover "a little bit heavy squishing into it". It presses deeper, 6 where it
+  // was 4, and the glass it pushes aside stands up a little beyond.)
+  press: { d: 6, w: 24, swell: 1.5 },
   // The pocket the cover lies in, as in the main reference: the glass ends at the cover in a
   // crisp rounded wall (d deep, over the last w units before the tile's edge), and stands a
   // little proud all round as a bank (rise high, dying away over 'out' units beyond the wall).
@@ -168,6 +182,14 @@ export function bodySdf(x, y, swell = 0) {
   return d;
 }
 
+/** Where the lip's leading edge runs under the words and on under the cover (round 49: its seat). */
+function runY(x) {
+  const { run, seat } = L;
+  const along = run.y + run.fall * Math.max(run.x - x, 0);
+  const under = seat.at[1] + seat.slope * (x - seat.at[0]) + seat.gap + seat.sag * Math.exp(-(((x - seat.c) / seat.w) ** 2));
+  return mix(along, under, smoothstep(seat.blend[0], seat.blend[1], x));
+}
+
 /**
  * Signed distance to the upper lip's leading edge: negative under the arch (the pod and the
  * strip below it), positive on the lip.
@@ -175,8 +197,9 @@ export function bodySdf(x, y, swell = 0) {
 export function archSdf(x, y) {
   const { arch, band, end, run } = L;
   let d = smax(Math.hypot(x - arch.c[0], y - arch.c[1]) - arch.r, band.r - Math.hypot(x - band.c[0], y - band.c[1]), arch.kl);
-  // Under the words the waist leg runs on as a nearly level line (positive above it, on the lip).
-  d = mix(run.y + run.fall * Math.max(run.x - x, 0) - y, d, smoothstep(run.blend[0], run.blend[1], x));
+  // Under the words the waist leg runs on as a nearly level line (positive above it, on the lip), and on
+  // under the cover as its seat.
+  d = mix(runY(x) - y, d, smoothstep(run.blend[0], run.blend[1], x));
   // On the right the arc runs on as a long diagonal down to the silhouette, meeting it at about
   // (790, 198), as the reference's edge does: the lower right below it is open body, where the
   // coral point lies. (Round 38. Before, the right leg, the edge of the 'end' circle, turned it
@@ -258,7 +281,11 @@ export const volValue = (x) => clamp01((x - L.vol.x0) / (L.vol.x1 - L.vol.x0));
 export function tilePlane(x, y, cx = L.cover.c[0], cy = L.cover.c[1]) {
   const c = Math.cos(-L.cover.rot), s = Math.sin(-L.cover.rot);
   const dx = x - cx, dy = y - cy;
-  const qx = c * dx - s * dy, qy = s * dx + c * dy;
+  let qx = c * dx - s * dy, qy = s * dx + c * dy;
+  // The turn about its upright axis, taken out: its right side lies further away, so is drawn smaller.
+  const sY = Math.sin(L.cover.yaw), cY = Math.cos(L.cover.yaw), f = L.cover.persp;
+  qx = qx * f / (f * cY - qx * sY);
+  qy = qy * (f + qx * sY) / f;
   const ty = qy / (L.cover.squash + L.cover.lean * qy);
   return [qx * (1 - L.cover.lean * ty), ty];
 }
@@ -344,6 +371,8 @@ const float COVER_R = ${f1(L.cover.r)};
 const float COVER_ROT = ${f1(L.cover.rot)};
 const float COVER_LEAN = ${f1(L.cover.lean * 10000) } * 1e-4;
 const float COVER_SQUASH = ${f1(L.cover.squash)};
+const float COVER_YAW = ${f1(L.cover.yaw)};
+const float COVER_PERSP = ${f1(L.cover.persp)};
 const vec3 PRESS = vec3(${f1(L.press.d)}, ${f1(L.press.w)}, ${f1(L.press.swell)});
 const vec4 POCKET = vec4(${f1(L.pocket.d)}, ${f1(L.pocket.w)}, ${f1(L.pocket.rise)}, ${f1(L.pocket.out)});
 const vec2 ARCH_C = ${v2(L.arch.c)};
@@ -414,8 +443,12 @@ float volY(float x) {
 // The upper lip's leading edge: negative under the arch, positive on the lip.
 float archSdf(vec2 p) {
   float d = smax(length(p - ARCH_C) - ARCH_R, BAND_R - length(p - BAND_C), ${f1(L.arch.kl)});
-  // Under the words the waist leg runs on as a nearly level line (positive above it, on the lip).
-  d = mix(${f1(L.run.y)} + ${f1(L.run.fall)} * max(${f1(L.run.x)} - p.x, 0.) - p.y, d, smoothstep(${f1(L.run.blend[0])}, ${f1(L.run.blend[1])}, p.x));
+  // Under the words the waist leg runs on as a nearly level line (positive above it, on the lip), and on
+  // under the cover as its seat (round 49).
+  float runY = mix(${f1(L.run.y)} + ${f1(L.run.fall)} * max(${f1(L.run.x)} - p.x, 0.),
+    ${f1(L.seat.at[1])} + ${f1(L.seat.slope)} * (p.x - ${f1(L.seat.at[0])}) + ${f1(L.seat.gap)} + ${f1(L.seat.sag)} * exp(-pow((p.x - ${f1(L.seat.c)}) / ${f1(L.seat.w)}, 2.)),
+    smoothstep(${f1(L.seat.blend[0])}, ${f1(L.seat.blend[1])}, p.x));
+  d = mix(runY - p.y, d, smoothstep(${f1(L.run.blend[0])}, ${f1(L.run.blend[1])}, p.x));
   // On the right the arc runs on as a diagonal down to the silhouette (round 38: no right leg).
   return ${L.end.leg ? `p.x < END_C.x ? d : smax(d, length(p - END_C) - END_R, ${f1(L.arch.kr)})` : 'd'};
 }
