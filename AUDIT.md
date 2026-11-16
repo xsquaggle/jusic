@@ -426,7 +426,30 @@ x 600  r34   3455457887655443333224
 
   The ring round the cover and the five cuts are unchanged except where the lip and the volume line cross them.
 - Only the light changed, not the outline or the hit test. Seen as the opaque base, refracting over dark and colourful windows, and with real covers (`mercury-still-round34.png`; its first row is the upper lip beside the reference's and round 33's).
-- **Still short on the upper lip:** inside the band the glass is still a 5 for a few units where the reference's is a 3 (a soft light ours carries there, which the sheet's tint does not reach); the reference's volume line is longer (about 102 units against our 86) and sits 4 units higher, under a "VOLUME" label we do not have (item 11); its band carries on along the top as a thin white line into the broad band down the right end, which in ours begins 12 units too low (round 33).
+- **Still short on the upper lip (round 34):** inside the band the glass is still a 5 for a few units where the reference's is a 3 (a soft light ours carries there, which the sheet's tint does not reach); the reference's volume line is longer (about 102 units against our 86) and sits 4 units higher, under a "VOLUME" label we do not have (item 11); its band carries on along the top as a thin white line into the broad band down the right end, which in ours begins 12 units too low (round 33).
+
+## What round 35 changed (items 1, 4 and 8: the bowls' rims as lit thickness)
+
+Done on 16 November 2026, in the same session as round 34.
+
+- **Measured first**, along eight rays from each bowl's middle, from 18 units inside its edge to 8 outside (the reference's bowls found on the picture: the play bowl's middle at about 638, 189 with a radius of 40, the previous button's at 561, 190 with 28; ours are 642, 190 with 37 and 566, 193 with 24). The reference's rim is dark all round the inside, with a fine line at the edge, except for a broad crescent of the floor's light from 4:30 to 7:30 (8s and 9s over the last 7 units inside the edge, ramping in over 4 more, peach-white at its core, 231,196,183, and coral toward its sides), a darker strip between that crescent and the edge at 6 o'clock (4s over the last 3 units), the pod just below the edge lit (6s falling to 3s), and a short warm arc at 1:30. Ours was one even ring of light, neutral, at most 4 units wide, and the wall under each bowl's upper shoulder mirrored the floor (3s to 6s at 12 o'clock where theirs is 1s).
+- **Each bowl's rim is lit as a thick ring** (`BTN_RIM`, now four numbers, and `BTN_KEY` in `shaders.js`): the crescent is the bowl's circle less a circle shifted up, so its inner edge is cut hard, it is widest at 6 o'clock and runs out to nothing toward 3 and 9; brightest against that inner edge, peach-white there and coral toward the edge, with a darker strip and then a fine line at the edge where it is wide; the bowl above it lit warm from it, fading over 10 units; the rest of the inside of the rim darker; the fine line at the edge plainest at the top and bottom; the key lamp's arc at 1:30. The small bowls' crescents scale with their radius and are a little dimmer, as the reference's are. The tone curve turns any strong light white, so the warmth comes from moderate, saturated light and a warm tint on what lies under the crescent, not from more light.
+- Measured on the play bowl, from 18 units inside the edge to the edge (`|`) and 8 beyond:
+
+```
+6 o'clock    ref  222233345688898544|444543333
+             r34  111111111123466676|531223333   (the old ring)
+             r35  111222333578888766|654444433
+4:30         ref  222222334466689997|665433333
+             r35  122222334577888888|755432221
+12 o'clock   ref  111111111112322246|543333333
+             r34  111222222333445566|677777766
+             r35  111111222222223345|556666654
+```
+
+  The crescent's colour at 6 o'clock is 204,180,173 to 221,197,189 over two runs (the liquid moves) against the reference's 231,196,183 (round 34: 204,192,191). The 'play' cut of `cut-profile.js` now has the crescent where the reference has it: `...112485421...` against `...112248453...`.
+- Only the light changed, not the outline or the hit test.
+- **Still short on the bowls:** the reference's crescent has a thinner hot core and more coral; its bowls are about 3 units larger in radius than ours (28, 40, 27 against 24, 37, 24) and nearly touch one another and the pod's rims; and the pod round them is lit silvery-pink glass (4s to 6s) where ours is dark brown. That last is most of what is left of the lower right lobe's darkness (mean colour 92,75,76 against 119,90,85 before this round).
 
 ## What changed on 14 November 2026 at the owner's word (the cursor's light; item 12 in part)
 

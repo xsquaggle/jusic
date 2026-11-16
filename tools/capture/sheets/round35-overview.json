@@ -1,0 +1,13 @@
+{ "out": "design/captures/mercury-still-round35.png", "width": 1616,
+  "title": "Mercury still, round 35: the button bowls' rims as lit thickness: a crescent of the floor's light with a hard inner edge, a dark strip and a fine line at the edge (generated test cover)",
+  "rows": [
+  [ { "label": "reference: the three bowls", "src": "design/references/widget-mercury.png", "crop": [1000, 360, 560, 210] },
+    { "label": "round 35: the same part", "src": "design/captures/raw/round35/dark.png", "crop": [705, 238, 326, 108] } ],
+  [ { "label": "reference: the right lobe", "src": "design/references/widget-mercury.png", "crop": [960, 230, 626, 470] },
+    { "label": "round 35: the same part", "src": "design/captures/raw/round35/dark.png", "crop": [740, 110, 400, 300] },
+    { "label": "round 34, before", "src": "design/captures/raw/round34/dark.png", "crop": [740, 110, 400, 300] } ],
+  [ { "label": "reference: widget-mercury.png", "src": "design/references/widget-mercury.png", "crop": [0, 110, 1586, 797] },
+    { "label": "round 35, refracting in the real window: dark window behind", "src": "design/captures/raw/round35-refract/window-dark.png", "crop": [12, 12, 936, 456] } ],
+  [ { "label": "round 35, the opaque base: dark desktop", "src": "design/captures/raw/round35/dark.png", "crop": [90, 50, 1022, 513] },
+    { "label": "round 35, refracting: colourful window behind", "src": "design/captures/raw/round35-refract/window-busy.png", "crop": [12, 12, 936, 456] } ]
+] }

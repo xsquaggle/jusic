@@ -235,8 +235,11 @@ const vec4 RING_FLOOR = vec4(.8, .97, .78, 0.);
 const vec3 RIBBON = vec3(2.1, 1., .6);
 // The three fine lines in the rim, outermost first: how bright each is.
 const vec3 RIM = vec3(.6, .5, .6);
-// The glowing rims of the button bowls: how bright the ring, how bright the glow inside it.
-const vec2 BTN_RIM = vec2(.75, .28);
+// The lit rims of the button bowls: how bright the crescent of the floor's light in the lower rim;
+// how bright that light on the pod just below the edge; how dark the rest of the inside of the rim;
+// how bright the fine line at the edge elsewhere. And the key lamp's short arc at 1:30.
+const vec4 BTN_RIM = vec4(1.3, .35, .4, .5);
+const float BTN_KEY = .7;
 // The key lamp on the right end: it shows where the outline faces right by more than x, fully
 // from y; its half-width in units; its strength. And how bright the floor's light is there.
 const vec4 END_KEY = vec4(.72, .96, 5., .9);
@@ -846,20 +849,52 @@ void main() {
     }
     col *= ao;
 
-    // The rims of the button bowls glow. Thick glass round a hollow gathers the light under
-    // it, so in the reference each bowl is ringed once with the album's colour: brightest on
-    // the arc toward the floor's light and again toward the key lamp, with a soft glow just
-    // inside the ring. (One ring each. Round 14 took away the five or six that every ripple of
-    // the bowl's wall used to mirror; this one is laid on, so it cannot multiply.)
+    // The rims of the button bowls are thick glass, lit through. Measured along eight rays from
+    // the play bowl's middle, the reference's is dark all round the inside, with a fine line at
+    // its edge, except:
+    //   4:30 to 7:30  the floor's light gathered in the rim: a broad crescent, 8s and 9s over the
+    //                 last 7 units inside the edge and ramping in over 4 more, hot and coral
+    //                 (warmth 3 to 5), with the pod just below the edge lit too (6s falling to 3s)
+    //   1:30          the key lamp: a short warm-white arc across the edge
+    // Ours was one even ring of light, neutral, 4 units wide at most, and the wall under each
+    // bowl's upper shoulder mirrored the floor (3s to 6s at 12 o'clock where theirs is 1s). One
+    // crescent each, laid on, so it cannot multiply as the mirrored rings did before round 14.
     for (int i = 0; i < 3; i++) {
       vec2 dq = pw - uBtn[i].xy;
       float rho = length(dq), r = uBtn[i].z;
       vec2 nb = dq / max(rho, 1e-3);
-      float low = pow(max(dot(nb, vec2(-.5, .866)), 0.), 2.), high = pow(max(dot(nb, vec2(.9, -.44)), 0.), 3.);
-      float big = (i == 1 ? 1.25 : 1.) * (1. + .6 * uBtn[i].w) * born;
-      float ring = smoothstep(.8, -.5, abs(rho - (r - 1.4)) - .55);
-      col += mix(hotA, vec3(1.), .45) * BTN_RIM.x * big * ring * (.18 + .82 * max(low, high));
-      col += hotA * BTN_RIM.y * big * smoothstep(r - 11., r - 1.5, rho) * smoothstep(r + .5, r - 1.5, rho) * (.35 + .65 * low);
+      float t = r - rho;                                          // how far inside the edge
+      float low = smoothstep(.3, .74, nb.y);                      // 4 to 8 o'clock, full from 4:30 to 7:30
+      float key = pow(max(dot(nb, vec2(.7, -.71)), 0.), 8.);      // 1:30
+      // The small bowls' crescents are narrower and a little dimmer than the play bowl's (measured on
+      // the previous button: a 7 or 8 over 3 units, where the play bowl's is 9s over 6).
+      float sc = r / 37.;
+      float big = (i == 1 ? 1.1 : .85) * (1. + .6 * uBtn[i].w) * born;
+      col *= 1. - BTN_RIM.z * smoothstep(.9, 2.2, t) * smoothstep(17., 10., t) * (1. - low) * (1. - key);
+      // The crescent is the bowl's circle less a circle shifted up: its inner edge is cut hard, it is
+      // widest at 6 o'clock (W units, where the reference's 8s and 9s reach) and runs out to nothing
+      // toward 3 and 9. Brightest against that inner edge, easing toward the bowl's own edge (the
+      // reference's play bowl at 6 o'clock, from the edge in: 4 4 5 8 9 8 8 8 6 5 4 3 3).
+      float W = 8.5 * sc, a = W * (2. * r - W) / (2. * (r - W));
+      float din = length(dq + vec2(0., a)) - (r - W + a);        // > 0 in the crescent
+      float u = clamp(din / max(din + t, .01), 0., 1.);           // 0 at its inner edge, 1 at the bowl's edge
+      // Where it is wide (about 6 o'clock) a darker strip lies between it and the bowl's edge, so the
+      // rim reads as two edges of one thick ring (the reference: 4s over the last 3 units there).
+      float gapC = smoothstep(4.5 * sc, 7.5 * sc, din + t) * smoothstep(3.6 * sc, 2.4 * sc, t) * smoothstep(.2, 1., t);
+      float cres = smoothstep(-.55, .55, din) * smoothstep(-.2, 1., t) * mix(1., .75, smoothstep(.45, 1., u)) * (1. - .85 * gapC);
+      col *= 1. - .6 * gapC;
+      // ...and the bowl above it is lit warm from it, fading over 10 units.
+      float glowIn = smoothstep(-10. * sc, 0., din) * smoothstep(.55, -.55, din) * smoothstep(.5, 2., t) * low * .4;
+      float hot = smoothstep(.5, -.5, abs(din - .9 * sc) - .6 * sc) * smoothstep(-.2, 1., t);
+      // (Peach-white at its core, 231,196,183 in the reference, coral toward its sides; the bowl's
+      // wall under it mirrors a neutral light of its own, which takes the same warmth.)
+      col *= mix(vec3(1.), vec3(1., .64, .5), max(cres, glowIn * 2.) * smoothstep(-1., 1., t));
+      col += mix(hotA, vec3(1., .62, .42), .2 + .45 * (1. - u)) * BTN_RIM.x * big * (cres * .85 + .35 * hot);
+      col += hotA * BTN_RIM.x * big * glowIn * glowIn;
+      col += hotA * BTN_RIM.y * big * low * smoothstep(-6.5 * sc, -.5, t) * smoothstep(.6, -.6, t);
+      col += mix(hotA, vec3(1., .96, .92), .6) * BTN_KEY * big * key * smoothstep(.6, -.6, abs(t - 1.2) - 1.6);
+      // A fine line at the bowl's edge, plainest at the top and bottom and nearly gone at the sides.
+      col += mix(hotA, vec3(1.), .5) * BTN_RIM.w * big * smoothstep(.5, -.5, abs(t - .6) - .3) * (.15 + .85 * max(nb.y * nb.y, key));
     }
 
     // The right end is a thick lip curled over, and it is the liveliest part of the reference

@@ -4,13 +4,13 @@
  * The companion of cut-profile.js (vertical cuts) and ring-profile.js (the ring round the cover),
  * for parts that a line through them does not describe: the upper lip as a sheet, a bowl's rim.
  *
- *   npx electron tools/capture/area-map.js shot=design/captures/raw/roundNN/dark.png [box=560,70,800,260] [step=8] [part=lip]
+ *   npx electron tools/capture/area-map.js shot=design/captures/raw/roundNN/dark.png [box=560,70,800,260] [step=8] [part=lip|all]
  *
  * box is x0,y0,x1,y1 in stage units, step the size of a cell. Each cell is the mean of the
  * pixels in it. Printed per picture: brightness (0 black to 9 white), then warmth (red over
  * blue, 0 neutral to 9 strongly coral). A cell outside the drop is a space; with part=lip only
  * the upper lip (on the lip side of its leading edge, archSdf > 0) is printed and the rest is a
- * dot. The reference is mapped onto the stage as outline.js maps it (it is in perspective and
+ * dot; with part=all the floor and the ground round the drop are printed too. The reference is mapped onto the stage as outline.js maps it (it is in perspective and
  * ours is square on, so it fits within a few units on the right lobe, less well on the left).
  * Last, the mean brightness and warmth of the printed cells, for a one-line comparison.
  *
@@ -49,7 +49,7 @@ app.whenReady().then(async () => {
   const shot = args.shot || 'design/captures/raw/round33/dark.png';
   const [x0, y0, x1, y1] = (args.box || '560,70,800,260').split(',').map(Number);
   const step = Number(args.step || 8);
-  const lipOnly = args.part === 'lip';
+  const lipOnly = args.part === 'lip', all = args.part === 'all';
   const ref = load(REF.file), ours = load(shot);
   const k = ours.width / 960;                    // the shot is 960 CSS px wide with the stage 50, 40 in
   const pics = {
@@ -65,7 +65,7 @@ app.whenReady().then(async () => {
       let l = '', w = '';
       for (let sx = x0; sx < x1; sx += step) {
         const cx = sx + step / 2, cy = sy + step / 2;
-        if (S.bodySdf(cx, cy) >= -1) { l += ' '; w += ' '; continue; }
+        if (!all && S.bodySdf(cx, cy) >= -1) { l += ' '; w += ' '; continue; }
         if (lipOnly && !(S.archSdf(cx, cy) > 1 && S.archOn(cx, cy) > 0.5)) { l += '.'; w += '.'; continue; }
         const [ax, ay] = p.px(sx, sy), [bx, by] = p.px(sx + step, sy + step);
         const c = mean(p.img, ax, ay, bx, by);
