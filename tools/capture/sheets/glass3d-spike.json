@@ -1,0 +1,101 @@
+{
+ "out": "design/captures/mercury-glass3d-spike.png",
+ "width": 1830,
+ "title": "The model pass and the phase 2 spike (generated cover): the reference, the model in Cycles, and the same model live in a widget window (WebGL2, the same studio as a pair of light maps, the light pass)",
+ "notes": [
+  "part: The cover sits on the ridge and looks heavy: a round ring of glass now wraps it on every side and the ridge rolls under its lower edge, in both renders; the ring is still thinner than the reference's.",
+  "part: The ridge is one unbroken line from under the cover to the tail: one roll all the way; its highlight breaks at the twist in Cycles and fades under the words live.",
+  "ok: The twist and the sheet over the buttons read clearly, in both.",
+  "part: The words are clean: no line crosses the title and the glass behind the words is darker; live, a reflection still touches the title's end and runs just behind the artist's.",
+  "part: The glass shines: live has broad warm rims, luminous lobes and darker middles, with a few thin strip lines left; Cycles is clearer but greyer.",
+  "measured: live at 60 fps on the RTX 3070, the GPU process's 3D engine 1.7% at 1586x992 and 1.3% at 1190x744 (the idle card 4 to 5%); uncapped about 350 fps."
+ ],
+ "rows": [
+  [
+   {
+    "label": "main reference",
+    "src": "design/references/widget-mercury.png",
+    "crop": [
+     0,
+     0,
+     1586,
+     992
+    ]
+   },
+   {
+    "label": "Cycles, after the model pass",
+    "src": "design/captures/raw/blender/pass1-full-words.png",
+    "crop": [
+     0,
+     0,
+     1586,
+     992
+    ]
+   },
+   {
+    "label": "live 3D in a widget window, 60 fps",
+    "src": "design/captures/raw/glass3d/final/live-1.png",
+    "crop": [
+     0,
+     0,
+     1586,
+     992
+    ]
+   }
+  ],
+  [
+   {
+    "label": "reference, cover to buttons",
+    "src": "design/references/widget-mercury.png",
+    "crop": [
+     65,
+     197,
+     1134,
+     577
+    ]
+   },
+   {
+    "label": "Cycles",
+    "src": "design/captures/raw/blender/pass1-full-words.png",
+    "crop": [
+     65,
+     197,
+     1134,
+     577
+    ]
+   },
+   {
+    "label": "live",
+    "src": "design/captures/raw/glass3d/final/live-1.png",
+    "crop": [
+     65,
+     197,
+     1134,
+     577
+    ]
+   }
+  ],
+  [
+   {
+    "label": "zebra (36 a radian), the proof: tight rims, a boxy pocket, round dishes",
+    "src": "design/captures/raw/blender/zebra-proof.png",
+    "crop": [
+     0,
+     40,
+     793,
+     420
+    ]
+   },
+   {
+    "label": "zebra, after the model pass: fat rims, a round ring, flat wells",
+    "src": "design/captures/raw/blender/zebra-pass1.png",
+    "crop": [
+     0,
+     40,
+     793,
+     420
+    ]
+   }
+  ]
+ ]
+}

@@ -43,10 +43,17 @@ K = dict(
     chan=13.,                # how deep the channel under the sheet is
     groove=3.,               # the groove at the ridge's inner foot left of the twist
     band_r=15., band_in=30., # the lower band's roll: radius, how far in from the lower edge its middle runs
-    hollow=8.,               # the soft hollow under the words
+    hollow=5.,               # the soft hollow under the words (model pass: broad and shallow; 8 deep and steep-sided, its rim drew a line through the title's end)
     art_z=13.,               # the cover's face, above the body's middle plane
-    pocket_round=14.,        # how round the pocket's rim is
-    well_depth=12.,
+    pocket_round=20.,        # how round the pocket's rim is (14 before the model pass)
+    well_depth=11.,
+    # The model pass (the owner, after the proof): the rim a fat round roll merging softly into the body (its radius as a
+    # share of the local rounding radius, its middle's height as a share of its radius, how softly it merges); a ring of
+    # glass round the cover (how far out its middle runs from the art's edge, how high above the art, its radius, how
+    # softly it merges); the wells flat-bottomed, with a raised lip round each.
+    rim=0.3, rim_z=0.3, rim_soft=16.,
+    ring_off=6., ring_z=9., ring_r=15., ring_soft=12.,
+    lip_r=4.5,
 )
 
 def ss(a, b, x):
@@ -128,11 +135,17 @@ def build_field(lay, out, ostep):
     Hf = Hf - K['chan'] * ss(8., 34., -across) * ss(120., 70., -across) * side * ss(total, total - 50., along)
     Hf = Hf - K['groove'] * np.exp(-((across + 34.) / 13.) ** 2) * live * (1. - side) * ss(4., 20., t)
     # The soft hollow under the words.
-    Hf = Hf - K['hollow'] * np.exp(-((X - 372.) / 92.) ** 4) * np.exp(-((Y - 205.) / 24.) ** 2)
+    Hf = Hf - K['hollow'] * np.exp(-((X - 372.) / 130.) ** 2) * np.exp(-((Y - 205.) / 40.) ** 2)
     Hb = K['back'] * Hbase
 
     Z = zs[None, None, :]
     F = np.maximum(np.maximum(Z - Hf[..., None], -Z - Hb[..., None]), d2[..., None])
+    # The rim: one fat round roll along the whole outline, merging softly into the body, so each edge carries one broad
+    # highlight. (Before the model pass the body's own profile met its flatter back in a tight edge, which drew a stack
+    # of three to five thin lines along every rim.)
+    Rr = (K['rim'] * R)[..., None]
+    roll = np.sqrt((d2[..., None] + Rr) ** 2 + (Z - K['rim_z'] * Rr) ** 2) - Rr
+    F = smin(F, roll, K['rim_soft'])
 
     # The ridge as a roll: its middle a little under the surface along most of it, lifted along the sheet so its
     # lower half hangs over the channel; thinner into the tail tip.
@@ -168,13 +181,22 @@ def build_field(lay, out, ostep):
     dR = rrect_sdf(X, Y, cv['c'], cv['half'], cv['r'], cv['rot'], cv['squash'])
     pocket = np.maximum(dR[..., None] + 1., K['art_z'] - Z)
     F = smax(F, -pocket, K['pocket_round'])
+    # ...and a round ring of glass wrapping the cover's edge on every side, as the reference's does (before the model
+    # pass the pocket's wall was straight down the cover's right side, with flat ledges above and below).
+    ring = np.sqrt((dR[..., None] - K['ring_off']) ** 2 + (Z - (K['art_z'] + K['ring_z'])) ** 2) - K['ring_r']
+    F = smin(F, ring, K['ring_soft'])
 
     # The buttons' wells.
     for b in L['buttons']:
         cx, cy = b['c']; r = b['r']
         zs0 = float(sample_grid(np.ascontiguousarray(Hf.T), V, np.array([cx - x0 + V / 2]), np.array([cy - y0 + V / 2]))[0])
-        well = np.sqrt((X[..., None] - cx) ** 2 + (Y[..., None] - cy) ** 2 + ((Z - (zs0 + (r + 3.) / 1.7 - K['well_depth'])) * 1.7) ** 2) - (r + 3.)
-        F = smax(F, -well, 7.)
+        # (Model pass: flat-bottomed, so the middle faces the viewer and mirrors the dark behind the camera, not the strips;
+        # a raised lip round each catches the light as a luminous rim. A round dish's lower wall mirrored a bright U.)
+        rho = np.sqrt((X - cx) ** 2 + (Y - cy) ** 2)[..., None]
+        cup = np.maximum(rho - (r + 1.), (zs0 - K['well_depth']) - Z)
+        F = smax(F, -cup, 8.)
+        lip = np.sqrt((rho - (r + 5.)) ** 2 + (Z - (zs0 + 1.)) ** 2) - K['lip_r']
+        F = smin(F, lip, 5.)
 
     # Nothing past the outline (the rolls end on the silhouette).
     F = smax(F, d2[..., None], 3.)
@@ -233,8 +255,8 @@ def cover_material(path):
     b = nt.nodes.new('ShaderNodeBsdfPrincipled')
     nt.links.new(tex.outputs['Color'], b.inputs['Base Color'])
     b.inputs['Roughness'].default_value = 0.35
-    b.inputs['Coat Weight'].default_value = 1.0                  # a glossy face: a highlight crosses the cover
-    b.inputs['Coat Roughness'].default_value = 0.02
+    b.inputs['Coat Weight'].default_value = 0.15                 # a faint sheen that never dulls the art (1 before the model pass: a grey band)
+    b.inputs['Coat Roughness'].default_value = 0.05
     nt.links.new(tex.outputs['Color'], b.inputs['Emission Color'])
     b.inputs['Emission Strength'].default_value = float(ARGS.get('art', 1.4))   # the art gives off light, which the glass carries round
     nt.links.new(b.outputs['BSDF'], out.inputs['Surface'])
@@ -427,7 +449,8 @@ def build(cover_path=None):
     E = dict(top=float(ARGS.get('top', 2800)), fill=float(ARGS.get('fill', 700)), back=float(ARGS.get('back', 0)),
              s1=float(ARGS.get('s1', 2400)), s2=float(ARGS.get('s2', 1600)), s3=float(ARGS.get('s3', 1600)), pool=float(ARGS.get('pool', 0)))
     top = light('MercuryOverhead', 'AREA', (0, -1.5, 5.0), (0, 0, 0), E['top'], (1, 0.9, 0.84), (float(ARGS.get('tw', 14)), float(ARGS.get('th', 4)))); aim(top, (0, 0, 0))
-    fill = light('MercuryFill', 'AREA', (0, -26, 2.5), (0, 0, 0), E['fill'], (1, 0.95, 0.93), (14, 6)); aim(fill, (0, 0, 0))
+    # (Model pass: higher, so glass facing the viewer squarely, the wells' floors among it, mirrors the dark below it.)
+    fill = light('MercuryFill', 'AREA', (0, -22, 7.5), (0, 0, 0), E['fill'], (1, 0.95, 0.93), (14, 5)); aim(fill, (0, 0, 0))
     warm = tuple(0.6 * c + 0.4 * w for c, w in zip(pal, (1., 0.62, 0.5)))
     back = light('MercuryBack', 'AREA', (0, 5, float(ARGS.get('backz', -1.1))), (0, 0, 0), E['back'], warm, (float(ARGS.get('backw', 14)), float(ARGS.get('backh', 0.5)))); aim(back, (0, 0, -0.7))
     s1 = light('MercuryStripFront', 'AREA', (0, -9, 3.2), (0, 0, 0), E['s1'], (1, 0.92, 0.87), (13, 0.12)); aim(s1, (0, 0, 0.2))
@@ -476,6 +499,121 @@ def build(cover_path=None):
         print('look not set:', e)
     return dict(verts=len(glass.data.vertices), faces=len(glass.data.polygons))
 
+def zebra_scene():
+    """The zebra view of the model: the glass a perfect mirror of a sky of even stripes by elevation, no lights or floor."""
+    scene = bpy.context.scene
+    g = bpy.data.objects['MercuryGlass']; m, nt, out = node_mat('MercuryZebra')
+    gl_ = nt.nodes.new('ShaderNodeBsdfGlossy'); gl_.inputs['Roughness'].default_value = 0.0; gl_.inputs['Color'].default_value = (1, 1, 1, 1)
+    nt.links.new(gl_.outputs['BSDF'], out.inputs['Surface']); g.data.materials[0] = m
+    for ob in scene.objects:
+        if ob.type == 'LIGHT' or ob.name in ('MercuryFloor',): ob.hide_render = True
+    wn = scene.world.node_tree; wn.nodes.clear()
+    o_ = wn.nodes.new('ShaderNodeOutputWorld'); bg = wn.nodes.new('ShaderNodeBackground'); tc = wn.nodes.new('ShaderNodeTexCoord')
+    sp = wn.nodes.new('ShaderNodeSeparateXYZ'); asn = wn.nodes.new('ShaderNodeMath'); asn.operation = 'ARCSINE'
+    mul = wn.nodes.new('ShaderNodeMath'); mul.operation = 'MULTIPLY'; mul.inputs[1].default_value = float(ARGS.get('zebra', 36))
+    sn = wn.nodes.new('ShaderNodeMath'); sn.operation = 'SINE'; gt = wn.nodes.new('ShaderNodeMath'); gt.operation = 'GREATER_THAN'; gt.inputs[1].default_value = 0.0
+    mr = wn.nodes.new('ShaderNodeMapRange'); mr.inputs['To Min'].default_value = 0.02; mr.inputs['To Max'].default_value = 0.8
+    wn.links.new(tc.outputs['Generated'], sp.inputs['Vector']); wn.links.new(sp.outputs['Z'], asn.inputs[0]); wn.links.new(asn.outputs['Value'], mul.inputs[0])
+    wn.links.new(mul.outputs['Value'], sn.inputs[0]); wn.links.new(sn.outputs['Value'], gt.inputs[0]); wn.links.new(gt.outputs['Value'], mr.inputs['Value'])
+    wn.links.new(mr.outputs['Result'], bg.inputs['Color']); wn.links.new(bg.outputs['Background'], o_.inputs['Surface'])
+    scene.view_settings.view_transform = 'Standard'; scene.view_settings.look = 'None'
+
+def export_live(d):
+    """For the live 3D spike (prototypes/glass3d/): the glass mesh with its smooth normals, the cover, the camera, the
+    timeline's and volume's lines and beads, the studio as a 360-degree light map (the scene from the drop's middle with
+    the drop hidden, its lamps seen; built from six square renders and resampled to latitude and longitude), a softened
+    copy of it (the studio pair: sharp for what the glass mirrors and bends, soft for what it scatters), and the
+    background plate from the camera. Light maps and plate in linear light, half floats, rows from the bottom."""
+    from mathutils import Matrix
+    os.makedirs(d, exist_ok=True)
+    scene = bpy.context.scene
+    bpy.context.view_layer.update()                  # (the camera's world matrix is stale until the scene is evaluated)
+    meta = {'S': S, 'stage_origin': [430., 200.], 'res': [scene.render.resolution_x, scene.render.resolution_y]}
+    g = bpy.data.objects['MercuryGlass']; me = g.data; me.calc_loop_triangles()
+    n = len(me.vertices); co = np.empty(n * 3, np.float32); me.vertices.foreach_get('co', co)
+    nr = np.empty(n * 3, np.float32); me.vertices.foreach_get('normal', nr)
+    tri = np.empty(len(me.loop_triangles) * 3, np.int32); me.loop_triangles.foreach_get('vertices', tri)
+    with open(os.path.join(d, 'glass.bin'), 'wb') as f:
+        co.tofile(f); nr.tofile(f); tri.astype(np.uint32).tofile(f)
+    meta['glass'] = {'verts': n, 'tris': len(me.loop_triangles)}
+    # The cover's face: its outline (Blender coordinates) and the art's coordinates there.
+    cv = bpy.data.objects['MercuryCover'].data
+    top = max(cv.polygons, key=lambda p: (len(p.vertices), -p.normal.y))
+    uvl = cv.uv_layers[0].data
+    meta['cover'] = {'pts': [list(cv.vertices[cv.loops[li].vertex_index].co) for li in top.loop_indices],
+                     'uv': [list(uvl[li].uv) for li in top.loop_indices], 'normal': list(top.normal)}
+    cam = scene.camera
+    meta['camera'] = {'matrix': [list(r) for r in cam.matrix_world], 'lens': cam.data.lens, 'sensor': cam.data.sensor_width,
+                      'shift': [cam.data.shift_x, cam.data.shift_y], 'clip': [cam.data.clip_start, cam.data.clip_end]}
+    lines = {}
+    for nm in ('MercurySeekPlayed', 'MercurySeekRest', 'MercuryVolPlayed', 'MercuryVolRest'):
+        ob = bpy.data.objects.get(nm)
+        if not ob: continue
+        em = ob.data.materials[0].node_tree.nodes['Emission']
+        lines[nm] = {'pts': [list(p.co)[:3] for p in ob.data.splines[0].points], 'radius': ob.data.bevel_depth,
+                     'color': list(em.inputs['Color'].default_value)[:3], 'strength': em.inputs['Strength'].default_value}
+    for nm in ('MercurySeekBead', 'MercuryVolBead'):
+        ob = bpy.data.objects.get(nm)
+        if ob: lines[nm] = {'at': list(ob.location), 'radius': ob.dimensions.x / 2}
+    meta['lines'] = lines
+    meta['art'] = ARGS.get('cover') or os.path.join(REPO, 'prototypes', 'mercury', 'covers', 'silver-current.jpg')
+    # Renders for the light maps and the plate: the drop and what sits on it hidden.
+    hide = [o for o in scene.objects if o.name.startswith(('MercuryGlass', 'MercuryCover', 'MercurySeek', 'MercuryVol'))]
+    for o in hide: o.hide_render = True
+    scene.render.image_settings.file_format = 'OPEN_EXR'; scene.render.image_settings.color_depth = '16'
+    def render_to(path):
+        scene.render.filepath = path; bpy.ops.render.render(write_still=True)
+        img = bpy.data.images.load(path); w, h = img.size
+        buf = np.empty(w * h * 4, np.float32); img.pixels.foreach_get(buf); bpy.data.images.remove(img)
+        return buf.reshape(h, w, 4)
+    # The plate: what the camera sees behind the drop.
+    plate = render_to(os.path.join(d, 'plate.exr'))
+    plate.astype(np.float16).tofile(os.path.join(d, 'plate.bin'))
+    meta['plate'] = [plate.shape[1], plate.shape[0]]
+    # The studio from the drop's middle: six square views (95 degrees, so they overlap), lamps seen.
+    for o in scene.objects:
+        if o.type == 'LIGHT': o.visible_camera = True
+    keep = (scene.camera, scene.render.resolution_x, scene.render.resolution_y, scene.render.resolution_percentage)
+    cd = bpy.data.cameras.new('MercuryCube'); cd.lens = 18. / math.tan(math.radians(47.5)); cd.sensor_width = 36.; cd.sensor_fit = 'HORIZONTAL'
+    cc = bpy.data.objects.new('MercuryCube', cd); scene.collection.objects.link(cc); scene.camera = cc
+    FS = int(ARGS.get('cubesize', 640))
+    scene.render.resolution_x = FS; scene.render.resolution_y = FS; scene.render.resolution_percentage = 100
+    faces = []
+    for i, rot in enumerate([(90, 0, -90), (90, 0, 90), (90, 0, 0), (90, 0, 180), (180, 0, 0), (0, 0, 0)]):
+        cc.location = (0., 0., 0.); cc.rotation_euler = tuple(math.radians(a) for a in rot)
+        bpy.context.view_layer.update()
+        img = render_to(os.path.join(d, f'cube{i}.exr'))
+        faces.append((np.array(cc.matrix_world.to_3x3()), img))
+    EW, EH = int(ARGS.get('envw', 2048)), int(ARGS.get('envw', 2048)) // 2
+    u = (np.arange(EW) + 0.5) / EW; v = (np.arange(EH) + 0.5) / EH
+    lon = (u - 0.5) * 2 * math.pi; lat = (v - 0.5) * math.pi
+    LON, LAT = np.meshgrid(lon, lat)                                # rows from the bottom (lat -90 first)
+    D = np.stack([np.sin(LON) * np.cos(LAT), np.cos(LON) * np.cos(LAT), np.sin(LAT)], -1)   # Blender: x right, y in, z up
+    env = np.zeros((EH, EW, 4), np.float32); best = np.full((EH, EW), -1e9, np.float32); tn = math.tan(math.radians(47.5))
+    for Rm, img in faces:
+        dc = D @ Rm                                                 # into the camera's frame (columns are its axes)
+        fz = -dc[..., 2]
+        x = dc[..., 0] / np.maximum(fz, 1e-6); y = dc[..., 1] / np.maximum(fz, 1e-6)
+        ok = (fz > 0) & (np.abs(x) <= tn) & (np.abs(y) <= tn) & (fz > best)
+        px = np.clip((x / tn + 1) / 2 * FS - 0.5, 0, FS - 1.001); py = np.clip((y / tn + 1) / 2 * FS - 0.5, 0, FS - 1.001)
+        i0 = px.astype(int); j0 = py.astype(int); fx = (px - i0)[..., None]; fy = (py - j0)[..., None]
+        smp = img[j0, i0] * (1 - fx) * (1 - fy) + img[j0, i0 + 1] * fx * (1 - fy) + img[j0 + 1, i0] * (1 - fx) * fy + img[j0 + 1, i0 + 1] * fx * fy
+        env[ok] = smp[ok]; best[ok] = fz[ok]
+    env[..., 3] = 1.
+    env.astype(np.float16).tofile(os.path.join(d, 'env.bin'))
+    # The soft one: a quarter the size, blurred (about 6 degrees), wrapping round in longitude.
+    sm = env.reshape(EH // 4, 4, EW // 4, 4, 4).mean((1, 3))
+    for _ in range(3):
+        sm = (np.roll(sm, 1, 1) + sm + np.roll(sm, -1, 1)) / 3.
+        sm = (np.concatenate([sm[:1], sm[:-1]]) + sm + np.concatenate([sm[1:], sm[-1:]])) / 3.
+    sm.astype(np.float16).tofile(os.path.join(d, 'env-soft.bin'))
+    meta['env'] = [EW, EH]; meta['envSoft'] = [EW // 4, EH // 4]
+    meta['map'] = 'u = atan2(x, y) / 2pi + .5, v = asin(z) / pi + .5 (Blender coordinates; rows from the bottom)'
+    scene.camera, scene.render.resolution_x, scene.render.resolution_y, scene.render.resolution_percentage = keep
+    for o in hide: o.hide_render = False
+    json.dump(meta, open(os.path.join(d, 'meta.json'), 'w'), indent=1)
+    print('exported', d, meta['glass'])
+
 def use_gpu():
     try:
         cp = bpy.context.preferences.addons['cycles'].preferences
@@ -493,12 +631,21 @@ def overlay_words(png):
     ink = bpy.data.images.load(os.path.join(LAYOUT, 'ink.png')); iw, ih = ink.size
     ib = np.empty(iw * ih * 4, dtype=np.float32); ink.pixels.foreach_get(ib)
     ik = ib.reshape(ih, iw, 4)[::-1][..., 0]
-    k = 2.0619; Xs, Ys = np.meshgrid(np.arange(W) + 0.5, np.arange(H) + 0.5)
-    sx = 58. + (Xs - 40.) / k; sy = 196. + (Ys - 477.) / k
+    f = W / 1586.; k = 2.0619 * f; Xs, Ys = np.meshgrid(np.arange(W) + 0.5, np.arange(H) + 0.5)   # (any render size: the frame scales)
+    sx = 58. + (Xs - 40. * f) / k; sy = 196. + (Ys - 477. * f) / k
     u = np.clip(sx * 3. - 0.5, 0, iw - 1.001); v = np.clip(sy * 3. - 0.5, 0, ih - 1.001)
     i0 = u.astype(int); j0 = v.astype(int); fx = u - i0; fy = v - j0
     a = (ik[j0, i0] * (1 - fx) * (1 - fy) + ik[j0, i0 + 1] * fx * (1 - fy) + ik[j0 + 1, i0] * (1 - fx) * fy + ik[j0 + 1, i0 + 1] * fx * fy)
     a *= (sx < 790.)                                             # not the beads' glyphs: the beads are in
+    # The glass behind the words a little darker and calm: a soft shade spread round the letters (as the live widget's
+    # words layer would carry), so the artist and the times keep their contrast.
+    sh = a.copy()
+    for _ in range(3):
+        for ax in (0, 1):
+            st_ = max(1, int(round(3 * f)))
+            sh = (np.roll(sh, -2 * st_, ax) + np.roll(sh, -st_, ax) + sh + np.roll(sh, st_, ax) + np.roll(sh, 2 * st_, ax)) / 5.
+    sh = np.clip(sh * 3.0, 0., 1.)
+    px[..., :3] *= (1. - float(ARGS.get('wordshade', 0.35)) * sh)[..., None]
     col = np.array([1.0, 0.975, 0.965])
     px[..., :3] = px[..., :3] * (1 - a[..., None]) + col * a[..., None]
     img.pixels.foreach_set(np.ascontiguousarray(px[::-1]).ravel())
@@ -509,13 +656,16 @@ if __name__ == '__main__' or 'render' in FLAGS:
     print('glass mesh', info)
     if ARGS.get('save'):
         bpy.ops.wm.save_as_mainfile(filepath=os.path.abspath(ARGS['save']))
+    if 'zebra' in ARGS or 'zebra' in FLAGS: zebra_scene()
+    if ARGS.get('export'):
+        use_gpu(); bpy.context.scene.cycles.samples = int(ARGS.get('samples', 64)); export_live(os.path.abspath(ARGS['export']))
     if 'render' in FLAGS:
         use_gpu()
         outp = os.path.abspath(ARGS.get('out', os.path.join(LAYOUT, 'render.png')))
         bpy.context.scene.render.filepath = outp
         bpy.context.scene.render.image_settings.file_format = 'PNG'
         bpy.ops.render.render(write_still=True)
-        if 'nowords' not in FLAGS:
+        if 'nowords' not in FLAGS and 'zebra' not in ARGS and 'zebra' not in FLAGS:
             words = outp.replace('.png', '-words.png')
             import shutil; shutil.copyfile(outp, words); overlay_words(words)
         print('rendered', outp)
