@@ -131,6 +131,9 @@ RIM_STATIONS = [
     ((146, 230),         36,   0, 1.12,  0),
     ((86, 272),          48,   0, 1.12,  0),
 ]
+if float(ARGS.get('curl', 1.0)) > 0:
+    # (the curl: round the right end the outer roll slimmer and set back, behind the sheet's rolled lip)
+    RIM_STATIONS = [((1556, 470), 24, 12, .98, 0) if st[0] == (1556, 470) else st for st in RIM_STATIONS]
 
 # The ridge: the owner's trace, start under the cover's lower left, the twist, the sheet's edge, the tail tip.
 # u, v, depth, radius, squash, tilt
@@ -156,6 +159,20 @@ RIDGE = [
     (1528, 522, -40, 10, .9, 0),
     (1531, 551, -38, 9, .9, 0),
 ]
+# The right end's curl (the owner, 17 November 2026: as tight as the reference's, the sheet rolling over and down
+# into a sharp tail tip). The sheet's rolled lip becomes the right edge itself: past the wells it runs out to the
+# outline, turns down close inside it, fat and standing forward of the outer roll (which sits back behind it there),
+# and comes down into the tip; the fold's crease follows it round on the inside. curl=0 gives the gentler end.
+CURL = float(ARGS.get('curl', 1.0))
+if CURL > 0:
+    RIDGE = RIDGE[:-4] + [
+        (1462, 400, -48, 26, .9, 0),
+        (1495, 430, -54, 32, .9, 0),
+        (1515, 470, -52, 30, .9, 0),
+        (1524, 505, -46, 22, .9, 0),
+        (1528, 532, -41, 14, .9, 0),
+        (1531, 551, -38, 9, .9, 0),
+    ]
 # Just past the title the ridge's soft join laid the studio's hot line on the foot of the title's last letter: the
 # twist's start eased a few px down and right (within the trace's own width; the reference's crest runs there too).
 TWIST_DV = float(ARGS.get('twist_dv', 16.0)); TWIST_DU = float(ARGS.get('twist_du', 6.0))
@@ -632,13 +649,14 @@ def build_field():
     nrm = np.stack([-tan[:, 1], tan[:, 0]], 1)
     nrm *= np.sign(np.sum(nrm * (np.array(CHANNEL_CENTRE) - ridge[:, :2]), 1))[:, None]
     w = np.clip((ridge[:, 0] - 990.0) / 70.0, 0, 1); w = w * w * (3 - 2 * w)
-    n_end = np.clip((len(ridge) - 1 - np.arange(len(ridge))) / 25.0, 0, 1)      # fade out before the tail tip
+    n_end = np.clip((len(ridge) - 1 - np.arange(len(ridge))) / (14.0 if CURL > 0 else 25.0), 0, 1)   # fade out before the tail tip (with the curl: close to it, so the crease runs round inside the lip)
+    n_end = n_end * n_end * (3 - 2 * n_end)
     w = w * n_end
     sel = w > 0.02
     gp = ridge[sel].copy()
     off = (ridge[sel, 3] + FOLD['off'])[:, None] * nrm[sel]
     gp[:, 0] += off[:, 0]; gp[:, 1] += off[:, 1]
-    gp[:, 2] = ridge[sel, 2] + FOLD['back']
+    gp[:, 2] = ridge[sel, 2] + FOLD['back'] + (1.0 - w[sel]) * (24.0 if CURL > 0 else 0.0)   # (sinks back as it fades: no knot where it ends)
     gp[:, 3] = np.maximum(FOLD['r'] * w[sel], 1.5)
     gp[:, 4] = 1.0
     Pf, Qf = tube_mesh(gp, closed=False)

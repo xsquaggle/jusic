@@ -1,0 +1,75 @@
+{
+ "out": "design/captures/mercury3d-frozen-curl.png",
+ "width": 1800,
+ "title": "The right end's curl (the model now frozen): the reference, before, after (live, the studio behind), the live zebra; below, the solid form from the side, before and after",
+ "notes": [
+  "ok: 4. The sheet's rolled lip is now the right edge: past the wells it runs out to the outline, fat and standing forward of the outer roll, rolls over and down, and comes into the tail tip; a crease runs diagonally inside it, as in the reference (it sinks away just above the tip, so no knot).",
+  "ok: 6. Zebra smooth round the curl and into the tip (the glow is now kept off the debug views: the zebra sheet sent with the polish was washed out by it)."
+ ],
+ "rows": [
+  [
+   {
+    "label": "reference",
+    "src": "design/references/widget-mercury.png",
+    "crop": [
+     1300,
+     220,
+     290,
+     400
+    ]
+   },
+   {
+    "label": "before",
+    "src": "design/captures/raw/mercury3d/p4-live.png",
+    "crop": [
+     1300,
+     220,
+     290,
+     400
+    ]
+   },
+   {
+    "label": "after",
+    "src": "design/captures/raw/mercury3d/p5-live.png",
+    "crop": [
+     1300,
+     220,
+     290,
+     400
+    ]
+   },
+   {
+    "label": "zebra (live)",
+    "src": "design/captures/raw/mercury3d/p5-zebra-live.png",
+    "crop": [
+     1300,
+     220,
+     290,
+     400
+    ]
+   }
+  ],
+  [
+   {
+    "label": "the form from the side, before",
+    "src": "design/captures/raw/mercury3d/p5-side-before.png",
+    "crop": [
+     700,
+     150,
+     886,
+     600
+    ]
+   },
+   {
+    "label": "after",
+    "src": "design/captures/raw/mercury3d/p5-side.png",
+    "crop": [
+     700,
+     150,
+     886,
+     600
+    ]
+   }
+  ]
+ ]
+}

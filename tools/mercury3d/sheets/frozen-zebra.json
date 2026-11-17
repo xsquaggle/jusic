@@ -1,0 +1,17 @@
+{
+ "out": "design/captures/mercury3d-frozen-zebra.png",
+ "width": 3196,
+ "title": "The zebra view of the frozen model: Blender (left), the exported mesh in the live renderer (right; no glow on debug views)",
+ "rows": [
+  [
+   {
+    "label": "Blender",
+    "src": "design/captures/raw/mercury3d/p5-zebra-blender.png"
+   },
+   {
+    "label": "live",
+    "src": "design/captures/raw/mercury3d/p5-zebra-live.png"
+   }
+  ]
+ ]
+}

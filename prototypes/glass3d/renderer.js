@@ -568,7 +568,7 @@ export async function createGlass(canvas, { assets, ss = 2, studio = 'live', lig
     gl.viewport(0, 0, CW, CH);
     gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
     u = use(prog.down); tex(u.uHdr, T.hdr.tex); tex(u.uTone, toneTex, gl.TEXTURE_3D);
-    tex(u.uBloom, T.glowA.tex); gl.uniform3f(u.uBloomK, L.bloom * 0.5, L.bloom * 0.35, L.bloom * 0.25);
+    tex(u.uBloom, T.glowA.tex); { const b = R.dbg ? 0 : L.bloom; gl.uniform3f(u.uBloomK, b * 0.5, b * 0.35, b * 0.25); }   // (no glow on the debug views)
     {   // the glow's colour: white toward the album's warm (peach with a little of the album, as the light pass's warm)
       const w = [1, 0.8, 0.72].map((c, i) => c * 0.65 + R.tint[i] * 0.35), m = Math.max(...w);
       gl.uniform3fv(u.uBloomTint, w.map((c) => 1 + (c / m - 1) * L.bloomWarm));
