@@ -170,7 +170,7 @@ export function createMercury(canvas, { reducedMotion = false, family, maxRender
   let coverA = coverTexture();   // outgoing
   let coverB = coverTexture();   // current
 
-  const ink = createInk(gl, { family });
+  const ink = createInk(gl, { family, material });
 
   /* ------------------------------------------- what is behind the window --- */
 

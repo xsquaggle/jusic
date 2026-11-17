@@ -24,7 +24,12 @@ const STROKES = {
   hide: 'M6 6l12 12M18 6 6 18',
 };
 
-export function createInk(gl, { family = 'Montserrat' } = {}) {
+export function createInk(gl, { family = 'Montserrat', material = 1 } = {}) {
+  // (Material 2, round 66: the title the reference's size and weight, 11% smaller and 500 where it was 560; the
+  // artist 300 at 55% white, as the reference's.)
+  const m2 = material > 1.5;
+  const TITLE = m2 ? { size: L.title.size * 0.9, weight: 500 } : { size: L.title.size, weight: 560 };
+  const ARTIST = m2 ? { weight: 300, alpha: 0.55 } : { weight: 400, alpha: 0.8 };
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d');
   const tex = gl.createTexture();
@@ -134,14 +139,14 @@ export function createInk(gl, { family = 'Montserrat' } = {}) {
 
     // Title and artist: upright and plain. The liquid does the rest.
     // A long title is set smaller, down to four fifths, before any of it is cut.
-    let size = L.title.size;
-    ctx.font = font(560, size);
+    let size = TITLE.size;
+    ctx.font = font(TITLE.weight, size);
     const need = ctx.measureText(labels.title).width;
-    if (need > L.title.maxW) { size = Math.max(L.title.size * 0.76, size * L.title.maxW / need); ctx.font = font(560, size); }
+    if (need > L.title.maxW) { size = Math.max(TITLE.size * 0.76, size * L.title.maxW / need); ctx.font = font(TITLE.weight, size); }
     ctx.globalAlpha = 1;
-    along(fit(labels.title, L.title.maxW), L.title.x, () => L.title.y - (L.title.size - size) * 0.3);
-    ctx.font = font(400, L.artist.size);
-    ctx.globalAlpha = 0.8;
+    along(fit(labels.title, L.title.maxW), L.title.x, () => L.title.y - (TITLE.size - size) * 0.3);
+    ctx.font = font(ARTIST.weight, L.artist.size);
+    ctx.globalAlpha = ARTIST.alpha;
     along(fit(labels.artist, L.artist.maxW), L.artist.x, () => L.artist.y, { tracking: 0.15 });
 
     // Times sit at the two ends of the timeline, level with it.

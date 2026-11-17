@@ -1,0 +1,84 @@
+{
+ "out": "design/captures/mercury-ab-round66.png",
+ "width": 1830,
+ "title": "Mercury B at half size: round 65 (top) against round 66, the forms fattened (?mat=2, generated test cover)",
+ "rows": [
+  [
+   {
+    "label": "reference: widget-mercury.png",
+    "src": "design/references/widget-mercury.png",
+    "crop": [
+     20,
+     200,
+     1566,
+     590
+    ],
+    "w": 900
+   }
+  ],
+  [
+   {
+    "label": "round 65, dark desktop",
+    "src": "design/captures/raw/round65-B/dark.png",
+    "crop": [
+     90,
+     50,
+     1022,
+     513
+    ]
+   },
+   {
+    "label": "round 65, light wallpaper",
+    "src": "design/captures/raw/round65-B/light.png",
+    "crop": [
+     90,
+     50,
+     1022,
+     513
+    ]
+   },
+   {
+    "label": "round 65, white window",
+    "src": "design/captures/raw/round65-B/window.png",
+    "crop": [
+     90,
+     50,
+     1022,
+     513
+    ]
+   }
+  ],
+  [
+   {
+    "label": "round 66, dark desktop",
+    "src": "design/captures/raw/round66-B/dark.png",
+    "crop": [
+     90,
+     50,
+     1022,
+     513
+    ]
+   },
+   {
+    "label": "round 66, light wallpaper",
+    "src": "design/captures/raw/round66-B/light.png",
+    "crop": [
+     90,
+     50,
+     1022,
+     513
+    ]
+   },
+   {
+    "label": "round 66, white window",
+    "src": "design/captures/raw/round66-B/window.png",
+    "crop": [
+     90,
+     50,
+     1022,
+     513
+    ]
+   }
+  ]
+ ]
+}

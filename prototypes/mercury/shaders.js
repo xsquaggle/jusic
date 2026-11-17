@@ -442,6 +442,10 @@ vec2 shelfAt(vec2 p, float dTile) {
 // The form: how far in from the silhouette it rises (units: in the bulb, through the waist, over the
 // right lobe; about three quarters of the body's half-thickness there), and how high.
 const vec4 MAT2_H = vec4(80., 52., 62., 18.);
+// Round 66, at the owner's word ("poured, not stamped"): the height is FAT2 times how far in from the
+// silhouette the glass rises there, so each part is round in cross-section like a tube or a bulb, not a
+// flattened lens (MAT2_H.w, 18 over 52 to 80 across, was about 1 to 4).
+const float FAT2 = .62;
 // The upper sheet over the fold, a layer of its own: how much thicker it is than the body below its
 // leading edge (at the right lobe; a little over half that under the words), and over how many units
 // past the edge it rises (its rolled lip).
@@ -454,14 +458,14 @@ const float MAT2_POD = .3;   // (unused since round 65: the ridge's channel, CHA
 // at a flat .55 of the room reflected about 65% of it where the glass faces the viewer: metal. The far
 // face is now weighted by its own Fresnel seen from inside, a few percent straight on and all of it past
 // the critical angle, so the light gathers in the rims and the middle stays deep; .y scales it.)
-const vec4 MAT2 = vec4(.05, 1., .3, .42);
+const vec4 MAT2 = vec4(.05, .7, .3, .42);   // (round 66: the far face .7 where it was 1: the fat forms reflect it over far more of themselves)
 // The light inside the glass (round 64): how bright where it is thickest; how much more toward the lower
 // edge, where the floor's light comes up through it; how far it takes the album's colour; how much less
 // of it lies under the words. (The reference's glass under the words is about 70,50,50, not black.)
-const vec4 GLOW2 = vec4(.1, .06, .3, .3);
+const vec4 GLOW2 = vec4(.08, .035, .3, .3);   // (round 66: .1 and .06 before the fat forms)
 // The light trapped in the edge (round 64): a band just inside the outline, never outside it. How bright
 // its coloured sides, how bright its white-hot core, how far in it lies, how wide.
-const vec4 RIM2 = vec4(.38, .75, 5., 3.8);
+const vec4 RIM2 = vec4(.22, .45, 5., 3.8);   // (round 66: .38 and .75 until the forms were fat; their rims now carry light of their own)
 // How soft the reflections are on the broad body, and the curvature over which they turn crisp toward
 // the tight rims (round 64, the owner's correction of the audit: soft across the body, crisp only on
 // tight rims).
@@ -476,13 +480,15 @@ const float REFR2 = .55;
 // Round 65, the geometry step on material 2 (the owner's item 2). The button wells: smooth hollows with no
 // raised ring: how deep, how far beyond the button's radius the hollow begins, how far inside it its wall
 // has come down.
-const vec3 WELL2 = vec3(7.5, 3., 13.);
+const vec3 WELL2 = vec3(10., 6., 18.);   // (round 65: 7.5, 3, 13)
+// Their light (round 66): the luminous warm rim, the glow low inside.
+const vec2 WELL2_LIGHT = vec2(.45, .08);
 // The cover's pocket: no bank standing round it; the glass comes down to the art in one soft slope (how
 // deep, over how many units) and meets it level, so no wall stands upright round the art to draw a frame.
-const vec2 POCKET2 = vec2(6., 16.);   // (9 over 15 at first in round 65: steeper than the critical angle, it drew a small ring in the notch outside each of the cover's corners; 7 over 22 lit the wall right of the cover as a broad bright bar)
+const vec2 POCKET2 = vec2(13., 30.);   // (round 66, a deep round well; round 65 6 over 16)   // (9 over 15 at first in round 65: steeper than the critical angle, it drew a small ring in the notch outside each of the cover's corners; 7 over 22 lit the wall right of the cover as a broad bright bar)
 // The lamps' strengths: the wide strip overhead, the key panel up and to the left, the tall strip
 // behind on the right, the floor's warm bounce.
-const vec4 ENV2 = vec4(3.4, 4.2, 2.4, 1.6);
+const vec4 ENV2 = vec4(2.6, 4.2, 2.4, 1.6);   // (round 66: the overhead strip 2.6 where it was 3.4: the fatter forms catch it over more of their tops)
 // A soft light all round the horizon, so glass seen edge-on (the silhouette) catches light and stays a
 // crisp bright edge instead of mirroring a black room into a dark outline: how bright, how wide.
 const vec2 ENV2_HOR = vec2(.55, .025);
@@ -500,13 +506,15 @@ const vec2 ENV2_FRONT = vec2(.06, 1.4);
 const vec2 TAIL2 = vec2(.45, .6);
 const vec4 TAIL2_AT = vec4(735., 785., 205., 245.);
 // The ridge (round 65). How high it stands and how wide each of its flanks is (units).
-const vec2 RIDGE2_H = vec2(7., 12.);
+const vec2 RIDGE2_H = vec2(13., 24.);   // (round 65: 7 on 12-unit flanks)
 // Left of the twist the glass on its outer side is the dent the cover presses: how deep beside the cover,
 // how deep under the words (it narrows to nothing at the twist). Right of it, the sheet: how thick.
-const vec3 DENT2 = vec3(5., 3., 5.5);
+const vec3 DENT2 = vec3(11., 8., 14.);   // (round 65: 5, 3 and 5.5)
 // Under the sheet, the channel the buttons sit in: how deep, how far below the ridge it has blended away
 // into the band that carries the timeline.
-const vec2 CHAN2 = vec2(3.5, 100.);
+const vec2 CHAN2 = vec2(8., 110.);   // (round 65: 3.5 deep)
+// The groove at the ridge's inner foot left of the twist, so the band below is a roll of its own: how deep.
+const float GROOVE2 = 3.5;
 ${RIDGE2_GLSL}
 // Where this pixel lies against the ridge, found once per pixel (main) and carried to the points round it
 // along the ridge's own direction: x how far to its outer side (negative on its inner side), y how far
@@ -545,15 +553,21 @@ float form2(vec2 p, float d) {
   vec2 rg = ridgeAt(p);
   float side = sheetSide(rg.y), live = ridgeLive(rg.y);
   float outer = smoothstep(RIDGE2_H.y * .3, RIDGE2_H.y * 1.5, rg.x);
-  float h = (MAT2_H.w + DENT2.z * outer * side) * prof * mix(1., TAIL2.y, tailT);
+  float h = (FAT2 * Rl + DENT2.z * outer * side) * prof * mix(1., TAIL2.y, tailT);
   // One thick rounded ridge, merging into the outer edge at the tail tip.
-  h += RIDGE2_H.x * exp(-pow(rg.x / RIDGE2_H.y, 2.)) * live * smoothstep(-1., 6., -d);
+  // (Round 66: right of the twist its inner flank is half as wide, so the sheet's edge drops quickly into the
+  // channel: as wide as the outer one it lay over the tops of the wells and mirrored the floor there as pink caps.)
+  float rwIn = rg.x < 0. ? mix(RIDGE2_H.y, RIDGE2_H.y * .5, side) : RIDGE2_H.y;
+  h += RIDGE2_H.x * exp(-pow(rg.x / rwIn, 2.)) * live * smoothstep(-1., 6., -d);
   // Its outer side left of the twist: the dent, deepest at the cover, shallower under the words; the outline's
   // own rim stays.
   float dent = mix(DENT2.x, DENT2.y, smoothstep(RIDGE2_MARK.x - 10., RIDGE2_MARK.x + 60., rg.y)) * smoothstep(-40., 0., rg.y);
   // (Not within 20 units of the cover, where the pocket and the press take over: stacked on them it left a
   // small pit in the notch outside each of the cover's corners, which focused the lamps into a bright spot.)
   h -= dent * outer * (1. - side) * smoothstep(4., 24., -d) * smoothstep(2., 22., tileSdf(p, uTile.xy));
+  // Its inner foot left of the twist: a soft groove, so the band below that carries the timeline is a roll of
+  // its own (round 66).
+  h -= GROOVE2 * exp(-pow((rg.x + RIDGE2_H.y * 1.5) / (RIDGE2_H.y * .85), 2.)) * live * (1. - side) * smoothstep(4., 20., -d);
   // Its inner side right of the twist: the channel, blending softly into the band below.
   h -= CHAN2.x * smoothstep(RIDGE2_H.y * .4, RIDGE2_H.y * 1.8, -rg.x) * smoothstep(CHAN2.y, CHAN2.y * .5, -rg.x) * side * smoothstep(RIDGE2_MARK.z, RIDGE2_MARK.z - 50., rg.y);
   float t2 = clamp(-d / 110., 0., 1.);
@@ -638,17 +652,21 @@ float base(vec2 p0) {
   // The bulb is crowned: full in the middle and falling away to its rim all round, so the
   // part of it toward the lamps carries a sheen and the part toward the floor its colour.
   h += BULB_CROWN * pow(max(1. - dot(a, a) / (BULB.z * BULB.z), 0.), 1.5);
-  h += 6. * exp(-dot(b, b) / 24000.) + 4. * exp(-dot(c, c) / 9000.);
-  h += 1.1 * sin(p.x * .017 + uTime * .36 + .8 * sin(p.y * .015 - uTime * .17));
-  h += .7 * sin(p.x * .009 - p.y * .022 - uTime * .26 + 2.);
+  // (Material 2, round 66: none of these. The owner: smooth, polished glass when nothing is happening; ripples
+  // and swells only from the music, the cursor and clicks.)
+  float rest = uMat > 1.5 ? 0. : 1.;
+  h += (6. * exp(-dot(b, b) / 24000.) + 4. * exp(-dot(c, c) / 9000.)) * rest;
+  h += 1.1 * sin(p.x * .017 + uTime * .36 + .8 * sin(p.y * .015 - uTime * .17)) * rest;
+  h += .7 * sin(p.x * .009 - p.y * .022 - uTime * .26 + 2.) * rest;
 
   // Waves from the music, running along the lower body; a fine shiver from the highs.
   float lower = smoothstep(226., 300., p.y);
   // (Material 2, round 65: they ride the band below the ridge, not the ridge: running through it they made
   // it undulate, and left a small bump at the cover's corner.)
   if (uMat > 1.5) lower *= smoothstep(RIDGE2_H.y * .8, RIDGE2_H.y * 2.6, -ridgeAt(p).x);
-  h += (.15 + 2.8 * uAudio.x) * sin(p.x * .022 - uTime * 2.2 + .6 * sin(p.y * .03)) * lower;
-  h += 1.1 * uAudio.y * sin(p.x * .052 + p.y * .02 - uTime * 3.4) * lower;
+  float wv = uMat > 1.5 ? .15 : 1.;   // (material 2, round 66: a sixth, and nothing at rest: near the critical angle even small waves drew wavy streaks)
+  h += ((uMat > 1.5 ? 0. : .15) + 2.8 * uAudio.x) * wv * sin(p.x * .022 - uTime * 2.2 + .6 * sin(p.y * .03)) * lower;
+  h += 1.1 * uAudio.y * wv * sin(p.x * .052 + p.y * .02 - uTime * 3.4) * lower;
   h += .35 * uAudio.z * sin(p.x * .21 + uTime * 9.) * sin(p.y * .19 - uTime * 7.) * (uMat > 1.5 ? .33 : 1.);   // (material 2, round 65: a third: it wobbled the ridge's light)
 
   // A bead is a small round dome of its own, not rolled like the drop's edge: steep all round its
@@ -979,7 +997,7 @@ void main() {
     // Inside a button's bowl nothing is mirrored sharply: one soft light on its wall, not rings.
     float bowl = 0.;
     for (int i = 0; i < 3; i++) bowl = max(bowl, smoothstep(uBtn[i].z + 2., uBtn[i].z - 6., length(pw - uBtn[i].xy)));
-    gSoft = max(gSoft, .06 * bowl);
+    gSoft = max(gSoft, (uMat > 1.5 ? .22 : .06) * bowl);   // (material 2, round 66: soft, so no chrome ring or hook of a glint)
     // The wall of the cover's pocket is cut crisp: what it mirrors keeps its edge.
     float pocket = smoothstep(POCKET.y + 5., POCKET.y - 1., dT) * born;
     gSoft = mix(gSoft, min(gSoft, .045), pocket);
@@ -1616,7 +1634,7 @@ void main() {
       float Fe = fresnelIn(clamp(dot(Tr, N), 0., 1.));
       mat3 leanM = rotY(uLean.x * .26 + .02 * uAudio.x * sin(uTime * 5.3)) * rotX(uLean.y * -.2 + .016 * uAudio.y * sin(uTime * 7.1));
       float soft0 = gSoft;
-      gSoft = max(gSoft, .06);                                    // seen through the glass, a little softer
+      gSoft = max(gSoft, .16);                                    // seen through the glass, softer (round 66: .16 where it was .06: through fat glass it drew streaks)
       vec3 backE = env2(leanM * refract(Tr, -N, 1.5), BACK2) * (1. - Fe) + env2(leanM * reflect(Tr, -N), BACK2) * Fe;
       vec3 backR = backE * mix(vec3(1.), hue, MAT2.z * thick) * MAT2.y * Fb * (1. - F2) * (1. - .7 * cm);
       gSoft = soft0;
@@ -1633,6 +1651,9 @@ void main() {
       // (Refracting, what is behind supplies the light coming through the glass: the full inner light over it
       // lay like a fog and hid the stripes bent through the body.)
       inside *= 1. - REFR2 * uBackPx.y;
+      // (Round 66: a well is a hollow in the glass, so less of the glass's light is inside it; filled with it, the
+      // wells of the fat forms read as pink domes.)
+      inside *= 1. - .65 * bowl;
       col = frontR * F2 + backR + inside * (1. - F2) * (1. - Fb);
       col += lumen * MAT2.w * (1. - F2) * (1. - .9 * cm);
       // Light trapped in the edge: a band just inside the outline, white-hot at its core and coloured at
@@ -1657,7 +1678,12 @@ void main() {
       for (int i = 0; i < 3; i++) {
         float rho = length(pw - uBtn[i].xy), r = uBtn[i].z;
         float upper = dot(normalize(pw - uBtn[i].xy + 1e-3), vec2(0., -1.));
-        col *= 1. - (.22 + .2 * uBtn[i].w) * smoothstep(r + WELL2.y, r - WELL2.z, rho) * (.6 + .4 * upper);   // (round 65: as soft as the well, not a dark disc)
+        col *= 1. - (.72 + .15 * uBtn[i].w) * smoothstep(r - 1., r - 9., rho) * (.75 + .25 * upper);   // (round 66: the inner walls dark, the lip left lit; reflecting the floor, the upper inner walls read as pink caps on domes)   // (round 65: as soft as the well, not a dark disc; round 66: deeper, .42 where it was .22)
+        // (Round 66: a luminous warm rim, brightest low down, and a warm glow low inside, as the reference's wells.)
+        vec2 wd = (pw - uBtn[i].xy) / max(rho, 1e-3);
+        vec3 warmW = mix(hotA, vec3(1., .8, .66), .45);
+        col += warmW * WELL2_LIGHT.x * exp(-pow((rho - r + 1.5) / 2.8, 2.)) * (.3 + .7 * smoothstep(-.3, .9, wd.y));
+        col += warmW * WELL2_LIGHT.y * exp(-pow((rho - .6 * r) / (.32 * r), 2.)) * smoothstep(-.1, .9, wd.y);
       }
       // The cover's contact shadow, and its picture seen again in the pocket's wall.
       tshadow = (.8 * smoothstep(2.4, .3, dT) + .12 * smoothstep(12., -8., tileSdf(pw - vec2(3., 6.), uTile.xy))) * born;   // (round 65: a thin dark contact line; it was a 6-unit band)
@@ -1755,10 +1781,11 @@ void main() {
     float played = smoothstep(sx + 1., sx - 1., q.x);
     float core = smoothstep(2.5 + .6 * uSeek.w - (uMat > 1.5 ? .8 * (1. - played) : 0.), 1.1, dl);
     // (Material 2: the part not yet played a thinner grey line at about 40% white, as the reference's.)
-    emis += mix(vec3(.8, .8, .84) * (uMat > 1.5 ? .34 : .62), warmWhite * 1.3, played) * core;
+    vec3 hotCore = uMat > 1.5 ? mix(warmWhite, hotA, .3) * 1.35 : warmWhite * 1.3;   // (material 2, round 66: the album in its hot core)
+    emis += mix(vec3(.8, .8, .84) * (uMat > 1.5 ? .26 : .62), hotCore, played) * core;
     // (Round 59: its wide glow is a third of what it was, .06 where it was .16: it lit the glass between the
     // timeline and the lower edge to 4s and 5s, where the reference's is dark, 2s, down to the edge's roll.)
-    emis += hotA * played * (.8 * exp(-dl * dl / 30.) + .06 * exp(-dl * dl / 380.)) * (.7 + .5 * uAudio.w + .25 * uSeek.z);
+    emis += hotA * played * ((uMat > 1.5 ? 1.05 : .8) * exp(-dl * dl / (uMat > 1.5 ? 42. : 30.)) + .06 * exp(-dl * dl / 380.)) * (.7 + .5 * uAudio.w + .25 * uSeek.z);
     // The bead stretches the way it is being pulled and thins as it does.
     float st = clamp(uSeekPull.x, -1., 1.);
     vec2 bq = q - vec2(sx - 5. * st, seekLine(sx));
@@ -1775,8 +1802,8 @@ void main() {
     float vplayed = smoothstep(vx + 1., vx - 1., q.x) * (1. - uVol.w);
     float vcore = smoothstep(3. + .5 * uVol.z, 1.5, dv);
     // (The part not yet played is dim, as the reference's is: 4s beside the played part's 8s. It was 7s.)
-    emis += mix(vec3(.82, .82, .86) * (uMat > 1.5 ? .3 : .45), warmWhite * 1.35, vplayed) * vcore;
-    emis += hotA * vplayed * .6 * exp(-dv * dv / 24.);
+    emis += mix(vec3(.82, .82, .86) * (uMat > 1.5 ? .24 : .45), uMat > 1.5 ? mix(warmWhite, hotA, .3) * 1.4 : warmWhite * 1.35, vplayed) * vcore;
+    emis += hotA * vplayed * (uMat > 1.5 ? .85 : .6) * exp(-dv * dv / (uMat > 1.5 ? 34. : 24.));
     float dvb = length(q - vec2(vx, volY(vx)));
     float vr = 5.6 * (1. + .5 * uVol.y);
     emis += warmWhite * 1.9 * smoothstep(vr + .8, vr - .8, dvb) * (1. - .6 * uVol.w);
