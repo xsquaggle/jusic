@@ -1,0 +1,64 @@
+{
+ "out": "design/captures/mercury3d-polish-desktops.png",
+ "width": 1772,
+ "title": "On screen, refraction on, over our own backdrop windows: a dark desktop, a light wallpaper, a white window (second monitor, 100%)",
+ "rows": [
+  [
+   {
+    "label": "reference (same scale)",
+    "src": "design/references/widget-mercury.png",
+    "crop": [
+     0,
+     88,
+     1586,
+     825
+    ],
+    "w": 860
+   },
+   {
+    "label": "dark desktop",
+    "src": "design/captures/raw/mercury3d/shots-polish/window-dark.png",
+    "crop": [
+     50,
+     40,
+     860,
+     400
+    ],
+    "w": 860
+   }
+  ],
+  [
+   {
+    "label": "light wallpaper",
+    "src": "design/captures/raw/mercury3d/shots-polish/window-busy.png",
+    "crop": [
+     50,
+     40,
+     860,
+     400
+    ],
+    "w": 860
+   },
+   {
+    "label": "white window",
+    "src": "design/captures/raw/mercury3d/shots-polish/window-light.png",
+    "crop": [
+     50,
+     40,
+     860,
+     400
+    ],
+    "w": 860
+   }
+  ]
+ ],
+ "notes": [
+  "part: 1. Over a dark desktop it now glows, much nearer the reference: the hot lines glow inside the glass (never outside the outline), the rolls keep their own rose light, the desktop still shows through the middles, a white page still near 40%. Left: the outline's light still reads as an even rose band in places, fewer deep darks beside the highlights than the reference, the channel round the wells busier with thin lines.",
+  "part: 2. The cover sits on the ridge in a pocket round on every side; the art is now carried round the ring (mirrored across the pocket's wall, fading) as well as its glow; fainter and less vivid than the reference's marble.",
+  "ok: 3. The ridge is one roll along your trace: under the cover, level under the words, up through the twist (its start eased 8 to 12 px down and right, where the reference's crest runs), the sheet's lip over the wells, into the tail tip.",
+  "part: 4. The twist, the sheet over the wells, three round wells with dark middles and warm rims; the right end's curl is still gentler than the reference's (not worked on this round).",
+  "ok: 5. Words and controls crisp and readable over dark, a light wallpaper and a white window. The twist's hot line now clears the title's last letter (by about 6 px at real size); no line crosses the artist or the times.",
+  "ok: 6. Zebra smooth in Blender and live; the live normals now continuous across voxels (the saw-tooth in the hot line is gone), the bulb's left side ironed.",
+  "part: 7. 59.4 fps at the widget's real size (125%, drawn at 2150 x 1000) using 3.5% of the GPU, 4.0% with refraction on, measured while a game held the card at 99% (two earlier runs gave 56 to 57 fps as the game's load moved; the cap is 60; the new glow costs no measurable share); 0% when still, 0.2% with refraction. Audio not part of this still."
+ ]
+}

@@ -19,6 +19,8 @@
  *
  *   ?assets=  ?ss=2  ?light=0|1  ?studio=live|cycles  ?dbg=1..7  ?words=0  ?pools=0  ?bg=ref (pictures only)
  *   ?track=n  ?play  ?cover=<url>&title=&artist=&dur=   and every light-pass number by name (see LIGHT)
+ *   ?deskimg=<url> (pictures only): a still image as the desktop behind the window, filling the canvas, bent through
+ *   the glass as refraction would (for checking the look over a desktop at any size without the window)
  */
 import { createGlass } from './renderer.js';
 import { paletteFromImage } from '../mercury/palette.js';
@@ -41,6 +43,14 @@ const LIGHT = MODE === 0
   : { exposure: 1, soft: 0, band: 3.2, lobe: 1, middle: 0.6, spill: 0.15, well: 0.6, warmth: 0.35, path: 2.2, through: 0.6, mirror: 1,
       hot: 0, hotk: 0, below: 1, marble: 1.4, marbleReach: 0.6, desk: 0.22, deskGap: 0.4, deskKeep: 0.05, coat: 0.006, edgeReach: 45,
       wordsDesk: 0.3 };
+// (the clear-glass polish) bloom: the glow round the hot lines (light in the glass, not lines drawn on it; only inside
+// the outline), above bloomThr, its spread bloomR, warmed toward peach by bloomWarm; keepRoll: how much of the studio's
+// light the rolls keep over a dark desktop (luminous, as the reference's body; it fades out over bright desktops, where
+// the desktop is what the glass shows); sheen: a broad, soft reflection; edgeCore: the edge's light toward a narrower
+// core hugging the outline (a lit edge, not a painted rim); ringMirror: the art mirrored round the ring (the marble)
+Object.assign(LIGHT, MODE === 0
+  ? { bloom: 0, bloomThr: 1, bloomR: 1, bloomWarm: 0, keepRoll: LIGHT.deskKeep, sheen: 0, edgeCore: 0, ringMirror: 0 }
+  : { bloom: 1.5, bloomThr: 0.5, bloomR: 1.5, bloomWarm: 1, keepRoll: 0.6, sheen: 0.1, edgeCore: 0.8, ringMirror: 0.3 });
 for (const k of Object.keys(LIGHT)) if (Q.has(k)) LIGHT[k] = Number(Q.get(k));
 
 const $ = (id) => document.getElementById(id);
@@ -64,6 +74,7 @@ const fmt = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(
 const media = { state: null, key: null, art: null, base: 0, at: 0, rate: 1, sent: [] };
 
 let G = null;                        // the renderer
+let deskImg = null;                  // ?deskimg: a still desktop behind (pictures only)
 let tint = [1, 0.45, 0.4];           // the album's colour (0..1)
 
 function loadImage(src) {
@@ -264,6 +275,7 @@ function paintWords() {
 function paintPools() {
   const c = under.getContext('2d'); const k = kRef(), o = refOrigin();
   c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, under.width, under.height);
+  if (deskImg) c.drawImage(deskImg, 0, 0, under.width, under.height);
   c.setTransform(k, 0, 0, k, -o[0] * k, -o[1] * k);
   if (Q.get('bg') === 'ref') {
     c.save(); c.translate(793, 496); c.scale(0.7 * 1586, 0.8 * 992);
@@ -400,6 +412,7 @@ async function main() {
   G.words = [[492, 418, 830, 520], [240, 608, 322, 646], [1276, 572, 1370, 610], [1176, 290, 1330, 340]];
   for (const c of [under, ink]) { c.width = G.size.canvas[0]; c.height = G.size.canvas[1]; c.style.width = css[0] + 'px'; c.style.height = css[1] + 'px'; }
   await Promise.all(['500 40px Montserrat', '300 40px Montserrat', '400 40px Montserrat'].map((f) => document.fonts.load(f)));
+  if (Q.get('deskimg')) { deskImg = await loadImage(Q.get('deskimg')); G.setDesk(deskImg); G.desk.on = 1; G.desk.map = [0, 0, 1, 1]; }
   if (SYSTEM) {
     player.track = { title: 'Nothing playing', artist: '', duration: 0 }; player.time = 0; player.dim = 'ptn';
     useCover(plainCover()); G.coverSet = false;

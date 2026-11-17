@@ -156,6 +156,11 @@ RIDGE = [
     (1528, 522, -40, 10, .9, 0),
     (1531, 551, -38, 9, .9, 0),
 ]
+# Just past the title the ridge's soft join laid the studio's hot line on the foot of the title's last letter: the
+# twist's start eased a few px down and right (within the trace's own width; the reference's crest runs there too).
+TWIST_DV = float(ARGS.get('twist_dv', 16.0)); TWIST_DU = float(ARGS.get('twist_du', 6.0))
+RIDGE = [(u + TWIST_DU * math.exp(-((u - 800.0) / 60.0) ** 2), v + TWIST_DV * math.exp(-((u - 800.0) / 60.0) ** 2))
+         + tuple(r) for (u, v, *r) in RIDGE]
 CHANNEL_CENTRE = (1240, 520)  # a point inside the channel under the sheet's lip
 LIP = dict(attach=0.35, gap=8.0, drop=16.0)   # the sheet meets the lip this far toward its crest; the fold under it
 
@@ -185,7 +190,7 @@ WELL_LIP['raise'] = 4.0
 # Each region: its box, how far below the silhouette's top edge and above the ridge it keeps, the feather.
 # depth: how far in front of the front's own mean depth the plane sits (negative: toward the camera; a shallow hollow
 # whose edges rise gently to the rolls round it instead of a deep tray with walls).
-CALM = [dict(name='words', u=(436.0, float(ARGS.get('calm_u1', 900.0))), v=(416.0, 560.0), top=float(ARGS.get('calm_top', 3.0)), bottom=0.0, feather=16.0, depth=0.0, round=6.0),
+CALM = [dict(name='words', u=(436.0, float(ARGS.get('calm_u1', 900.0))), v=(416.0, 560.0), top=float(ARGS.get('calm_top', 3.0)), bottom=float(ARGS.get('calm_bottom', 0.0)), feather=16.0, depth=0.0, round=6.0),
         dict(name='volume', u=(1176.0, 1466.0), v=(280.0, 352.0), top=40.0, bottom=10.0, feather=14.0, depth=0.0, round=2.0)]
 CALM_TILT = float(ARGS.get('calm_tilt', 1.0))          # degrees up (negative: down); the dark band is -8.5..+3
 CALM_AMOUNT = float(ARGS.get('calm', 1.0))
@@ -639,6 +644,10 @@ def build_field():
     Pf, Qf = tube_mesh(gp, closed=False)
     F = smax(F, -level_set(Pf, Qf), FOLD['k'])
     log('fold carved')
+    # the bulb's broad left side, between the outer roll and the pocket, ironed (its soft humps made the hot line
+    # wander there in a Z)
+    smooth_region(F, (20.0, 150.0), (220.0, 600.0), passes=int(ARGS.get('bulb_smooth', 16)))
+    log('bulb side smoothed')
     # ---- the ring of glass round the cover, then the pocket carved through everything (round on every side)
     pocket_ring(F)
     pocket_cut(F)
@@ -843,8 +852,45 @@ def trilinear(F, P):
 
 def field_normals(F, P, h=0.75):
     """The outward normal at each point from the field's gradient (index axes i: u, j: depth, k: up, which are
-    Blender's X, Y, Z in the root's frame)."""
-    g = np.stack([trilinear(F, P + o) - trilinear(F, P - o) for o in np.eye(3, dtype=np.float32) * h], 1)
+    Blender's X, Y, Z in the root's frame).
+    (The clear-glass polish: the gradient is taken on the grid, from the field lightly blurred, and that gradient
+    interpolated: continuous across voxels. Differences of the interpolated field itself kinked at every voxel face,
+    and on broad, gently curved glass the hot strip's reflection showed the voxels as a saw-tooth.)"""
+    if ARGS.get('normals') == 'facet':
+        g = np.stack([trilinear(F, P + o) - trilinear(F, P - o) for o in np.eye(3, dtype=np.float32) * h], 1)
+        return (g / (np.linalg.norm(g, axis=1, keepdims=True) + 1e-12)).astype(np.float32)
+    passes = int(ARGS.get('normal_blur', 2))
+    P = np.clip(P, 1, np.array(F.shape) - 2.001)
+    i0 = np.floor(P).astype(np.int64); f = (P - i0).astype(np.float32)
+    # the nodes round the points only (the whole grid's gradient would not fit in memory twice over), blurred there
+    lo = np.maximum(i0.min(0) - 1 - passes, 0); hi = np.minimum(i0.max(0) + 3 + passes, np.array(F.shape))
+    g = np.zeros((len(P), 3), np.float32)
+    # walk the grid in slabs along u so the blurred copy stays small
+    step = 48
+    for a in range(int(lo[0]), int(hi[0]), step):
+        sel = (i0[:, 0] >= a) & (i0[:, 0] < a + step)
+        if not sel.any():
+            continue
+        b0 = max(a - 1 - passes, 0); b1 = min(a + step + 2 + passes, F.shape[0])
+        blk = F[b0:b1, lo[1]:hi[1], lo[2]:hi[2]].astype(np.float32)
+        for _ in range(passes):
+            for ax in range(3):
+                pad = np.concatenate([blk[(slice(None),) * ax + (slice(0, 1),)], blk, blk[(slice(None),) * ax + (slice(-1, None),)]], ax)
+                n = blk.shape[ax]
+                blk = (pad[(slice(None),) * ax + (slice(0, n),)] + 2 * blk + pad[(slice(None),) * ax + (slice(2, n + 2),)]) * 0.25
+        q = i0[sel] - np.array([b0, lo[1], lo[2]]); fq = f[sel]
+        acc = np.zeros((sel.sum(), 3), np.float32)
+        for dx in (0, 1):
+            wx = fq[:, 0] if dx else 1 - fq[:, 0]
+            for dy in (0, 1):
+                wy = fq[:, 1] if dy else 1 - fq[:, 1]
+                for dz in (0, 1):
+                    wz = fq[:, 2] if dz else 1 - fq[:, 2]
+                    x, y, z = q[:, 0] + dx, q[:, 1] + dy, q[:, 2] + dz
+                    gr = np.stack([blk[x + 1, y, z] - blk[x - 1, y, z], blk[x, y + 1, z] - blk[x, y - 1, z],
+                                   blk[x, y, z + 1] - blk[x, y, z - 1]], 1)
+                    acc += gr * (wx * wy * wz)[:, None]
+        g[sel] = acc
     return (g / (np.linalg.norm(g, axis=1, keepdims=True) + 1e-12)).astype(np.float32)
 
 def field_to_mesh(F, name):
@@ -1206,7 +1252,8 @@ def make_env(path, tint, w=2048, h=1024):
 # (Clear glass, not satin: broad sources only dim; what the glass mirrors is mostly dark, the few lights bright.)
 LIVE_STUDIO = dict(room=0.008, floor=0.45, over=1.8, over_deg=26.0, back=0.3, side=0.22, key=70.0, key_el=24.0, key_half=1.4,
                    low=8.0, low_el=-7.0, low_half=3.0,
-                   t_room=1.0, t_floor=0.45, t_over=0.5, t_back=0.2, t_side=0.4, strip_soft=0.03)
+                   box=0.0, box_az=-130.0, box_el=38.0, box_haz=28.0, box_hel=16.0,
+                   t_room=1.0, t_floor=0.45, t_over=0.5, t_back=0.2, t_side=0.4, t_box=0.3, strip_soft=0.03)
 
 def make_env_live(w=2048, h=1024):
     """The live studio as a pair of panoramas (Blender's equirectangular mapping, rows from the bottom): what the
@@ -1238,6 +1285,11 @@ def make_env_live(w=2048, h=1024):
     for a0 in (cam - 75, cam + 75):
         sp = sp + ss(26, 12, np.abs((az - a0 + 180) % 360 - 180)) * ss(-20, -5, eld) * ss(45, 30, eld)
     comp['side'] = sp[..., None] * white
+    # a large soft box above and to the left in front (the clear-glass polish): broad highlights on the faces turned
+    # up and left (the bulb's ring, the waist's top, the sheet), with dark between, as the reference's rolls
+    bx = (ss(st['box_haz'], st['box_haz'] * 0.35, np.abs((az - st['box_az'] + 180) % 360 - 180))
+          * ss(st['box_hel'], st['box_hel'] * 0.35, np.abs(eld - st['box_el'])))
+    comp['box'] = bx[..., None] * white
     card = 1.0 - ss(48, 30, dab) * ss(-6, -10, eld) * ss(-40, -28, eld)
     comp['room'] = comp['room'] * card[..., None]
     base = sum(st[n] * c for n, c in comp.items()).astype(np.float32)
