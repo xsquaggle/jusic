@@ -169,7 +169,9 @@ uniform vec2 uBackPx;        // x capture pixels per stage unit, y how much the 
 uniform float uMat;          // the material: 1 the painted light of rounds 11 to 62, 2 the material pass (round 63, ?mat=2)
 uniform sampler2D uH2;      // material 2, round 67: the form baked and smoothed: height, its slope (x, y), its curvature
 uniform sampler2D uR2;      // ...and the raw bake: height, distance to the outline, the ridge's field (across, along)
-uniform float uZebra;       // 1: the room is even horizontal stripes, to see the form's smoothness
+uniform sampler2D uDS;      // round 69, the bake only: the outline's distance smoothed (g)
+uniform float uBakeStep;    // round 69, the bake only: 0 the distance and the ridge's field, 1 the height on the smoothed distance
+uniform float uZebra;       // over 0: the room is even horizontal stripes, this many per radian of elevation, to see the form's smoothness
 uniform float uGlassFloor;   // experiment: the least the body holds back away from its edges (0 = today's clear glass)
 
 ${SHAPE_GLSL}
@@ -483,6 +485,8 @@ const vec4 MAT2_H = vec4(80., 52., 62., 18.);
 // silhouette the glass rises there, so each part is round in cross-section like a tube or a bulb, not a
 // flattened lens (MAT2_H.w, 18 over 52 to 80 across, was about 1 to 4).
 const float FAT2 = .62;
+// Round 69: the profile's height Rl in, sqrt(1 - e^-2), so it stands as high there as the old one did.
+const float PROF2 = .92988;
 // The upper sheet over the fold, a layer of its own: how much thicker it is than the body below its
 // leading edge (at the right lobe; a little over half that under the words), and over how many units
 // past the edge it rises (its rolled lip).
@@ -549,6 +553,10 @@ const vec2 RIDGE2_H = vec2(13., 24.);   // (round 65: 7 on 12-unit flanks)
 // Left of the twist the glass on its outer side is the dent the cover presses: how deep beside the cover,
 // how deep under the words (it narrows to nothing at the twist). Right of it, the sheet: how thick.
 const vec3 DENT2 = vec3(11., 8., 14.);   // (round 65: 5, 3 and 5.5)
+// Round 69: across the gap from the ridge's crest (0) to the outline (1), where the hollow has come down (x to y) and
+// where it rises again (z to w); and over what width of the gap it fades in, so it does not pinch where the gap narrows.
+const vec4 DENT2_U = vec4(.08, .42, .62, .97);
+const vec2 DENT2_GAP = vec2(30., 90.);
 // Under the sheet, the channel the buttons sit in: how deep, how far below the ridge it has blended away
 // into the band that carries the timeline.
 const vec2 CHAN2 = vec2(8., 110.);   // (round 65: 3.5 deep)
@@ -593,8 +601,12 @@ float ridgeLive(float sA) { return smoothstep(-6., 26., sA) * smoothstep(RIDGE2_
 float form2(vec2 p, float d) {
   float tailT = smoothstep(TAIL2_AT.x, TAIL2_AT.y, p.x) * smoothstep(TAIL2_AT.z, TAIL2_AT.w, p.y);
   float Rl = mix(mix(MAT2_H.x, MAT2_H.y, smoothstep(250., 360., p.x)), MAT2_H.z, smoothstep(480., 600., p.x)) * mix(1., TAIL2.x, tailT);
-  float s = clamp(-d / Rl, 0., 1.);
-  float prof = sqrt(1. - (1. - s) * (1. - s));
+  // (Round 69: the profile keeps rising, ever more gently, toward the middle of each part, where until round 68 it
+  // levelled off Rl in and left a flat plateau through the waist and the lower band: on level glass any small
+  // swell closed into an island the sharp lines ran round. sqrt(1 - e^-2s) rises as the old circle's sqrt(2s) at the
+  // edge; scaled so it stands as high Rl in.)
+  float s = clamp(-d / Rl, 0., 4.);
+  float prof = sqrt(1. - exp(-2. * s)) / PROF2;
   // (Round 65: the ridge, the dent and the sheet, where round 63's sheet followed the old arch.)
   vec2 rg = ridgeAt(p);
   float side = sheetSide(rg.y), live = ridgeLive(rg.y);
@@ -610,7 +622,13 @@ float form2(vec2 p, float d) {
   float dent = mix(DENT2.x, DENT2.y, smoothstep(RIDGE2_MARK.x - 10., RIDGE2_MARK.x + 60., rg.y)) * smoothstep(-40., 0., rg.y);
   // (Not within 20 units of the cover, where the pocket and the press take over: stacked on them it left a
   // small pit in the notch outside each of the cover's corners, which focused the lamps into a bright spot.)
-  h -= dent * outer * (1. - side) * smoothstep(4., 44., -d) * smoothstep(2., 30., tileSdf(p, uTile.xy));   // (round 68: eased in over wider bands; 24 and 22 left a wobble on the bulb's left side)
+  // (Round 69: its cross-section is laid across the gap between the ridge's crest and the outline above it, u from 0
+  // at the crest to 1 at the outline, so every contour of the hollow runs along it from the cover to the twist. Until
+  // round 68 it was a ramp off the ridge times a ramp off the outline, which where the gap narrows toward the twist
+  // crossed in lens-shaped bowls; the sharp lines ran round them and across the body.)
+  float g1 = max(rg.x, 0.), gap = g1 + max(-d, 0.), u = g1 / max(gap, 1.);
+  float bell = smoothstep(DENT2_U.x, DENT2_U.y, u) * smoothstep(DENT2_U.w, DENT2_U.z, u) * smoothstep(DENT2_GAP.x, DENT2_GAP.y, gap);
+  h -= dent * bell * (1. - side) * smoothstep(2., 30., tileSdf(p, uTile.xy));   // (round 68: eased in over wider bands; 24 and 22 left a wobble on the bulb's left side)
   // Its inner foot left of the twist: a soft groove, so the band below that carries the timeline is a roll of
   // its own (round 66).
   h -= GROOVE2 * exp(-pow((rg.x + RIDGE2_H.y * 1.5) / (RIDGE2_H.y * .85), 2.)) * live * (1. - side) * smoothstep(4., 20., -d);
@@ -729,10 +747,22 @@ float base(vec2 p0) {
 }
 
 // Material 2's form at rest, as baked (round 67): the form, the bulb's crown, the cover's pocket and the wells.
+// (Round 69: the profile is built on the outline's distance smoothed inside the body, BAKE_DIST: the union of circles
+// in shape.js meets itself along the middle of each part in a crease, which the profile carried into the form as a
+// fold the sharp reflections followed. Near the outline the smoothing tapers to nothing, so the edge stays put.)
+float dSmooth(vec2 q) {
+  float d = outlineB(q);
+#ifdef BAKE2
+  if (uBakeStep > .5) d = mix(d, texture(uDS, uvH(q)).g, smoothstep(1., 6., -d));
+#endif
+  return d;
+}
 float static2(vec2 q) {
-  float h = form2(q, outlineB(q));
+  float h = form2(q, dSmooth(q));
   vec2 a = q - vec2(186., 196.);
-  h += BULB_CROWN * pow(max(1. - dot(a, a) / (BULB.z * BULB.z), 0.), 1.5);
+  // (Round 69: reaching 1.3 times as far and fading out with no bend at its edge, where until round 68 it ended on the
+  // bulb's own circle in a sharp bend that crossed the waist by the cover's lower right.)
+  h += BULB_CROWN * pow(max(1. - dot(a, a) / (1.69 * BULB.z * BULB.z), 0.), 2.5);
   h -= POCKET2.x * smoothstep(POCKET2.y, 0., tileSdf(q, uTile.xy)) * smoothstep(.72, 1., uForm);
   for (int i = 0; i < 3; i++) {
     float r = uBtn[i].z, rho = length(q - uBtn[i].xy);
@@ -937,7 +967,17 @@ vec3 env(vec3 r) {
 // silver for covers with little colour. ROOM2: above, round the horizon, off the floor. STRIP2: the strips.
 const vec2 WARM2 = vec2(.2, .38);
 const vec3 ROOM2 = vec3(.95, .2, .6);      // (round 68: 1.35, .24, .65 in round 67)
-const vec3 STRIP2 = vec3(22., 15., 12.);   // (round 68: many times the room, so their lines are hot even where little is mirrored; 3.2, 2.4, 2 in round 67)
+const vec3 STRIP2 = vec3(22., 12., 12.);   // (round 68: many times the room, so their lines are hot even where little is mirrored; 3.2, 2.4, 2 in round 67)
+// (Round 69: .x the low strip in front, .y the high one overhead, .z the tall one behind on the right; until round 68 .x
+// was a strip overhead at 55 degrees and .y one down the upper left, 15.)
+// Round 69: how much of the strips the far face shows where the glass is broad, and the curvature over which it
+// rises to all of them where the glass turns tightly (the rims, the ridge).
+const vec3 STRIP2_BACK = vec3(.02, .05, .11);
+// Round 69: how much of the strips the cover's flat glass face and the bottoms of the wells mirror (the low strip in
+// front lay across the art as a white wash and through the pause sign as a bar), and how far out round each button
+// the wells' share fades back to all of it.
+const vec3 STRIP2_HOLD = vec3(.08, .1, 12.);
+float gStrip = 1.;
 vec3 envSoft2(vec3 r, float fills) {
   vec3 hueA = uPalA / max(max(uPalA.r, uPalA.g), max(uPalA.b, 1e-3));
   vec3 wL = mix(vec3(1.), hueA, WARM2.x), wR = mix(vec3(1.), hueA, WARM2.y);
@@ -945,16 +985,21 @@ vec3 envSoft2(vec3 r, float fills) {
   float left = smoothstep(.9, -.9, r.x);
   vec3 c = wR * (ROOM2.x * smoothstep(-.05, 1., r.y) * (.75 + .25 * left) + ROOM2.y * exp(-r.y * r.y / .06)) * fills;
   c += hot * ROOM2.z * smoothstep(.05, -.65, r.y) * mix(1., fills, .5);
-  // The strips: one long one overhead and a little in front, running left to right; one down the upper left;
-  // one tall and narrow behind on the right.
-  c += wL * STRIP2.x * (.55 + .45 * left) * softbox(r, normalize(vec3(0., .82, .57)), vec3(1., 0., 0.), vec2(1.5, .03), .015);
-  c += wL * STRIP2.y * softbox(r, normalize(vec3(-.62, .48, .62)), normalize(vec3(.6, .64, .48)), vec2(.75, .025), .015);
-  c += wL * STRIP2.z * softbox(r, normalize(vec3(.88, .12, -.46)), normalize(vec3(.46, 0., .88)), vec2(.035, .7), .015);
+  // The strips. (Round 69: placed where the rolls' crests reflect, so each draws one line along a roll. A line holds
+  // its place only where the form turns tightly, at a crest or a rim; a strip that the broad slopes mirror draws its
+  // line wherever their gentle tilt happens to match, and it wanders across the body: round 68's overhead strip, at
+  // 55 degrees, asked for a tilt of 27 that the ridge's flank barely reaches.) One low in front, a little above the
+  // eye and 30 degrees to either side: the crests of the ridge, under the words, up through the twist, along the
+  // sheet's edge over the buttons and into the tail, face about that way all along. One high overhead, nearly
+  // straight up: the rims along the top. One tall and narrow behind on the right: the right end's outer side.
+  c += wL * STRIP2.x * gStrip * (.55 + .45 * left) * softbox(r, vec3(0., .0805, .9968), vec3(1., 0., 0.), vec2(.575, .05), .015);
+  c += wL * STRIP2.y * gStrip * softbox(r, vec3(0., .9838, .179), vec3(1., 0., 0.), vec2(.31, .03), .015);
+  c += wL * STRIP2.z * gStrip * softbox(r, normalize(vec3(.88, .12, -.46)), normalize(vec3(.46, 0., .88)), vec2(.035, .7), .015);
   return c + vec3(.004, .003, .003);
 }
 // What the zebra view shows instead of the room: even stripes by height in the sky.
 float zebra2(vec3 r) {
-  float sv = sin(asin(clamp(r.y, -1., 1.)) * 18.);
+  float sv = sin(asin(clamp(r.y, -1., 1.)) * uZebra);   // (round 69: 18 at ?zebra=1, or as many as asked)
   float w = fwidth(sv) * .8 + 1e-3;
   return smoothstep(-w, w, sv);
 }
@@ -1040,7 +1085,7 @@ void main() {
     // (Round 67: material 2's form at rest, worked out once for every point of the stage.)
     vec2 q = vec2(gl_FragCoord.x, uRes.y - gl_FragCoord.y) / uScale;
     ridge2(q);
-    oBody = vec4(static2(q), outlineB(q), gRidge.x, gRidge.y);
+    oBody = vec4(uBakeStep > .5 ? static2(q) : 0., outlineB(q), gRidge.x, gRidge.y);   // (round 69: step 0 the distance only)
     oAura = vec4(0.);
     oGlass = vec4(0.);
     return;
@@ -1747,7 +1792,13 @@ void main() {
       // pocket's wall keeps its edge.
       // (Round 68: no blur on the broad body. Round 64's SOFT2 spread each thin strip over ten times its width.)
       float F2 = MAT2.x + (1. - MAT2.x) * pow(1. - ndv, 5.);
+      // (Round 69: the strips held back inside the wells, where their bottoms face the eye.)
+      float wellIn = 0.;
+      for (int i = 0; i < 3; i++) wellIn = max(wellIn, smoothstep(uBtn[i].z + STRIP2_HOLD.z, uBtn[i].z - 4., length(pw - uBtn[i].xy)));
+      float hold = mix(1., STRIP2_HOLD.y, wellIn);
+      gStrip = hold;
       vec3 frontR = env2(R, 1.) * (1. - .95 * cm);   // (round 68: .95 where it was .6: the hot strips' lines crossed the words)
+      gStrip = 1.;
       // The far face: the ray bent into the glass meets it, and what it reflects there comes back out
       // through the front. Glass is a lens here, its far face the near one mirrored. Straight on that is
       // a few percent; where the ray meets the far face past the critical angle, all of it.
@@ -1766,7 +1817,12 @@ void main() {
       float soft0 = gSoft;
       gSoft = max(gSoft, .025);   // (round 68: .025; .16 in round 66 made haze of the strips seen through the glass)
                                          // seen through the glass, softer (round 66: .16 where it was .06: through fat glass it drew streaks)
+      // (Round 69: through the far face the strips show fully only where the glass turns tightly. Where it is broad and
+      // steep, as the lower band is, the ray meets the far face past the critical angle over a wide stretch and the strips
+      // seen there drew loose loops and blobs.)
+      gStrip = mix(STRIP2_BACK.x, 1., smoothstep(STRIP2_BACK.y, STRIP2_BACK.z, curv)) * hold;
       vec3 backE = env2(leanM * refract(Tr, -N, 1.5), BACK2) * (1. - Fe) + env2(leanM * reflect(Tr, -N), BACK2) * Fe;
+      gStrip = 1.;
       vec3 backR = backE * mix(vec3(1.), hue, MAT2.z * thick) * MAT2.y * Fb * (1. - F2) * (1. - .95 * cm);
       gSoft = soft0;
       // Light inside the glass: thicker glass holds more, more still toward the lower edge where the
@@ -2020,7 +2076,9 @@ void main() {
       gSoft = .03;
       float Ft = uMat > 1.5 ? MAT2.x + (1. - MAT2.x) * pow(1. - ndt, 5.) : mix(mix(.05, .55, bevel), 1., pow(1. - ndt, 3.));
       vec3 art = pow(coverColor(cuv, pw, flow), vec3(2.2)) * 1.05;
+      gStrip = uMat > 1.5 ? STRIP2_HOLD.x : 1.;   // (round 69: the cover's flat face mirrors little of the strips)
       vec3 face = art * (1. - Ft) + (uMat > 1.5 ? env2(Rt, 1.) : env(Rt)) * Ft;
+      gStrip = 1.;
       // One soft sheen lying across the glass; it slides as the cursor moves.
       float sweep = (tq.x - tq.y) / (2. * COVER_HALF) - uLean.x * .35 + uLean.y * .2;
       face += vec3(1.) * .07 * smoothstep(.35, .0, abs(sweep + .25));
@@ -2364,6 +2422,24 @@ void main() {
     acc += sk.r * w; ws += w;
   }
   o = vec4(ws > 0. ? acc / ws : s0.r, s0.gba);
+}`;
+// Round 69: the outline's distance (g) blurred inside the body before the profile is built on it, one axis per
+// pass, sigma DIST2_SIGMA units deep inside and tapering to almost none at the outline, so the edge does not move.
+export const DIST2_SIGMA = 14;
+export const BAKE_DIST = HEAD + /* glsl */`
+out vec4 o;
+uniform sampler2D uSrc;
+uniform vec2 uDir;
+void main() {
+  ivec2 c = ivec2(gl_FragCoord.xy), hi = textureSize(uSrc, 0) - 1;
+  float d0 = texelFetch(uSrc, c, 0).g;
+  float sg = mix(.4, ${DIST2_SIGMA}., smoothstep(2., 44., -d0));
+  float acc = 0., ws = 0.;
+  for (int k = -44; k <= 44; k++) {
+    float w = exp(-float(k * k) / (2. * sg * sg));
+    acc += texelFetch(uSrc, clamp(c + ivec2(uDir) * k, ivec2(0), hi), 0).g * w; ws += w;
+  }
+  o = vec4(0., acc / ws, 0., 0.);
 }`;
 // ...and its slope and curvature: within a few units of the outline the raw height is kept, so the edge stays
 // crisp. Slope in stage units, y down.

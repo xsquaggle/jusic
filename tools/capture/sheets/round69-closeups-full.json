@@ -1,0 +1,55 @@
+{
+ "out": "design/captures/mercury-lines-round69-full.png",
+ "width": 2292,
+ "title": "Round 69, one line along each roll: a smoother form, the strips where the crests reflect (full size; ?mat=2, generated cover): the reference and round 69 at the same framing",
+ "rows": [
+  [
+   {
+    "label": "reference, cover to buttons",
+    "src": "design/references/widget-mercury.png",
+    "crop": [
+     65,
+     197,
+     1134,
+     577
+    ],
+    "w": 1134
+   },
+   {
+    "label": "round 69, cover to buttons",
+    "src": "design/captures/raw/round69-B/dark.png",
+    "crop": [
+     150,
+     125,
+     690,
+     351
+    ],
+    "w": 1134
+   }
+  ],
+  [
+   {
+    "label": "reference, title to tail tip",
+    "src": "design/references/widget-mercury.png",
+    "crop": [
+     498,
+     217,
+     1113,
+     515
+    ],
+    "w": 1113
+   },
+   {
+    "label": "round 69, title to tail tip",
+    "src": "design/captures/raw/round69-B/dark.png",
+    "crop": [
+     414,
+     138,
+     677,
+     314
+    ],
+    "w": 1113
+   }
+  ]
+ ]
+}

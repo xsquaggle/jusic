@@ -87,6 +87,7 @@ export function createMercury(canvas, { reducedMotion = false, family, maxRender
     // Material 2 (round 67): its form baked once into a texture whenever it changes, blurred, its slope stored.
     ...(material > 1.5 ? {
       bake2: program(S.SURFACE.replace('precision highp float;', 'precision highp float;\n#define BAKE2 1')),
+      bakeDist: program(S.BAKE_DIST),
       bakeBlur: program(S.BAKE_BLUR),
       bakeFinal: program(S.BAKE_FINAL),
     } : {}),
@@ -734,18 +735,30 @@ export function createMercury(canvas, { reducedMotion = false, family, maxRender
       const key = [bx.toFixed(2), by.toFixed(2), sp.form.x.toFixed(3)].join();
       if (key !== bake.key) {
         bake.key = key;
-        u = use(P.bake2);
-        bind(bake.a);
-        gl.uniform2f(u.uRes, STAGE.w, STAGE.h);
-        gl.uniform1f(u.uScale, 1);
-        gl.uniform1f(u.uMat, material);
-        gl.uniform1f(u.uForm, sp.form.x);
-        gl.uniform4f(u.uTile, bx, by, 0, 0);
-        L.buttons.forEach((b, i) => btnUniform.set([b.c[0], b.c[1], b.r, 0], i * 4));
-        gl.uniform4fv(u.uBtn, btnUniform);
-        gl.uniform1f(u.uSwell, 0);
-        gl.uniform3f(u.uUtil, 0, 0, 0);
-        draw();
+        // (Round 69: first the outline's distance and the ridge's field (A), the distance blurred (B, C), then the height
+        // built on the blurred distance (A again).)
+        const bake2 = (step) => {
+          u = use(P.bake2);
+          bind(bake.a);
+          sampler(u.uDS, bake.c.tex[0]);
+          gl.uniform1f(u.uBakeStep, step);
+          gl.uniform2f(u.uRes, STAGE.w, STAGE.h);
+          gl.uniform1f(u.uScale, 1);
+          gl.uniform1f(u.uMat, material);
+          gl.uniform1f(u.uForm, sp.form.x);
+          gl.uniform4f(u.uTile, bx, by, 0, 0);
+          L.buttons.forEach((b, i) => btnUniform.set([b.c[0], b.c[1], b.r, 0], i * 4));
+          gl.uniform4fv(u.uBtn, btnUniform);
+          gl.uniform1f(u.uSwell, 0);
+          gl.uniform3f(u.uUtil, 0, 0, 0);
+          draw();
+        };
+        bake2(0);
+        u = use(P.bakeDist);
+        bind(bake.b); sampler(u.uSrc, bake.a.tex[0]); gl.uniform2f(u.uDir, 1, 0); draw();
+        u = use(P.bakeDist);
+        bind(bake.c); sampler(u.uSrc, bake.b.tex[0]); gl.uniform2f(u.uDir, 0, 1); draw();
+        bake2(1);
         u = use(P.bakeBlur);
         bind(bake.b); sampler(u.uSrc, bake.a.tex[0]); gl.uniform2f(u.uDir, 1, 0); draw();
         u = use(P.bakeBlur);
@@ -806,7 +819,7 @@ export function createMercury(canvas, { reducedMotion = false, family, maxRender
     gl.uniform1f(u.uGlassFloor, back.floor);
     gl.uniform1f(u.uMat, material);
     if (bake) { sampler(u.uH2, bake.d.tex[0]); sampler(u.uR2, bake.a.tex[0]); }
-    gl.uniform1f(u.uZebra, zebra ? 1 : 0);
+    gl.uniform1f(u.uZebra, zebra === true ? 18 : (+zebra || 0));
     draw();
 
     // Bloom: keep what is brighter than white, blur it down a pyramid and back up.
@@ -947,6 +960,15 @@ export function createMercury(canvas, { reducedMotion = false, family, maxRender
     return { velocity: read(sim.vel.read).slice(0, 2), pigment: read(sim.dye.read) };
   }
 
+  /** For tests (round 69): material 2's bake, the smoothed form (height, slope x and y in stage units with y down,
+   * curvature) and the raw one (height, distance to the outline, the ridge's field), each a stage's worth of RGBA
+   * floats, row 0 at the stage's bottom. */
+  function bakeDump() {
+    if (!bake) return null;
+    const read = (t) => { const out = new Float32Array(STAGE.w * STAGE.h * 4); gl.bindFramebuffer(gl.FRAMEBUFFER, t.fbo); gl.readPixels(0, 0, STAGE.w, STAGE.h, gl.RGBA, gl.FLOAT, out); return out; };
+    return { form: read(bake.d), raw: read(bake.a) };
+  }
+
   function destroy() {
     const ext = gl.getExtension('WEBGL_lose_context');
     if (ext) ext.loseContext();
@@ -954,7 +976,7 @@ export function createMercury(canvas, { reducedMotion = false, family, maxRender
 
   return {
     gl, state: st, springs: sp, ink,
-    resize, frame, render, destroy, hit, probe,
+    resize, frame, render, destroy, hit, probe, bakeDump,
     setCover, setPalette, setPlaying, setProgress, setVolume, setAudio, setLabels, setTip,
     setBackdropFrame, setBackdropMap, backdrop: back,
     pointerMove, pointerLeave, pressAt, release, pressButton, pressUtil, ripple, lurch, appear, vanish,

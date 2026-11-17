@@ -48,7 +48,7 @@ const canvas = $('gl');
 const mercury = createMercury(canvas, {
   reducedMotion: params.has('still'), family: 'Montserrat',
   material: Number(params.get('mat')) || 1,
-  zebra: params.has('zebra'),                       // ?zebra=1 (round 67): the room as even stripes, to see the form's smoothness        // ?mat=2: the material pass of round 63 (the independent audit), for A/B
+  zebra: params.has('zebra') ? (Number(params.get('zebra')) > 1 ? Number(params.get('zebra')) : 18) : 0,   // ?zebra=1 (round 67): the room as even stripes, to see the form's smoothness; ?zebra=36 (round 69) denser, 36 per radian        // ?mat=2: the material pass of round 63 (the independent audit), for A/B
   ...(params.has('uncapped') ? { maxRender: null } : {}),      // ?uncapped lifts the 1920x1080 render cap, for inspection only
 });
 

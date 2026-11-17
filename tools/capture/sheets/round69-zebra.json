@@ -1,0 +1,51 @@
+{
+ "out": "design/captures/mercury-zebra-round69.png",
+ "width": 1830,
+ "title": "Zebra view (?mat=2, paused): round 68 against round 69, at 18 stripes per radian (?zebra=1) and 36 (?zebra=36)",
+ "rows": [
+  [
+   {
+    "label": "round 68, 18 per radian",
+    "src": "design/captures/raw/round68-Z/dark-paused.png",
+    "crop": [
+     90,
+     50,
+     1022,
+     463
+    ]
+   },
+   {
+    "label": "round 69, 18 per radian",
+    "src": "design/captures/raw/round69-Z/dark-paused.png",
+    "crop": [
+     90,
+     50,
+     1022,
+     463
+    ]
+   }
+  ],
+  [
+   {
+    "label": "round 68, 36 per radian",
+    "src": "design/captures/raw/round69-Z0/dark-paused.png",
+    "crop": [
+     90,
+     50,
+     1022,
+     463
+    ]
+   },
+   {
+    "label": "round 69, 36 per radian",
+    "src": "design/captures/raw/round69-Z36/dark-paused.png",
+    "crop": [
+     90,
+     50,
+     1022,
+     463
+    ]
+   }
+  ]
+ ]
+}
