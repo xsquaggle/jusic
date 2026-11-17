@@ -27,7 +27,7 @@
  *   ?deskimg=<url> (pictures only): a still image as the desktop behind the window, filling the canvas, bent through
  *   the glass as refraction would (for checking the look over a desktop at any size without the window)
  *   ?still (reduced motion)  ?m_tilt= m_lean= m_dimple= m_press= m_rip= m_sink= (each interaction's strength; 0: off)
- *   window.__glass.drive(kind, seconds): a pretend pointer playing cursor | dimple | ripple | press | buttons | seek (the
+ *   window.__glass.drive(kind, seconds): a pretend pointer playing cursor | dimple | ripple | press | buttons | seek | pause (the
  *   shell's recordings and measures use it; the real mouse is never touched)
  */
 import { createGlass } from './renderer.js';
@@ -107,7 +107,7 @@ async function setTrack(i) {
   player.track = TRACKS[player.index];
   useCover(await loadImage(player.track.cover));
 }
-function setPlaying(on) { player.playing = on; paintWords(); }
+function setPlaying(on) { player.playing = on; paintWords(); redraw(); }
 
 /* ------------------------------------------------------------ any media --- */
 async function applyMedia(st) {
@@ -121,6 +121,7 @@ async function applyMedia(st) {
   player.track.duration = has ? Math.max(0, st.duration || 0) : 0;
   media.base = has ? st.position : 0; media.at = has ? st.updatedAt : 0; media.rate = has ? st.rate || 1 : 0;
   player.playing = Boolean(has && st.playing);
+  redraw();                          // (the music starts or fades out with it)
   player.dim = !has ? 'ptn' : (st.canPrev ? '' : 'p') + (st.canPlay || st.canPause || st.canToggle ? '' : 't') + (st.canNext ? '' : 'n');
   const art = has ? st.art || null : null;
   if (art !== media.art || !G.coverSet) {
@@ -393,7 +394,7 @@ function onUp(e) {
       else if (st && st.source) {
         // the other app does it, and the widget follows what Windows then reports
         if (h.index === 0 && st.canPrev) command('prev');
-        if (h.index === 1 && (st.canPlay || st.canPause || st.canToggle)) { player.playing = !player.playing; command(player.playing ? 'play' : 'pause'); paintWords(); }
+        if (h.index === 1 && (st.canPlay || st.canPause || st.canToggle)) { player.playing = !player.playing; command(player.playing ? 'play' : 'pause'); paintWords(); redraw(); }
         if (h.index === 2 && st.canNext) command('next');
       }
     }
@@ -486,6 +487,82 @@ function inkFrame(now) {
   paintWords();
   if (springs.some((sp) => !sp.resting) || beads.seek.drag || beads.vol.drag) inkRaf = requestAnimationFrame(inkFrame);
   else inkLast = 0;
+}
+
+/* ----------------------------------------------------------------- music --- */
+// The music (phase 3, after the cursor and the presses): the lobes swell gently with the bass; on the beat a wave runs
+// along the ribbon from the cover to the tail; glints run along the hot highlights with the highs; the spectrum
+// glows in the fold under the sheet over the buttons, fine strands of coral light each band lifts. In "any media"
+// (source=system) it hears what the PC really plays (the shell's sound helper, as in the 2D widget); the test
+// tracks move to a made-up beat (silent). On pause it all fades out and the glass goes still. Reduced motion: none.
+// Strengths by URL: ?mu_flex= mu_beat= mu_glint= mu_spec= (0: off).
+const MUS = { flex: 0.04, beat: 0.014, glint: 1, spec: 4.5, specSwing: 0.1, specWidth: 0.022, bpm: 112 };
+for (const k of Object.keys(MUS)) if (Q.has('mu_' + k)) MUS[k] = Number(Q.get('mu_' + k));
+const listener = (() => {
+  // (from the 2D widget: 16 loudnesses on a decibel scale about 30 times a second, evened out so a quiet song moves
+  // the glass as much as a loud one; silence stays still)
+  const target = new Float32Array(16), smooth = new Float32Array(16), bands = new Float32Array(16);
+  let bassAvg = 0, pulse = 0, level = 0.12, fedAt = -1e9;
+  return {
+    get ready() { return performance.now() - fedAt < 2000; },
+    feed(values) { for (let i = 0; i < 16; i++) target[i] = (Number(values[i]) || 0) ** 1.6 * (0.9 + 0.9 * (i / 16)); fedAt = performance.now(); },
+    analyse() {
+      let top = 0;
+      for (let i = 0; i < 16; i++) { smooth[i] = target[i] > smooth[i] ? target[i] : smooth[i] + (target[i] - smooth[i]) * 0.35; top = Math.max(top, smooth[i]); }
+      level = top > level ? level + (top - level) * 0.3 : Math.max(0.12, level * 0.9992);
+      const gain = 0.85 / level;
+      for (let i = 0; i < 16; i++) bands[i] = Math.min(1, Math.max(0, smooth[i] * gain - 0.25) / 0.75);
+      const bass = (bands[0] + bands[1] + bands[2]) / 3;
+      bassAvg += (bass - bassAvg) * 0.04;
+      const hit = Math.max(0, bass - bassAvg * 0.92) * 3.2 + bass * 0.18;
+      pulse = hit > pulse ? pulse + (hit - pulse) * 0.6 : pulse * 0.9;
+      return { bands, pulse: Math.min(1, pulse) };
+    },
+  };
+})();
+/** A made-up beat (the 2D widget's capture spectrum): the same every run. */
+function madeUpBeat(t, bpm) {
+  const bands = new Float32Array(16);
+  const beat = (t * bpm / 60) % 1, kick = Math.exp(-beat * 7), off = Math.exp(-(((t * bpm / 60) + 0.5) % 1) * 9);
+  for (let i = 0; i < 16; i++) {
+    const x = i / 15, wob = 0.5 + 0.5 * Math.sin(t * (1.3 + i * 0.37) + i * 1.7);
+    bands[i] = Math.min(1, kick * Math.exp(-x * 5) * 0.95 + (0.22 + 0.3 * wob) * Math.exp(-((x - 0.42) ** 2) / 0.08)
+      + off * 0.5 * Math.exp(-((x - 0.85) ** 2) / 0.02) + 0.06);
+  }
+  return { bands, pulse: Math.min(1, kick * 1.1) };
+}
+const music = { on: new Spring('glide'), bands: new Float32Array(16), bass: 0, highs: 0, pulse: 0, beats: [], lastBeat: -1e9, t0: performance.now() };
+if (host && host.onBands) host.onBands((b) => listener.feed(b));
+/** Step the music; true while it is moving the glass. Its uniforms ride along with the motion's. */
+function musicStep(dt) {
+  const m = music;
+  const t = (performance.now() - m.t0) / 1000;
+  const live = player.playing && !motion.reduced && !document.hidden;
+  m.on.target = live ? 1 : 0; m.on.step(dt);
+  if (motion.reduced) m.on.snap(0);
+  if (m.on.x < 1e-3 && !live) { m.beats = []; return false; }
+  const a = SYSTEM ? (listener.ready ? listener.analyse() : { bands: new Float32Array(16), pulse: 0 }) : madeUpBeat(t, MUS.bpm);
+  for (let i = 0; i < 16; i++) m.bands[i] = a.bands[i];
+  m.bass = (a.bands[0] + a.bands[1] + a.bands[2]) / 3;
+  m.highs = (a.bands[11] + a.bands[12] + a.bands[13] + a.bands[14] + a.bands[15]) / 5;
+  // a beat: the pulse rising through a threshold, not too soon after the last
+  if (a.pulse > 0.55 && m.pulse <= 0.55 && t - m.lastBeat > 0.28 && MUS.beat > 0) {
+    m.lastBeat = t; m.beats.push({ x0: -5.4, t0: t, s: MUS.beat * (0.6 + 0.4 * a.pulse) }); if (m.beats.length > 2) m.beats.shift();
+  }
+  m.pulse = a.pulse;
+  m.beats = m.beats.filter((b) => t - b.t0 < 3.5);
+  return true;
+}
+function musicUniforms() {
+  const m = music, t = (performance.now() - m.t0) / 1000, on = m.on.x;
+  return {
+    flex: MUS.flex * m.bass * on,
+    beats: [0, 1].map((i) => (m.beats[i] ? [m.beats[i].x0, t - m.beats[i].t0, m.beats[i].s * on, 0] : [0, -1, 0, 0])),
+    beatK: [6.5, 0.7, 0.75],
+    music: [m.bass, m.highs * MUS.glint, t, on],
+    bands: m.bands,
+    spec: [MUS.spec, MUS.specSwing, MUS.specWidth, 0],
+  };
 }
 
 /* ---------------------------------------------------------------- motion --- */
@@ -604,10 +681,11 @@ function motionStep(now) {
   if (m.jig && t - m.jig.t0 > MOT.jigDecay * 5) m.jig = null;
   const sinking = m.sink.some((s) => !s.resting) || m.sink.some((s, i) => !was[5 + i]);
   if (sinking) paintWords();
-  const moving = springs.some((s) => !s.resting) || m.rips.length > 0 || Boolean(m.jig);
+  const playingMusic = musicStep(dt);
+  const moving = springs.some((s) => !s.resting) || m.rips.length > 0 || Boolean(m.jig) || playingMusic;
   const any = moving || Math.abs(m.tilt.x) + Math.abs(m.tilt.y) + Math.abs(m.lean.x) + Math.abs(m.lean.y) + Math.abs(m.dimple.x)
     + Math.abs(m.press.x) + m.sink.reduce((a, s) => a + Math.abs(s.x), 0) > 1e-5;
-  G.motion = any ? {
+  G.motion = any || playingMusic ? {
     tilt: [m.tilt.x, m.tilt.y, m.lean.x, m.lean.y],
     dimple: [m.dimpleAt.x, m.dimpleAt.y, m.dimple.x, MOT.dimpleR],
     press: [m.pressAt[0], m.pressAt[1], m.press.x, MOT.pressR],
@@ -615,6 +693,7 @@ function motionStep(now) {
     ripK: [MOT.ripSpeed, MOT.ripWave, MOT.ripDecay],
     jig: m.jig ? [m.jig.x, m.jig.z, t - m.jig.t0, m.jig.s] : [0, 0, -1, 0],
     jigK: [MOT.jigSpeed, MOT.jigWave, MOT.jigDecay],
+    ...musicUniforms(),
     sink: m.sink.map((s) => s.x),
   } : null;
   if (moving || springs.some((s, i) => s.resting !== was[i])) dirty = true;
@@ -659,6 +738,12 @@ function drive(kind = 'cursor', seconds = 8) {
     at = glide(at + 0.15, 0.5, Vv(0.25), Vv(0.85));
     plan.push([at + 0.2, 'up', ...Vv(0.85)]);
     for (let i = 0; i < 4; i++) plan.push([at + 0.6 + i * 0.12, 'wheel', ...Vv(0.85)]);
+  }
+  if (kind === 'pause') {       // let the music play, then pause it (the glass goes still), then play again
+    let at = glide(2.4, 0.6, [470, 330], W[1]);
+    plan.push([at + 0.1, 'down', ...W[1]], [at + 0.25, 'up', ...W[1]]);
+    at = glide(at + 0.5, 0.5, W[1], [470, 340]);
+    if (seconds > 7) { at = glide(at + 2.2, 0.5, [470, 340], W[1]); plan.push([at + 0.1, 'down', ...W[1]], [at + 0.25, 'up', ...W[1]]); }
   }
   if (kind === 'buttons') {
     let at = 0.3, last = [470, 120];

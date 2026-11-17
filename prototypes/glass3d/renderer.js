@@ -44,6 +44,10 @@ uniform vec4 uPress;       // centre, depth, radius
 uniform vec4 uRip[4];      // centre, age (s; < 0: none), strength
 uniform vec3 uRipK;        // speed (units a second), wavelength (units), decay (s)
 uniform vec4 uJig;         // the slow, wide wobble rolling out from a release: centre, age (s; < 0: none), strength
+// the music: the lobes swell with the bass; on the beat a wave runs along the ribbon, from the cover to the tail
+uniform float uFlex;       // the bass swell (units toward the camera)
+uniform vec4 uBeat[2];     // beat waves: start x, age (s; < 0: none), strength, -
+uniform vec3 uBeatK;       // their speed, wavelength, decay
 uniform vec3 uJigK;        // its speed, wavelength, decay
 // a ring of waves running out from r.xy (age r.z, strength r.w), its slope added to grad
 float ring(vec2 p, vec4 r, vec3 K, inout vec2 grad) {
@@ -65,6 +69,20 @@ float motionField(vec2 p, out vec2 grad) {
     g += e * (1. - s); grad -= e * d / R2 * (3. - s);
   }
   for (int i = 0; i < 4; i++) if (uRip[i].z >= 0.) g += ring(p, uRip[i], uRipK, grad);
+  if (uFlex != 0.) {         // the two lobes breathing with the bass (the bulb round the cover, the right lobe)
+    vec2 c1 = vec2(-5.63, .26), c2 = vec2(5.07, .66);
+    vec2 d1 = p - c1, d2 = p - c2;
+    float e1 = exp(-.5 * dot(d1, d1) / 2.9), e2 = exp(-.5 * dot(d2, d2) / 2.6);
+    g -= uFlex * (e1 + e2); grad += uFlex * (e1 * d1 / 2.9 + e2 * d2 / 2.6);
+  }
+  for (int i = 0; i < 2; i++) {
+    vec4 b = uBeat[i];
+    if (b.y < 0.) continue;
+    float q = p.x - (b.x + uBeatK.x * b.y), w = uBeatK.y * 1.4, k = 6.2831853 / uBeatK.y;
+    float amp = b.z * exp(-b.y / uBeatK.z) * smoothstep(0., .06, b.y), env = exp(-q * q / (w * w));
+    g += amp * env * sin(k * q);
+    grad.x += amp * env * (k * cos(k * q) - 2. * q / (w * w) * sin(k * q));
+  }
   if (uJig.z >= 0.) g += ring(p, uJig, uJigK, grad);
   for (int i = 0; i < 3; i++) {
     vec4 wl = uWellC[i];
@@ -158,6 +176,10 @@ uniform vec3 uTint;                // the album's colour
 uniform vec3 uArtMean;             // the cover's mean colour (linear)
 uniform vec4 uWells[3];            // the wells: centre (Blender X, Z), radius, -
 uniform vec4 uTilt;                // the turn toward the cursor (x, z), and the upper sheet's extra lean (x, z)
+uniform vec4 uMusic;               // the music: bass, highs, time (s), on (0..1: fades out on pause)
+uniform float uBands[16];          // its spectrum, low to high
+uniform vec2 uFold[8];             // the fold under the sheet's lip (root x, z), left to right
+uniform vec4 uSpec;                // the spectrum in the fold: strength, strands' swing (units), their width, -
 uniform vec4 uWords[4];            // behind the words and times: boxes in canvas fractions (x0, y0, x1, y1; y up)
 uniform vec2 uWordsDim;            // how much of the desktop still comes through there, the feather (fractions of width)
 uniform int uDbg;
@@ -340,6 +362,33 @@ void main() {
   }
   wellLight *= uL2.y * .35;
   vec3 col = refl * F + (trans + deskT + lobe + spill + marble + ringArt) * (1. - F) + band + wellLight;
+  if (uMotionOn == 1 && uMusic.w > 0.) {
+    // glints running along the hot highlights with the highs
+    vec3 rF = refl * F;
+    float hot = smoothstep(.6, 2.5, dot(rF, vec3(.2126, .7152, .0722)));
+    float sp = pow(max(0., sin(vPos.x * 31. + uMusic.z * 5.3) * sin(vPos.x * 17. - uMusic.z * 3.1 + vPos.z * 9.)), 8.);
+    col += rF * hot * sp * uMusic.y * uMusic.w * 2.2;
+    // the spectrum glowing in the fold under the sheet: a few fine strands of light, each band lifting them where it
+    // sits (low on the left, high on the right), coral with white cores
+    float x = vPos.x;
+    if (uSpec.x > 0. && x > uFold[0].x && x < uFold[7].x) {
+      float zf = uFold[0].y;
+      for (int i = 0; i < 7; i++) if (x >= uFold[i].x && x <= uFold[i + 1].x) zf = mix(uFold[i].y, uFold[i + 1].y, (x - uFold[i].x) / (uFold[i + 1].x - uFold[i].x));
+      float sF = (x - uFold[0].x) / (uFold[7].x - uFold[0].x);
+      float bi = sF * 15.; int i0 = int(floor(bi));
+      float lv = mix(uBands[i0], uBands[min(i0 + 1, 15)], fract(bi));
+      float ends = smoothstep(0., .1, sF) * smoothstep(1., .9, sF);
+      float dz = vPos.z - zf, I = 0.;
+      for (int kk = 0; kk < 3; kk++) {
+        float fk = float(kk);
+        float off = uSpec.y * (.2 + lv) * sin(x * (5. + 2.3 * fk) + uMusic.z * (2.1 + .9 * fk) + fk * 2.1);
+        float w = uSpec.z * (1. + .7 * fk);
+        I += exp(-pow((dz - off) / w, 2.)) * (1. - .25 * fk);
+      }
+      float e = (.2 + 1.4 * lv) * ends * uSpec.x * uMusic.w;
+      col += (coral * vec3(1.15, .8, .7) * I + vec3(1., .92, .86) * pow(min(I, 1.), 3.) * .6) * e;   // coral, white where the strands are brightest
+    }
+  }
   if (uDbg == 1) col = refl * F; else if (uDbg == 2) col = (trans + deskT) * (1. - F); else if (uDbg == 3) col = bands(R) * 4.;
   else if (uDbg == 8) col = deskT * (1. - F);
   else if (uDbg == 9) {          // the live studio's parts: red the hot strip, orange the low warm strip, white overhead, blue the floor
@@ -514,8 +563,11 @@ export async function createGlass(canvas, { assets, ss = 2, studio = 'live', lig
   for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) covInv[c * 4 + r] = meta.cover.inv[r][c];
   const WELLS = [[1077, 467, 58], [1237, 460, 82], [1392, 467, 58]].map(([u, v, r]) => [(u - meta.CX) * meta.S, (meta.CY - v) * meta.S, r * meta.S, 0]);
 
+  // the fold under the sheet's lip, from the model's own ridge (reference px), in root units
+  const FOLD = new Float32Array([[1040, 395], [1090, 384], [1150, 379], [1217, 380], [1290, 388], [1350, 399], [1409, 415], [1452, 428]]
+    .map(([u, v]) => [(u - meta.CX) * meta.S, (meta.CY - v) * meta.S]).flat());
   const R = {
-    meta, gl, light, dbg, wells: WELLS, motion: null,
+    meta, gl, light, dbg, wells: WELLS, motion: null, fold: FOLD,
     tint: meta.tint.slice(), artMean: [0.2, 0.1, 0.1],
     desk: { on: 0, map: [0, 0, 1, 1], has: false, uploads: 0, w: 0, h: 0 },
     size: null, targets: null, P: null,
@@ -622,6 +674,10 @@ export async function createGlass(canvas, { assets, ss = 2, studio = 'live', lig
       gl.uniform4fv(u.uTilt, M.tilt); gl.uniform4fv(u.uDimple, M.dimple); gl.uniform4fv(u.uPress, M.press);
       gl.uniform4fv(u.uRip, new Float32Array(M.rips.flat())); gl.uniform3fv(u.uRipK, M.ripK);
       gl.uniform4fv(u.uJig, M.jig); gl.uniform3fv(u.uJigK, M.jigK);
+      gl.uniform1f(u.uFlex, M.flex || 0); gl.uniform4fv(u.uBeat, new Float32Array((M.beats || [[0, -1, 0, 0], [0, -1, 0, 0]]).flat()));
+      gl.uniform3fv(u.uBeatK, M.beatK || [6, 0.6, 0.7]);
+      gl.uniform4fv(u.uMusic, M.music || [0, 0, 0, 0]); gl.uniform1fv(u.uBands, M.bands || new Float32Array(16));
+      gl.uniform2fv(u.uFold, R.fold); gl.uniform4fv(u.uSpec, M.spec || [0, 0, 0, 0]);
       gl.uniform4fv(u.uWellC, new Float32Array(WELLS.map((w, i) => [w[0], w[1], w[2], M.sink[i]]).flat()));
     }
     // (the words' boxes, reference px -> canvas fractions, y up)
