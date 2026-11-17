@@ -511,7 +511,9 @@ function inkFrame(now) {
 // Strengths by URL: ?mu_flex= mu_beat= mu_glint= mu_spec= (0: off).
 // (the owner: "the glass doesn't react jelly-like enough": the lobes are springs the bass pulls and every beat kicks,
 // each wobbling on its own; the beat's wave rolls slower and deeper; the glass sways a little on the beat)
-const MUS = { flex: 0.055, kick: 1.6, beat: 0.026, sway: 0.5, glint: 1, spec: 3.2, specSwing: 0.1, specWidth: 0.022, bpm: 112 };
+// (and then: "more the jelly glass itself bouncing, less the ink": three bumps kicked harder, a ring of jelly from the
+// cover on every beat; the ink no longer answers the beat)
+const MUS = { flex: 0.085, kick: 2.6, beat: 0.034, ring: 0.028, sway: 0.8, glint: 1, spec: 3.2, specSwing: 0.1, specWidth: 0.022, bpm: 112 };
 for (const k of Object.keys(MUS)) if (Q.has('mu_' + k)) MUS[k] = Number(Q.get('mu_' + k));
 const listener = (() => {
   // (from the 2D widget: 16 loudnesses on a decibel scale about 30 times a second, evened out so a quiet song moves
@@ -547,7 +549,8 @@ function madeUpBeat(t, bpm) {
   return { bands, pulse: Math.min(1, kick * 1.1) };
 }
 const music = { on: new Spring('glide'), bands: new Float32Array(16), bass: 0, highs: 0, pulse: 0, beats: [], lastBeat: -1e9, t0: performance.now(),
-  lobeL: new Spring({ k: 150, c: 4.2 }), lobeR: new Spring({ k: 195, c: 4.8 }), sway: new Spring2({ k: 120, c: 4 }), side: 1 };
+  lobeL: new Spring({ k: 150, c: 4.2 }), lobeR: new Spring({ k: 195, c: 4.8 }), lobeB: new Spring({ k: 120, c: 3.8 }),
+  sway: new Spring2({ k: 120, c: 4 }), side: 1, ring: null };
 if (host && host.onBands) host.onBands((b) => listener.feed(b));
 /** Step the music; true while it is moving the glass. Its uniforms ride along with the motion's. */
 function musicStep(dt) {
@@ -558,7 +561,8 @@ function musicStep(dt) {
   if (motion.reduced) m.on.snap(0);
   if (m.on.x < 1e-3 && !live) {
     m.beats = [];
-    for (const sp of [m.lobeL, m.lobeR]) sp.snap(0);
+    for (const sp of [m.lobeL, m.lobeR, m.lobeB]) sp.snap(0);
+    m.ring = null;
     m.sway.snap(0, 0);
     return false;
   }
@@ -570,14 +574,17 @@ function musicStep(dt) {
   if (a.pulse > 0.55 && m.pulse <= 0.55 && t - m.lastBeat > 0.28 && MUS.beat > 0) {
     m.lastBeat = t; m.beats.push({ x0: -5.4, t0: t, s: MUS.beat * (0.6 + 0.4 * a.pulse) }); if (m.beats.length > 2) m.beats.shift();
     // the kick: both lobes jump and wobble back, the far one a moment later; the glass sways one way, then the other
-    m.lobeL.kick(MUS.kick * (0.6 + 0.4 * a.pulse)); m.lobeR.kick(MUS.kick * 0.8 * (0.6 + 0.4 * a.pulse));
+    const pw = 0.6 + 0.4 * a.pulse;
+    m.lobeL.kick(MUS.kick * pw); m.lobeR.kick(MUS.kick * 0.85 * pw); m.lobeB.kick(-MUS.kick * 0.7 * pw);   // (the band dips as the lobes jump)
+    m.ring = { t0: t, s: MUS.ring * pw };
     m.side = -m.side; m.sway.kick(MUS.sway * m.side, MUS.sway * 0.4);
     m.kicked = Math.min(1, a.pulse);
   }
   m.mid = (a.bands[4] + a.bands[5] + a.bands[6] + a.bands[7] + a.bands[8] + a.bands[9]) / 6;
   // the bass pulls the lobes out (a spring with little damping, so they overshoot and wobble)
-  m.lobeL.target = m.bass; m.lobeR.target = m.bass * 0.85;
-  m.lobeL.step(dt); m.lobeR.step(dt); m.sway.step(dt);
+  m.lobeL.target = m.bass; m.lobeR.target = m.bass * 0.85; m.lobeB.target = m.bass * 0.5;
+  m.lobeL.step(dt); m.lobeR.step(dt); m.lobeB.step(dt); m.sway.step(dt);
+  if (m.ring && t - m.ring.t0 > 4) m.ring = null;
   m.pulse = a.pulse;
   m.beats = m.beats.filter((b) => t - b.t0 < 3.5);
   return true;
@@ -585,7 +592,8 @@ function musicStep(dt) {
 function musicUniforms() {
   const m = music, t = (performance.now() - m.t0) / 1000, on = m.on.x;
   return {
-    flex: [MUS.flex * m.lobeL.x * on, MUS.flex * m.lobeR.x * on],
+    flex: [MUS.flex * m.lobeL.x * on, MUS.flex * m.lobeR.x * on, MUS.flex * m.lobeB.x * on],
+    jigB: m.ring ? [-5.0, 0.3, t - m.ring.t0, m.ring.s * on] : [0, 0, -1, 0],
     sway: [m.sway.x * 0.05 * on, m.sway.y * 0.05 * on],
     beats: [0, 1].map((i) => (m.beats[i] ? [m.beats[i].x0, t - m.beats[i].t0, m.beats[i].s * on, 0] : [0, -1, 0, 0])),
     beatK: [4.5, 1.0, 1.0],
@@ -635,20 +643,12 @@ function rimDrop(kick = 0, { old = false, angle = null } = {}) {
 /** What the music and the player do to the liquid this frame (the 2D widget's react()). */
 function inkReact(dt) {
   const st = inkState, mu = music, t = (performance.now() - st.t0) / 1000;
-  if (mu.kicked) {          // a kick: pigment jets off the cover, two vortices stir the body, a soft splash
-    const p = mu.kicked; mu.kicked = 0;
-    rimDrop(p);
-    const sgn = Math.random() < 0.5 ? 1 : -1, spin = sgn * (540 + 1070 * p);
-    G.swirl(rnd(520, 890), rnd(510, 610), spin, rnd(70, 107));
-    G.swirl(rnd(1020, 1390), rnd(440, 600), -spin, rnd(70, 107));
-    G.splash(COVER_C[0], COVER_C[1], 100 * p, 250);
-  }
-  if (t >= st.nextDrop) {   // between kicks the cover still lets a drop go now and then
-    rimDrop(0.15 * (mu.mid || 0));
-    st.nextDrop = t + rnd(1.6, 2.8) / (0.6 + (mu.mid || 0) + mu.bass);
-  }
-  if (mu.highs > 0.25 && Math.random() < mu.highs * dt * 14) {   // the highs shiver the body with small eddies
-    G.swirl(rnd(170, 1470), rnd(335, 685), rnd(-1, 1) * 540 * mu.highs, rnd(30, 50));
+  // (the owner: the music should bounce the glass, not the ink: the ink keeps its own slow time, a drop jetting off
+  // the cover every few seconds, rolling into a mushroom and drifting; the beat leaves it alone)
+  mu.kicked = 0;
+  if (t >= st.nextDrop) {
+    rimDrop(rnd(0.3, 0.6));
+    st.nextDrop = t + rnd(2.2, 3.8);
   }
 }
 /** Step the ink and the colour; true while either is still moving. */
@@ -673,7 +673,7 @@ function inkStep(dt) {
     G.inkOn = true;
     if (playing) inkReact(dt);
     G.stepInk(dt, { fade: playing ? 11 : 1.1, seep: playing ? 0.3 : 0, burst: st.burst, flood: st.flood, time: (now - st.t0) / 1000,
-      flow: (playing ? 520 + 700 * music.bass : 160) * 2.06, vort: 6, iterations: 16 });
+      flow: (playing ? 480 : 160) * 2.06, vort: 6, iterations: 16 });
   } else if (G.inkOn) { G.inkOn = false; G.clearInk(); dirty = true; }
   const colouring = !st.colour.resting || !st.dissolve.resting;
   if (colouring || !was) { paintWords(); paintPools(); }

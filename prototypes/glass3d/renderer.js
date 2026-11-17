@@ -45,7 +45,8 @@ uniform vec4 uRip[4];      // centre, age (s; < 0: none), strength
 uniform vec3 uRipK;        // speed (units a second), wavelength (units), decay (s)
 uniform vec4 uJig;         // the slow, wide wobble rolling out from a release: centre, age (s; < 0: none), strength
 // the music: the lobes swell with the bass; on the beat a wave runs along the ribbon, from the cover to the tail
-uniform vec2 uFlex;        // the lobes' swell with the music (units toward the camera): the bulb, the right lobe
+uniform vec3 uFlex;        // the glass bouncing with the music (units toward the camera): the bulb, the right lobe, the lower band
+uniform vec4 uJigB;        // the beat's ring of jelly rolling out from the cover: centre, age (s; < 0: none), strength
 uniform vec4 uBeat[2];     // beat waves: start x, age (s; < 0: none), strength, -
 uniform vec3 uBeatK;       // their speed, wavelength, decay
 uniform vec3 uJigK;        // its speed, wavelength, decay
@@ -69,12 +70,14 @@ float motionField(vec2 p, out vec2 grad) {
     g += e * (1. - s); grad -= e * d / R2 * (3. - s);
   }
   for (int i = 0; i < 4; i++) if (uRip[i].z >= 0.) g += ring(p, uRip[i], uRipK, grad);
-  if (uFlex != vec2(0.)) {   // the two lobes wobbling with the music, each on its own spring
-    vec2 c1 = vec2(-5.63, .26), c2 = vec2(5.07, .66);
-    vec2 d1 = p - c1, d2 = p - c2;
+  if (uFlex != vec3(0.)) {   // the glass bouncing with the music: three soft bumps, each on its own spring
+    vec2 c1 = vec2(-5.63, .26), c2 = vec2(5.07, .66), c3 = vec2(-.6, -2.05);
+    vec2 d1 = p - c1, d2 = p - c2, d3 = (p - c3) * vec2(.5, 1.3);
     float e1 = exp(-.5 * dot(d1, d1) / 2.9) * uFlex.x, e2 = exp(-.5 * dot(d2, d2) / 2.6) * uFlex.y;
-    g -= e1 + e2; grad += e1 * d1 / 2.9 + e2 * d2 / 2.6;
+    float e3 = exp(-.5 * dot(d3, d3) / 1.2) * uFlex.z;
+    g -= e1 + e2 + e3; grad += e1 * d1 / 2.9 + e2 * d2 / 2.6 + e3 * d3 * vec2(.5, 1.3) / 1.2;
   }
+  if (uJigB.z >= 0.) g += ring(p, uJigB, uJigK, grad);
   for (int i = 0; i < 2; i++) {
     vec4 b = uBeat[i];
     if (b.y < 0.) continue;
@@ -990,7 +993,7 @@ export async function createGlass(canvas, { assets, ss = 2, studio = 'live', lig
       gl.uniform4fv(u.uTilt, M.tilt); gl.uniform4fv(u.uDimple, M.dimple); gl.uniform4fv(u.uPress, M.press);
       gl.uniform4fv(u.uRip, new Float32Array(M.rips.flat())); gl.uniform3fv(u.uRipK, M.ripK);
       gl.uniform4fv(u.uJig, M.jig); gl.uniform3fv(u.uJigK, M.jigK);
-      gl.uniform2fv(u.uFlex, M.flex || [0, 0]); gl.uniform4fv(u.uBeat, new Float32Array((M.beats || [[0, -1, 0, 0], [0, -1, 0, 0]]).flat()));
+      gl.uniform3fv(u.uFlex, M.flex || [0, 0, 0]); gl.uniform4fv(u.uJigB, M.jigB || [0, 0, -1, 0]); gl.uniform4fv(u.uBeat, new Float32Array((M.beats || [[0, -1, 0, 0], [0, -1, 0, 0]]).flat()));
       gl.uniform3fv(u.uBeatK, M.beatK || [6, 0.6, 0.7]);
       gl.uniform4fv(u.uMusic, M.music || [0, 0, 0, 0]); gl.uniform1fv(u.uBands, M.bands || new Float32Array(16));
       gl.uniform2fv(u.uFold, R.fold); gl.uniform4fv(u.uSpec, M.spec || [0, 0, 0, 0]);
