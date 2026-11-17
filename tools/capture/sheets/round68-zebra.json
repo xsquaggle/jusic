@@ -1,0 +1,39 @@
+{
+ "out": "design/captures/mercury-zebra-round68.png",
+ "width": 1830,
+ "title": "Zebra view (?zebra=1, ?mat=2): round 67 against round 68, paused",
+ "rows": [
+  [
+   {
+    "label": "round 67, paused",
+    "src": "design/captures/raw/round67-Z/dark-paused.png",
+    "crop": [
+     90,
+     50,
+     1022,
+     513
+    ]
+   },
+   {
+    "label": "round 68, paused",
+    "src": "design/captures/raw/round68-Z/dark-paused.png",
+    "crop": [
+     90,
+     50,
+     1022,
+     513
+    ]
+   },
+   {
+    "label": "round 68, playing",
+    "src": "design/captures/raw/round68-Z/dark.png",
+    "crop": [
+     90,
+     50,
+     1022,
+     513
+    ]
+   }
+  ]
+ ]
+}

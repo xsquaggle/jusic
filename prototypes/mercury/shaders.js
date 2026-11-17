@@ -499,10 +499,10 @@ const vec4 MAT2 = vec4(.05, .7, .3, .42);   // (round 66: the far face .7 where 
 // The light inside the glass (round 64): how bright where it is thickest; how much more toward the lower
 // edge, where the floor's light comes up through it; how far it takes the album's colour; how much less
 // of it lies under the words. (The reference's glass under the words is about 70,50,50, not black.)
-const vec4 GLOW2 = vec4(.1, .04, .3, .3);   // (round 66: .1 and .06 before the fat forms)
+const vec4 GLOW2 = vec4(.055, .025, .3, .3);   // (round 68: darker where one looks straight through, .1 and .04 in round 67)   // (round 66: .1 and .06 before the fat forms)
 // The light trapped in the edge (round 64): a band just inside the outline, never outside it. How bright
 // its coloured sides, how bright its white-hot core, how far in it lies, how wide.
-const vec4 RIM2 = vec4(.22, .45, 5., 3.8);   // (round 66: .38 and .75 until the forms were fat; their rims now carry light of their own)
+const vec4 RIM2 = vec4(0., 0., 5., 3.8);   // (round 68: off; the rims carry the strips' lines and the room, coming and going with what they face. .22 and .45 in round 67)   // (round 66: .38 and .75 until the forms were fat; their rims now carry light of their own)
 // How soft the reflections are on the broad body, and the curvature over which they turn crisp toward
 // the tight rims (round 64, the owner's correction of the audit: soft across the body, crisp only on
 // tight rims).
@@ -553,7 +553,7 @@ const vec3 DENT2 = vec3(11., 8., 14.);   // (round 65: 5, 3 and 5.5)
 // into the band that carries the timeline.
 const vec2 CHAN2 = vec2(8., 110.);   // (round 65: 3.5 deep)
 // The groove at the ridge's inner foot left of the twist, so the band below is a roll of its own: how deep.
-const float GROOVE2 = 3.5;
+const float GROOVE2 = 2.;   // (round 68: 3.5 drew a wobble in the lower band by the timeline's bead)
 ${RIDGE2_GLSL}
 // Where this pixel lies against the ridge, found once per pixel (main) and carried to the points round it
 // along the ridge's own direction: x how far to its outer side (negative on its inner side), y how far
@@ -610,7 +610,7 @@ float form2(vec2 p, float d) {
   float dent = mix(DENT2.x, DENT2.y, smoothstep(RIDGE2_MARK.x - 10., RIDGE2_MARK.x + 60., rg.y)) * smoothstep(-40., 0., rg.y);
   // (Not within 20 units of the cover, where the pocket and the press take over: stacked on them it left a
   // small pit in the notch outside each of the cover's corners, which focused the lamps into a bright spot.)
-  h -= dent * outer * (1. - side) * smoothstep(4., 24., -d) * smoothstep(2., 22., tileSdf(p, uTile.xy));
+  h -= dent * outer * (1. - side) * smoothstep(4., 44., -d) * smoothstep(2., 30., tileSdf(p, uTile.xy));   // (round 68: eased in over wider bands; 24 and 22 left a wobble on the bulb's left side)
   // Its inner foot left of the twist: a soft groove, so the band below that carries the timeline is a roll of
   // its own (round 66).
   h -= GROOVE2 * exp(-pow((rg.x + RIDGE2_H.y * 1.5) / (RIDGE2_H.y * .85), 2.)) * live * (1. - side) * smoothstep(4., 20., -d);
@@ -936,8 +936,8 @@ vec3 env(vec3 r) {
 // tinted gently toward the album's colour (WARM2: the strips, the room), which round 62 already turns to
 // silver for covers with little colour. ROOM2: above, round the horizon, off the floor. STRIP2: the strips.
 const vec2 WARM2 = vec2(.2, .38);
-const vec3 ROOM2 = vec3(1.35, .24, .65);
-const vec3 STRIP2 = vec3(3.2, 2.4, 2.);
+const vec3 ROOM2 = vec3(.95, .2, .6);      // (round 68: 1.35, .24, .65 in round 67)
+const vec3 STRIP2 = vec3(22., 15., 12.);   // (round 68: many times the room, so their lines are hot even where little is mirrored; 3.2, 2.4, 2 in round 67)
 vec3 envSoft2(vec3 r, float fills) {
   vec3 hueA = uPalA / max(max(uPalA.r, uPalA.g), max(uPalA.b, 1e-3));
   vec3 wL = mix(vec3(1.), hueA, WARM2.x), wR = mix(vec3(1.), hueA, WARM2.y);
@@ -1122,11 +1122,12 @@ void main() {
     float t0 = detail(p), txp = detail(p + vec2(ed, 0.)), txm = detail(p - vec2(ed, 0.)), typ = detail(p + vec2(0., ed)), tym = detail(p - vec2(0., ed));
     vec2 slopeD = vec2(txp - txm, typ - tym) / (2. * ed);     // what is pressed into it, and what ripples across it
     float curv = curvB + (abs(txp + txm - 2. * t0) + abs(typ + tym - 2. * t0)) / (ed * ed);
-    gSoft = clamp(max(curv * px * 1.2, curv * .3), .004, .3);
+    // (Material 2, round 68: polished glass mirrors sharply; only the pixel's own footprint softens it.)
+    gSoft = clamp(uMat > 1.5 ? curv * px * 1.2 : max(curv * px * 1.2, curv * .3), .004, .3);
     // Inside a button's bowl nothing is mirrored sharply: one soft light on its wall, not rings.
     float bowl = 0.;
     for (int i = 0; i < 3; i++) bowl = max(bowl, smoothstep(uBtn[i].z + 2., uBtn[i].z - 6., length(pw - uBtn[i].xy)));
-    gSoft = max(gSoft, (uMat > 1.5 ? .22 : .06) * bowl);   // (material 2, round 66: soft, so no chrome ring or hook of a glint)
+    gSoft = max(gSoft, (uMat > 1.5 ? .03 : .06) * bowl);   // (material 2: .22 in round 66, .03 since round 68: sharp, the soft room does the rest)   // (material 2, round 66: soft, so no chrome ring or hook of a glint)
     // The wall of the cover's pocket is cut crisp: what it mirrors keeps its edge.
     float pocket = smoothstep(POCKET.y + 5., POCKET.y - 1., dT) * born;
     gSoft = mix(gSoft, min(gSoft, .045), pocket);
@@ -1134,7 +1135,7 @@ void main() {
     // In a pool the standing form is all but level; ripples and presses still cross it.
     vec3 pl = pools(pw) * born;
     float still = max(pl.x, max(.72 * pl.y, .78 * pl.z));
-    slopeB *= 1. - (uMat > 1.5 ? .5 : .93) * still * smoothstep(4., 20., -d);   // (material 2 calms it a little, it does not flatten it)      // ...but the outer face of the lip keeps its roll
+    slopeB *= 1. - (uMat > 1.5 ? 0. : .93) * still * smoothstep(4., 20., -d);   // (material 2: none since round 68: on the smooth baked form, bending the normals there drew squiggles round the words and the timeline)   // (material 2 calms it a little, it does not flatten it)      // ...but the outer face of the lip keeps its roll
     slopeD *= 1. - .45 * still;
     vec2 slope = slopeB + slopeD;
 
@@ -1744,9 +1745,9 @@ void main() {
       vec3 hue = hotA / max(max(hotA.r, hotA.g), max(hotA.b, 1e-3));
       // Reflections soft across the broad body, crisp only where the form turns tightly (the rims); the
       // pocket's wall keeps its edge.
-      gSoft = max(gSoft, SOFT2.x * (1. - smoothstep(SOFT2.y, SOFT2.z, curv)) * (1. - pocket));
+      // (Round 68: no blur on the broad body. Round 64's SOFT2 spread each thin strip over ten times its width.)
       float F2 = MAT2.x + (1. - MAT2.x) * pow(1. - ndv, 5.);
-      vec3 frontR = env2(R, 1.) * (1. - .6 * cm);
+      vec3 frontR = env2(R, 1.) * (1. - .95 * cm);   // (round 68: .95 where it was .6: the hot strips' lines crossed the words)
       // The far face: the ray bent into the glass meets it, and what it reflects there comes back out
       // through the front. Glass is a lens here, its far face the near one mirrored. Straight on that is
       // a few percent; where the ray meets the far face past the critical angle, all of it.
@@ -1763,9 +1764,10 @@ void main() {
       float Fe = fresnelIn(clamp(dot(Tr, N), 0., 1.));
       mat3 leanM = rotY(uLean.x * .26 + .02 * uAudio.x * sin(uTime * 5.3)) * rotX(uLean.y * -.2 + .016 * uAudio.y * sin(uTime * 7.1));
       float soft0 = gSoft;
-      gSoft = max(gSoft, .16);                                    // seen through the glass, softer (round 66: .16 where it was .06: through fat glass it drew streaks)
+      gSoft = max(gSoft, .025);   // (round 68: .025; .16 in round 66 made haze of the strips seen through the glass)
+                                         // seen through the glass, softer (round 66: .16 where it was .06: through fat glass it drew streaks)
       vec3 backE = env2(leanM * refract(Tr, -N, 1.5), BACK2) * (1. - Fe) + env2(leanM * reflect(Tr, -N), BACK2) * Fe;
-      vec3 backR = backE * mix(vec3(1.), hue, MAT2.z * thick) * MAT2.y * Fb * (1. - F2) * (1. - .7 * cm);
+      vec3 backR = backE * mix(vec3(1.), hue, MAT2.z * thick) * MAT2.y * Fb * (1. - F2) * (1. - .95 * cm);
       gSoft = soft0;
       // Light inside the glass: thicker glass holds more, more still toward the lower edge where the
       // floor's light comes up through it, a little of the album in it, and the pigment through it.
