@@ -39,6 +39,7 @@ vec3 envSoft(vec3 d, float a) { return textureLod(uEnvSoft, equi(d), lodFor(a, u
 // depth moves, so the silhouette (and the click-through drawn from it) never changes. Root units (1 = 100 ref px).
 const MOTION = `
 uniform int uMotionOn;
+uniform float uShapeK;     // how much the outline moves with the field (0: only depth)
 uniform vec4 uDimple;      // centre (x, z), depth (+: pushed back), radius
 uniform vec4 uPress;       // centre, depth, radius
 uniform vec4 uRip[4];      // centre, age (s; < 0: none), strength
@@ -46,8 +47,8 @@ uniform vec3 uRipK;        // speed (units a second), wavelength (units), decay 
 uniform vec4 uJig;         // the slow, wide wobble rolling out from a release: centre, age (s; < 0: none), strength
 // the music: the lobes swell with the bass; on the beat a wave runs along the ribbon, from the cover to the tail
 uniform vec3 uFlex;        // the glass bouncing with the music (units toward the camera): the bulb, the right lobe, the lower band
-uniform vec4 uJigB;        // the beat's ring of jelly rolling out from the cover: centre, age (s; < 0: none), strength
-uniform vec4 uBeat[2];     // beat waves: start x, age (s; < 0: none), strength, -
+uniform vec4 uJigB[6];     // the beats' rings of jelly rolling out from the cover: centre, age (s; < 0: none), strength
+uniform vec4 uBeat[6];     // beat waves: start x, age (s; < 0: none), strength, -
 uniform vec3 uBeatK;       // their speed, wavelength, decay
 uniform vec3 uJigK;        // its speed, wavelength, decay
 // a ring of waves running out from r.xy (age r.z, strength r.w), its slope added to grad
@@ -59,34 +60,37 @@ float ring(vec2 p, vec4 r, vec3 K, inout vec2 grad) {
   return amp * env * sin(k * q);
 }
 uniform vec4 uWellC[3];    // the wells: centre, radius, how far the floor has sunk
-float motionField(vec2 p, out vec2 grad) {
-  float g = 0.; grad = vec2(0.);
+// (the owner: the ripples must change the shape itself, not only ripple inside it: sh is how far the glass's surface
+// moves out along its own normal's sideways part, so the outline swells and ripples with the music and the presses;
+// the click-through keeps the resting outline, a few px off at most while it moves)
+float motionField(vec2 p, out vec2 grad, out float sh) {
+  float g = 0.; grad = vec2(0.); sh = 0.;
   if (uDimple.z != 0.) {
     vec2 d = p - uDimple.xy; float R2 = uDimple.w * uDimple.w; float e = exp(-.5 * dot(d, d) / R2) * uDimple.z;
     g += e; grad -= e * d / R2;
   }
   if (uPress.z != 0.) {      // in under the pointer, a soft bulge round it (the glass keeps its volume)
     vec2 d = p - uPress.xy; float R2 = uPress.w * uPress.w; float s = dot(d, d) / R2; float e = exp(-.5 * s) * uPress.z;
-    g += e * (1. - s); grad -= e * d / R2 * (3. - s);
+    g += e * (1. - s); grad -= e * d / R2 * (3. - s); sh -= e * (1. - s);
   }
-  for (int i = 0; i < 4; i++) if (uRip[i].z >= 0.) g += ring(p, uRip[i], uRipK, grad);
+  for (int i = 0; i < 4; i++) if (uRip[i].z >= 0.) { float r = ring(p, uRip[i], uRipK, grad); g += r; sh -= 2.2 * r; }
   if (uFlex != vec3(0.)) {   // the glass bouncing with the music: three soft bumps, each on its own spring
     vec2 c1 = vec2(-5.63, .26), c2 = vec2(5.07, .66), c3 = vec2(-.6, -2.05);
     vec2 d1 = p - c1, d2 = p - c2, d3 = (p - c3) * vec2(.5, 1.3);
     float e1 = exp(-.5 * dot(d1, d1) / 2.9) * uFlex.x, e2 = exp(-.5 * dot(d2, d2) / 2.6) * uFlex.y;
     float e3 = exp(-.5 * dot(d3, d3) / 1.2) * uFlex.z;
-    g -= e1 + e2 + e3; grad += e1 * d1 / 2.9 + e2 * d2 / 2.6 + e3 * d3 * vec2(.5, 1.3) / 1.2;
+    g -= e1 + e2 + e3; grad += e1 * d1 / 2.9 + e2 * d2 / 2.6 + e3 * d3 * vec2(.5, 1.3) / 1.2; sh += .8 * (e1 + e2 + e3);
   }
-  if (uJigB.z >= 0.) g += ring(p, uJigB, uJigK, grad);
-  for (int i = 0; i < 2; i++) {
+  for (int i = 0; i < 6; i++) if (uJigB[i].z >= 0.) { float r = ring(p, uJigB[i], uJigK, grad); g += r; sh -= 2.2 * r; }
+  for (int i = 0; i < 6; i++) {
     vec4 b = uBeat[i];
     if (b.y < 0.) continue;
     float q = p.x - (b.x + uBeatK.x * b.y), w = uBeatK.y * 1.4, k = 6.2831853 / uBeatK.y;
     float amp = b.z * exp(-b.y / uBeatK.z) * smoothstep(0., .06, b.y), env = exp(-q * q / (w * w));
-    g += amp * env * sin(k * q);
+    g += amp * env * sin(k * q); sh -= 2.2 * amp * env * sin(k * q);
     grad.x += amp * env * (k * cos(k * q) - 2. * q / (w * w) * sin(k * q));
   }
-  if (uJig.z >= 0.) g += ring(p, uJig, uJigK, grad);
+  if (uJig.z >= 0.) { float r = ring(p, uJig, uJigK, grad); g += r; sh -= 2.2 * r; }
   for (int i = 0; i < 3; i++) {
     vec4 wl = uWellC[i];
     if (wl.w == 0.) continue;
@@ -109,7 +113,11 @@ out vec3 vNor;
 out vec2 vUv;
 void main() {
   vec3 p = aPos;
-  if (uMotionOn == 1) { vec2 gr; p.y += motionField(aPos.xz, gr) * motionFront(aNor); }
+  if (uMotionOn == 1) {
+    vec2 gr; float sh;
+    p.y += motionField(aPos.xz, gr, sh) * motionFront(aNor);
+    p.xz += aNor.xz * sh * uShapeK;            // the outline moves too: the jelly's shape itself
+  }
   vPos = p; vNor = aNor; vUv = aUv; gl_Position = uP * vec4(p, 1.);
 }`;
 const FS_LAYER = HEAD + `
@@ -413,7 +421,7 @@ void main() {
   if (uMotionOn == 1) {
     // the field's slope tilts the front's normals (a dent's walls face into it); and the whole glass turns a little
     // toward the cursor, the upper sheet more, the glass round the controls hardly at all
-    vec2 gr; motionField(vPos.xz, gr);
+    vec2 gr; float shF; motionField(vPos.xz, gr, shF);
     float upper = smoothstep(.3, 1.4, vPos.z) * mix(.6, 1., smoothstep(1., 3., vPos.x));
     float steady = 1.;
     for (int i = 0; i < 3; i++) steady = min(steady, mix(.25, 1., smoothstep(.9, 1.4, length(vPos.xz - uWellC[i].xy) / uWellC[i].z)));
@@ -427,7 +435,7 @@ void main() {
       wmM = max(wmM, 1. - smoothstep(0., 1.5, max(d.x, d.y)));
     }
     steady = min(steady, 1. - .85 * wmM);
-    float fieldW = 1. - .6 * wmM;
+    float fieldW = (1. - .6 * wmM) * mix(.45, 1., steady);     // (the field's light softer behind the words and round the buttons' glyphs)
     N = normalize(N + (vec3(gr.x, 0., gr.y) * fieldW + vec3(uTilt.x + upper * uTilt.z, 0., uTilt.y + upper * uTilt.w) * steady) * motionFront(normalize(vNor)));
   }
   float ndv = max(dot(N, V), 0.);
@@ -949,10 +957,30 @@ export async function createGlass(canvas, { assets, ss = 2, studio = 'live', lig
     gl.clearColor(0, 0, 0, 1e4); gl.clearDepth(1); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LESS); gl.enable(gl.CULL_FACE); gl.cullFace(cull);
     const u = use(prog.layer); gl.uniformMatrix4fv(u.uP, false, R.P); gl.uniform1i(u.uFirst, first ? 1 : 0);
+    setMotion(u);
     if (prev) tex(u.uPrev, prev.tex);
     gl.bindVertexArray(vao); gl.drawElements(gl.TRIANGLES, nt * 3, gl.UNSIGNED_INT, 0);
   };
 
+  const NONE6 = new Float32Array([0, 0, -1, 0, 0, 0, -1, 0, 0, 0, -1, 0, 0, 0, -1, 0, 0, 0, -1, 0, 0, 0, -1, 0]);
+  const NOBEAT6 = new Float32Array([0, -1, 0, 0, 0, -1, 0, 0, 0, -1, 0, 0, 0, -1, 0, 0, 0, -1, 0, 0, 0, -1, 0, 0]);
+  /** The motion's uniforms, for every program that draws the glass (the layers' vertex shader moves it the same way). */
+  const setMotion = (u) => {
+    const M = R.motion;
+    gl.uniform1i(u.uMotionOn, M ? 1 : 0);
+    if (!M) return;
+    gl.uniform1f(u.uShapeK, M.shapeK ?? 1);
+    gl.uniform4fv(u.uTilt, M.tilt); gl.uniform4fv(u.uDimple, M.dimple); gl.uniform4fv(u.uPress, M.press);
+    gl.uniform4fv(u.uRip, new Float32Array(M.rips.flat())); gl.uniform3fv(u.uRipK, M.ripK);
+    gl.uniform4fv(u.uJig, M.jig); gl.uniform3fv(u.uJigK, M.jigK);
+    gl.uniform3fv(u.uFlex, M.flex || [0, 0, 0]);
+    gl.uniform4fv(u.uJigB, M.jigB ? new Float32Array(M.jigB.flat()) : NONE6);
+    gl.uniform4fv(u.uBeat, M.beats ? new Float32Array(M.beats.flat()) : NOBEAT6);
+    gl.uniform3fv(u.uBeatK, M.beatK || [6, 0.6, 0.7]);
+    gl.uniform4fv(u.uMusic, M.music || [0, 0, 0, 0]); gl.uniform1fv(u.uBands, M.bands || new Float32Array(16));
+    gl.uniform2fv(u.uFold, R.fold); gl.uniform4fv(u.uSpec, M.spec || [0, 0, 0, 0]);
+    gl.uniform4fv(u.uWellC, new Float32Array(WELLS.map((w, i) => [w[0], w[1], w[2], M.sink[i]]).flat()));
+  };
   R.draw = () => {
     const T = R.targets, L = R.light, [RW, RH] = R.size.render, [CW, CH] = R.size.canvas;
     // 1, 2: the layers
@@ -988,17 +1016,7 @@ export async function createGlass(canvas, { assets, ss = 2, studio = 'live', lig
     gl.uniform4fv(u.uWells, new Float32Array(WELLS.flat())); gl.uniform1i(u.uDbg, R.dbg);
     // phase 3: the cursor and the presses (R.motion, set by the page each frame while anything moves)
     const M = R.motion;
-    gl.uniform1i(u.uMotionOn, M ? 1 : 0);
-    if (M) {
-      gl.uniform4fv(u.uTilt, M.tilt); gl.uniform4fv(u.uDimple, M.dimple); gl.uniform4fv(u.uPress, M.press);
-      gl.uniform4fv(u.uRip, new Float32Array(M.rips.flat())); gl.uniform3fv(u.uRipK, M.ripK);
-      gl.uniform4fv(u.uJig, M.jig); gl.uniform3fv(u.uJigK, M.jigK);
-      gl.uniform3fv(u.uFlex, M.flex || [0, 0, 0]); gl.uniform4fv(u.uJigB, M.jigB || [0, 0, -1, 0]); gl.uniform4fv(u.uBeat, new Float32Array((M.beats || [[0, -1, 0, 0], [0, -1, 0, 0]]).flat()));
-      gl.uniform3fv(u.uBeatK, M.beatK || [6, 0.6, 0.7]);
-      gl.uniform4fv(u.uMusic, M.music || [0, 0, 0, 0]); gl.uniform1fv(u.uBands, M.bands || new Float32Array(16));
-      gl.uniform2fv(u.uFold, R.fold); gl.uniform4fv(u.uSpec, M.spec || [0, 0, 0, 0]);
-      gl.uniform4fv(u.uWellC, new Float32Array(WELLS.map((w, i) => [w[0], w[1], w[2], M.sink[i]]).flat()));
-    }
+    setMotion(u);
     // (the words' boxes, reference px -> canvas fractions, y up)
     const [rx, ry, rw, rh] = R.size.ref;
     const boxes = (R.words || []).slice(0, 4).map(([u0, v0, u1, v1]) => [(u0 - rx) / rw, 1 - (v1 - ry) / rh, (u1 - rx) / rw, 1 - (v0 - ry) / rh]);

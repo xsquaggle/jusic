@@ -550,7 +550,7 @@ function madeUpBeat(t, bpm) {
 }
 const music = { on: new Spring('glide'), bands: new Float32Array(16), bass: 0, highs: 0, pulse: 0, beats: [], lastBeat: -1e9, t0: performance.now(),
   lobeL: new Spring({ k: 150, c: 4.2 }), lobeR: new Spring({ k: 195, c: 4.8 }), lobeB: new Spring({ k: 120, c: 3.8 }),
-  sway: new Spring2({ k: 120, c: 4 }), side: 1, ring: null };
+  sway: new Spring2({ k: 120, c: 4 }), side: 1, rings: [] };
 if (host && host.onBands) host.onBands((b) => listener.feed(b));
 /** Step the music; true while it is moving the glass. Its uniforms ride along with the motion's. */
 function musicStep(dt) {
@@ -562,7 +562,7 @@ function musicStep(dt) {
   if (m.on.x < 1e-3 && !live) {
     m.beats = [];
     for (const sp of [m.lobeL, m.lobeR, m.lobeB]) sp.snap(0);
-    m.ring = null;
+    m.rings = [];
     m.sway.snap(0, 0);
     return false;
   }
@@ -572,11 +572,11 @@ function musicStep(dt) {
   m.highs = (a.bands[11] + a.bands[12] + a.bands[13] + a.bands[14] + a.bands[15]) / 5;
   // a beat: the pulse rising through a threshold, not too soon after the last
   if (a.pulse > 0.55 && m.pulse <= 0.55 && t - m.lastBeat > 0.28 && MUS.beat > 0) {
-    m.lastBeat = t; m.beats.push({ x0: -5.4, t0: t, s: MUS.beat * (0.6 + 0.4 * a.pulse) }); if (m.beats.length > 2) m.beats.shift();
+    m.lastBeat = t; m.beats.push({ x0: -5.4, t0: t, s: MUS.beat * (0.6 + 0.4 * a.pulse) }); if (m.beats.length > 6) m.beats.shift();
     // the kick: both lobes jump and wobble back, the far one a moment later; the glass sways one way, then the other
     const pw = 0.6 + 0.4 * a.pulse;
     m.lobeL.kick(MUS.kick * pw); m.lobeR.kick(MUS.kick * 0.85 * pw); m.lobeB.kick(-MUS.kick * 0.7 * pw);   // (the band dips as the lobes jump)
-    m.ring = { t0: t, s: MUS.ring * pw };
+    m.rings.push({ t0: t, s: MUS.ring * pw }); if (m.rings.length > 6) m.rings.shift();
     m.side = -m.side; m.sway.kick(MUS.sway * m.side, MUS.sway * 0.4);
     m.kicked = Math.min(1, a.pulse);
   }
@@ -584,18 +584,18 @@ function musicStep(dt) {
   // the bass pulls the lobes out (a spring with little damping, so they overshoot and wobble)
   m.lobeL.target = m.bass; m.lobeR.target = m.bass * 0.85; m.lobeB.target = m.bass * 0.5;
   m.lobeL.step(dt); m.lobeR.step(dt); m.lobeB.step(dt); m.sway.step(dt);
-  if (m.ring && t - m.ring.t0 > 4) m.ring = null;
+  m.rings = m.rings.filter((r) => t - r.t0 < 4.5);
   m.pulse = a.pulse;
-  m.beats = m.beats.filter((b) => t - b.t0 < 3.5);
+  m.beats = m.beats.filter((b) => t - b.t0 < 4.5);
   return true;
 }
 function musicUniforms() {
   const m = music, t = (performance.now() - m.t0) / 1000, on = m.on.x;
   return {
     flex: [MUS.flex * m.lobeL.x * on, MUS.flex * m.lobeR.x * on, MUS.flex * m.lobeB.x * on],
-    jigB: m.ring ? [-5.0, 0.3, t - m.ring.t0, m.ring.s * on] : [0, 0, -1, 0],
+    jigB: [0, 1, 2, 3, 4, 5].map((i) => (m.rings[i] ? [-5.0, 0.3, t - m.rings[i].t0, m.rings[i].s * on] : [0, 0, -1, 0])),
     sway: [m.sway.x * 0.05 * on, m.sway.y * 0.05 * on],
-    beats: [0, 1].map((i) => (m.beats[i] ? [m.beats[i].x0, t - m.beats[i].t0, m.beats[i].s * on, 0] : [0, -1, 0, 0])),
+    beats: [0, 1, 2, 3, 4, 5].map((i) => (m.beats[i] ? [m.beats[i].x0, t - m.beats[i].t0, m.beats[i].s * on, 0] : [0, -1, 0, 0])),
     beatK: [4.5, 1.0, 1.0],
     music: [m.bass, m.highs * MUS.glint, t, on],
     bands: m.bands,
@@ -692,7 +692,7 @@ function inkStep(dt) {
 const RM = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
 // (the owner, 17 November: "a little bit stronger", and the press to squish more like jelly)
 const MOT = { tilt: 0.065, lean: 0.06, dimple: 0.06, dimpleR: 0.2, press: 0.11, pressR: 1.3, rip: 0.015, ripSpeed: 9, ripWave: 0.38,
-  ripDecay: 0.6, jig: 0.022, jigSpeed: 3.4, jigWave: 1.1, jigDecay: 0.9, sink: 1 };
+  ripDecay: 0.6, jig: 0.022, jigSpeed: 3.4, jigWave: 1.1, jigDecay: 0.9, sink: 1, shape: 1 };
 for (const k of Object.keys(MOT)) if (Q.has('m_' + k)) MOT[k] = Number(Q.get('m_' + k));
 const SINK = { hover: 0.03, down: 0.07 };                   // how far a well's floor goes back (root units: 1 = 100 ref px)
 // Jelly: a press goes in with a little overshoot and comes back bouncing three or four times; a button's floor the same,
@@ -818,6 +818,7 @@ function motionStep(now) {
     ripK: [MOT.ripSpeed, MOT.ripWave, MOT.ripDecay],
     jig: m.jig ? [m.jig.x, m.jig.z, t - m.jig.t0, m.jig.s] : [0, 0, -1, 0],
     jigK: [MOT.jigSpeed, MOT.jigWave, MOT.jigDecay],
+    shapeK: MOT.shape,
     ...musicUniforms(),
     sink: m.sink.map((s) => s.x),
   } : null;
