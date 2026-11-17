@@ -169,6 +169,7 @@ uniform int uMode;
 uniform float uDt;
 uniform float uTime;
 uniform vec4 uMap;           // canvas uv -> reference px: left, top, width, height
+uniform vec2 uVelK;          // (the solver's velocity is in reference px a second, y down)
 uniform vec4 uCov;           // the cover's box in reference px: u0, v0, u1, v1
 uniform vec4 uK;             // fade (s), seep, burst (the old cover letting go), flood (colour back round the cover)
 out vec4 o;
@@ -183,18 +184,7 @@ float psi(vec2 p, vec2 uv) {
   return 4200. * smoothstep(.55, .92, e) * (1.1 * n + .45 * n2) + 2600. * smoothstep(.5, .9, e);
 }
 void main() {
-  if (uMode == 2) {
-    vec2 p = refAt(vUv); float h = 3.;
-    vec2 du = vec2(h / uMap.z, 0.), dv = vec2(0., h / uMap.w);
-    vec2 v = vec2(psi(p + vec2(0., h), vUv - dv) - psi(p - vec2(0., h), vUv + dv),
-                  -(psi(p + vec2(h, 0.), vUv + du) - psi(p - vec2(h, 0.), vUv - du))) / (2. * h);
-    vec2 cc = .5 * (uCov.xy + uCov.zw), q = p - cc;
-    v += uK.z * normalize(q + 1e-3) * 420. * exp(-dot(q, q) / (240. * 240.));
-    v *= smoothstep(.45, .6, inside(vUv));
-    o = vec4(v.x / uMap.z, -v.y / uMap.w, 0., 1.);          // canvas uv a second
-    return;
-  }
-  vec2 vel = texture(uVel, vUv).xy;
+  vec2 vel = texture(uVel, vUv).xy * vec2(1. / uMap.z, -1. / uMap.w);     // uv a second
   if (uMode == 0) { o = vec4(texture(uSrc, vUv - uDt * vel).rgb, 1.); return; }
   vec2 back = vUv - uDt * vel;
   vec3 dye = texture(uFwd, vUv).rgb + .5 * (texture(uDye, vUv).rgb - texture(uBwd, vUv).rgb);
@@ -214,12 +204,120 @@ void main() {
   dye += art * lowerEdge * (.06 + 3.2 * thread) * uK.y * uDt;
   // a track change: the old cover turns to pigment where it lay, and is pushed out (mode 2)
   float inCov = step(uCov.x, p.x) * step(p.x, uCov.z) * step(uCov.y, p.y) * step(p.y, uCov.w);
-  dye = mix(dye, pigment(textureLod(uArtOld, cuv, 1.5).rgb), uK.z * inCov * .22);
+  dye = mix(dye, pigment(textureLod(uArtOld, cuv, 1.5).rgb), uK.z * inCov * .08);
   // play: colour floods back out of the cover, round its edges
   float rimD = abs(max(max(uCov.x - p.x, p.x - uCov.z), max(uCov.y - p.y, p.y - uCov.w)) - 6.);
   dye += art * smoothstep(30., 0., rimD) * uK.w * 3. * uDt;
   dye *= smoothstep(.45, .6, inside(vUv));
   o = vec4(clamp(dye, 0., 4.), 1.);
+}`;
+/**
+ * The liquid the ink lives in (the owner, 17 November: "like ink dropped into oil, shot out from the side into a
+ * mushroom cloud"; the 2D widget's solver, ported): a real velocity field on a grid a third of the canvas's size,
+ * in reference px a second (y down), kept inside the silhouette: carried along itself and eased toward a slow
+ * circulation, pushed by jets, spins and splashes, its small curls kept alive (vorticity confinement), then made
+ * incompressible (pressure). A jet into still liquid rolls up into a mushroom: that is the curl of ink.
+ */
+const FL_HEAD = HEAD + NOISE_GLSL + `
+in vec2 vUv;
+out vec4 o;
+uniform vec2 uTexel;       // one cell of the grid, in uv
+uniform vec4 uMap;         // canvas uv -> reference px: left, top, width, height
+uniform sampler2D uEdge;   // the silhouette, blurred
+vec2 refAt(vec2 uv) { return vec2(uMap.x + uv.x * uMap.z, uMap.y + (1. - uv.y) * uMap.w); }
+vec2 perPx() { return vec2(1. / uMap.z, -1. / uMap.w); }      // reference px (y down) -> uv
+float inside(vec2 uv) { return texture(uEdge, uv).r; }
+// neighbours in the reference frame: east, west, south (down the screen), north
+#define EAST(t) texture(t, vUv + vec2(uTexel.x, 0.))
+#define WEST(t) texture(t, vUv - vec2(uTexel.x, 0.))
+#define SOUTH(t) texture(t, vUv - vec2(0., uTexel.y))
+#define NORTH(t) texture(t, vUv + vec2(0., uTexel.y))
+`;
+const FS_FL_FORCE = FL_HEAD + `
+uniform sampler2D uVel;
+uniform float uDt;
+uniform float uTime;
+uniform float uFlow;       // the slow circulation's strength (more with the music)
+float psi(vec2 p, vec2 uv) {
+  float e = inside(uv);
+  float n = fbm2(p * .0045 + vec2(uTime * .021, -uTime * .013)) - .5;
+  float n2 = fbm2(p * .0095 - vec2(uTime * .03, uTime * .017)) - .5;
+  // swirls inside, and a current round the inside of the outline (left to right along the lower band)
+  return smoothstep(.55, .92, e) * (1.1 * n + .4 * n2) + .55 * smoothstep(.5, .9, e);
+}
+void main() {
+  vec2 v = texture(uVel, vUv).xy;
+  v = texture(uVel, vUv - uDt * v * perPx()).xy;
+  vec2 p = refAt(vUv); float h = 4.;
+  vec2 du = vec2(h / uMap.z, 0.), dv = vec2(0., h / uMap.w);
+  vec2 cur = vec2(psi(p + vec2(0., h), vUv - dv) - psi(p - vec2(0., h), vUv + dv),
+                  -(psi(p + vec2(h, 0.), vUv + du) - psi(p - vec2(h, 0.), vUv - du))) / (2. * h) * uFlow;
+  v += (cur - v) * (1. - exp(-uDt * .45));
+  v *= exp(-uDt * .16);
+  v *= smoothstep(.45, .62, inside(vUv));
+  o = vec4(clamp(v, -2500., 2500.), 0., 1.);
+}`;
+const FS_FL_IMPULSE = FL_HEAD + `
+uniform sampler2D uVel;
+uniform vec2 uPoint;       // reference px
+uniform vec2 uPush;        // reference px a second
+uniform float uSpin;
+uniform float uBurst;
+uniform float uRadius;
+void main() {
+  vec2 q = refAt(vUv) - uPoint;
+  float g = exp(-dot(q, q) / (uRadius * uRadius));
+  vec2 v = texture(uVel, vUv).xy + uPush * g + uSpin * vec2(-q.y, q.x) / uRadius * g + uBurst * q / uRadius * g;
+  o = vec4(v * smoothstep(.45, .62, inside(vUv)), 0., 1.);
+}`;
+const FS_FL_CURL = FL_HEAD + `
+uniform sampler2D uVel;
+void main() { o = vec4(.5 * (EAST(uVel).y - WEST(uVel).y) - .5 * (SOUTH(uVel).x - NORTH(uVel).x), 0., 0., 1.); }`;
+const FS_FL_VORT = FL_HEAD + `
+uniform sampler2D uVel;
+uniform sampler2D uCurl;
+uniform float uDt;
+uniform float uStrength;
+void main() {
+  float w = texture(uCurl, vUv).x;
+  vec2 n = .5 * vec2(abs(EAST(uCurl).x) - abs(WEST(uCurl).x), abs(SOUTH(uCurl).x) - abs(NORTH(uCurl).x));
+  n /= length(n) + 1e-4;
+  vec2 v = texture(uVel, vUv).xy + uStrength * w * vec2(n.y, -n.x) * uDt;
+  o = vec4(clamp(v, -2500., 2500.), 0., 1.);
+}`;
+const FS_FL_DIV = FL_HEAD + `
+uniform sampler2D uVel;
+void main() { o = vec4(.5 * (EAST(uVel).x - WEST(uVel).x + SOUTH(uVel).y - NORTH(uVel).y), 0., 0., 1.); }`;
+const FS_FL_PRESSURE = FL_HEAD + `
+uniform sampler2D uPressure;
+uniform sampler2D uDiv;
+void main() {
+  o = vec4((EAST(uPressure).x + WEST(uPressure).x + SOUTH(uPressure).x + NORTH(uPressure).x - texture(uDiv, vUv).x) * .25, 0., 0., 1.);
+}`;
+const FS_FL_PROJECT = FL_HEAD + `
+uniform sampler2D uPressure;
+uniform sampler2D uVel;
+void main() {
+  vec2 v = texture(uVel, vUv).xy - .5 * vec2(EAST(uPressure).x - WEST(uPressure).x, SOUTH(uPressure).x - NORTH(uPressure).x);
+  o = vec4(v * smoothstep(.45, .62, inside(vUv)), 0., 1.);
+}`;
+/** A drop of pigment: the cover's own colour where it left from (or the old cover's), or a given colour. */
+const FS_FL_DROP = FL_HEAD + PIGMENT_GLSL + `
+uniform sampler2D uDye;
+uniform sampler2D uArt;
+uniform sampler2D uArtOld;
+uniform vec2 uPoint;
+uniform float uRadius;
+uniform float uAmount;
+uniform vec3 uColor;
+uniform vec4 uCoverUv;     // where on the cover, 1 to use it, 1 for the old cover
+void main() {
+  vec2 q = refAt(vUv) - uPoint;
+  float g = exp(-dot(q, q) / (uRadius * uRadius));
+  vec3 art = uCoverUv.w > .5 ? textureLod(uArtOld, uCoverUv.xy, 2.5).rgb : textureLod(uArt, uCoverUv.xy, 2.5).rgb;
+  vec3 c = mix(uColor, pigment(art), uCoverUv.z);
+  vec3 dye = texture(uDye, vUv).rgb;
+  o = vec4(dye + c * g * uAmount * (1. - .45 * clamp(max(dye.r, max(dye.g, dye.b)), 0., 1.)), 1.);
 }`;
 const VS_COVER = HEAD + `
 layout(location = 0) in vec3 aPos;
@@ -476,7 +574,7 @@ void main() {
     vec3 ink = texture(uInk, gl_FragCoord.xy / uRes).rgb;
     float mx = max(ink.r, max(ink.g, ink.b));
     vec3 hue = pow(ink / max(mx, 1e-3), vec3(1.35));
-    float dense = (1. - exp(-mx * 2.2)) * (.45 + .55 * (1. - exp(-thick * 3.))) * (1. - .8 * wm) * (1. - F);
+    float dense = (1. - exp(-mx * 6.)) * (.55 + .45 * (1. - exp(-thick * 3.))) * (1. - .8 * wm) * (1. - F);
     col = mix(col, col * hue * 1.15, dense * uInkK.x);
     col += hue * dense * uInkK.y;
   }
@@ -677,7 +775,10 @@ export async function createGlass(canvas, { assets, ss = 2, studio = 'live', lig
 
   const prog = { layer: compile(VS_MESH, FS_LAYER), mask: compile(VS_MESH, FS_MASK), maskCover: compile(VS_COVER, FS_MASK),
     cover: compile(VS_COVER, FS_COVER), glass: compile(VS_MESH, FS_GLASS), down: compile(VS_QUAD, FS_DOWN),
-    bright: compile(VS_QUAD, FS_BRIGHT), blur: compile(VS_QUAD, FS_BLUR), ink: compile(VS_QUAD, FS_INK) };
+    bright: compile(VS_QUAD, FS_BRIGHT), blur: compile(VS_QUAD, FS_BLUR), ink: compile(VS_QUAD, FS_INK),
+    flForce: compile(VS_QUAD, FS_FL_FORCE), flImpulse: compile(VS_QUAD, FS_FL_IMPULSE), flCurl: compile(VS_QUAD, FS_FL_CURL),
+    flVort: compile(VS_QUAD, FS_FL_VORT), flDiv: compile(VS_QUAD, FS_FL_DIV), flPressure: compile(VS_QUAD, FS_FL_PRESSURE),
+    flProject: compile(VS_QUAD, FS_FL_PROJECT), flDrop: compile(VS_QUAD, FS_FL_DROP) };
   const t = meta.tilt * Math.PI / 180, ct = Math.cos(t), st = Math.sin(t);
   const toWorld = new Float32Array([1, 0, 0, 0, ct, -st, 0, st, ct]);        // columns: Rx(-tilt)
   const covInv = new Float32Array(16);
@@ -700,12 +801,15 @@ export async function createGlass(canvas, { assets, ss = 2, studio = 'live', lig
     canvas.width = CW; canvas.height = CH; canvas.style.width = cssW + 'px'; canvas.style.height = cssH + 'px';
     if (R.targets) for (const k of Object.keys(R.targets)) drop(R.targets[k]);
     const QW = Math.max(1, Math.round(RW / 4)), QH = Math.max(1, Math.round(RH / 4));
+    const DW = Math.round(CW * 0.75), DH = Math.round(CH * 0.75), VW = Math.round(CW / 3), VH = Math.round(CH / 3);
     R.targets = { back: target(RW, RH, gl.NEAREST), f2: target(RW, RH, gl.NEAREST), b2: target(RW, RH, gl.NEAREST),
       hdr: target(RW, RH, gl.LINEAR), mask: target(CW, CH, gl.NEAREST, gl.RGBA8, gl.UNSIGNED_BYTE),
       glowA: target(QW, QH, gl.LINEAR), glowB: target(QW, QH, gl.LINEAR),
-      inkA: target(Math.round(CW / 2), Math.round(CH / 2), gl.LINEAR), inkB: target(Math.round(CW / 2), Math.round(CH / 2), gl.LINEAR),
-      inkF: target(Math.round(CW / 2), Math.round(CH / 2), gl.LINEAR), inkK: target(Math.round(CW / 2), Math.round(CH / 2), gl.LINEAR),
-      inkV: target(Math.round(CW / 2), Math.round(CH / 2), gl.LINEAR) };
+      // the pigment at three quarters of the canvas's pixels (threads keep their edges), the liquid at a third
+      inkA: target(DW, DH, gl.LINEAR), inkB: target(DW, DH, gl.LINEAR), inkF: target(DW, DH, gl.LINEAR), inkK: target(DW, DH, gl.LINEAR),
+      velA: target(VW, VH, gl.LINEAR), velB: target(VW, VH, gl.LINEAR), curl: target(VW, VH, gl.NEAREST), div: target(VW, VH, gl.NEAREST),
+      presA: target(VW, VH, gl.NEAREST), presB: target(VW, VH, gl.NEAREST) };
+    R.vel = [R.targets.velA, R.targets.velB]; R.pres = [R.targets.presA, R.targets.presB];
     R.inkCur = R.targets.inkA; R.inkNext = R.targets.inkB;
     R.clearInk();
     // (the glow's mipmaps: sampled wider and softer when the picture goes down to the canvas)
@@ -749,30 +853,74 @@ export async function createGlass(canvas, { assets, ss = 2, studio = 'live', lig
   R.tintBase = () => R.tint.map((c, i) => (R.tintPrev ? R.tintPrev[i] + (c - R.tintPrev[i]) * R.dissolve : c));
   R.tintNow = () => R.tintBase().map((c, i) => SILVER[i] + (c - SILVER[i]) * R.colour);
   /** The ink: one step of dt seconds. k: { fade, seep, burst, flood, time }. */
+  /** Stir the liquid (reference px): a jet, a spin, a splash. Drops of pigment. Applied at the next step. */
+  R.fluid = { impulses: [], drops: [] };
+  R.push = (x, y, vx, vy, radius = 40) => R.fluid.impulses.push({ x, y, vx, vy, spin: 0, burst: 0, radius });
+  R.swirl = (x, y, spin, radius = 80) => R.fluid.impulses.push({ x, y, vx: 0, vy: 0, spin, burst: 0, radius });
+  R.splash = (x, y, burst, radius = 60) => R.fluid.impulses.push({ x, y, vx: 0, vy: 0, spin: 0, burst, radius });
+  R.drop = (x, y, { radius = 22, amount = 0.9, color = null, coverUv = null, old = false } = {}) =>
+    R.fluid.drops.push({ x, y, radius, amount, color: color || [0, 0, 0], coverUv, old });
+  /** The liquid and its ink: one step of dt seconds. k: { fade, seep, burst, flood, time, flow, vort, iterations }. */
   R.stepInk = (dt, k) => {
-    const T = R.targets, w = T.inkA.w, h = T.inkA.h, [rx, ry, rw, rh] = R.size.ref;
+    const T = R.targets, [rx, ry, rw, rh] = R.size.ref;
     gl.disable(gl.DEPTH_TEST); gl.disable(gl.CULL_FACE); gl.bindVertexArray(null);
-    gl.viewport(0, 0, w, h);
-    const pass = (mode, out, set) => {
-      gl.bindFramebuffer(gl.FRAMEBUFFER, out.fbo);
-      const u = use(prog.ink);
-      gl.uniform1i(u.uMode, mode); gl.uniform1f(u.uDt, dt); gl.uniform1f(u.uTime, k.time);
-      gl.uniform4f(u.uMap, rx, ry, rw, rh); gl.uniform4f(u.uCov, 144, 270, 446, 572);
-      gl.uniform4f(u.uK, k.fade, k.seep, k.burst, k.flood); gl.uniform3fv(u.uPal, R.tint);
-      // (the currents' own pass must not read the texture it writes: WebGL drops a draw with such a loop)
-      tex(u.uEdge, edgeTex); tex(u.uArt, artTex); tex(u.uArtOld, artOldTex); tex(u.uVel, out === T.inkV ? T.inkF.tex : T.inkV.tex);
+    const vw = T.velA.w, vh = T.velA.h;
+    const run = (pr, out, set) => {
+      gl.bindFramebuffer(gl.FRAMEBUFFER, out.fbo); gl.viewport(0, 0, out.w, out.h);
+      const u = use(pr);
+      gl.uniform2f(u.uTexel, 1 / out.w, 1 / out.h); gl.uniform4f(u.uMap, rx, ry, rw, rh); tex(u.uEdge, edgeTex);
       set(u);
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     };
-    pass(2, T.inkV, () => {});
-    pass(0, T.inkF, (u) => tex(u.uSrc, R.inkCur.tex));
-    pass(0, T.inkK, (u) => { tex(u.uSrc, T.inkF.tex); gl.uniform1f(u.uDt, -dt); });
-    pass(1, R.inkNext, (u) => { tex(u.uDye, R.inkCur.tex); tex(u.uFwd, T.inkF.tex); tex(u.uBwd, T.inkK.tex); });
+    const swapV = () => { R.vel = [R.vel[1], R.vel[0]]; };
+    // the liquid
+    run(prog.flForce, R.vel[1], (u) => { tex(u.uVel, R.vel[0].tex); gl.uniform1f(u.uDt, dt); gl.uniform1f(u.uTime, k.time); gl.uniform1f(u.uFlow, k.flow); });
+    swapV();
+    for (const im of R.fluid.impulses) {
+      run(prog.flImpulse, R.vel[1], (u) => {
+        tex(u.uVel, R.vel[0].tex); gl.uniform2f(u.uPoint, im.x, im.y); gl.uniform2f(u.uPush, im.vx, im.vy);
+        gl.uniform1f(u.uSpin, im.spin); gl.uniform1f(u.uBurst, im.burst); gl.uniform1f(u.uRadius, im.radius);
+      });
+      swapV();
+    }
+    R.fluid.impulses.length = 0;
+    run(prog.flCurl, T.curl, (u) => tex(u.uVel, R.vel[0].tex));
+    run(prog.flVort, R.vel[1], (u) => { tex(u.uVel, R.vel[0].tex); tex(u.uCurl, T.curl.tex); gl.uniform1f(u.uDt, dt); gl.uniform1f(u.uStrength, k.vort); });
+    swapV();
+    run(prog.flDiv, T.div, (u) => tex(u.uVel, R.vel[0].tex));
+    for (let i = 0; i < k.iterations; i++) {
+      run(prog.flPressure, R.pres[1], (u) => { tex(u.uPressure, R.pres[0].tex); tex(u.uDiv, T.div.tex); });
+      R.pres = [R.pres[1], R.pres[0]];
+    }
+    run(prog.flProject, R.vel[1], (u) => { tex(u.uPressure, R.pres[0].tex); tex(u.uVel, R.vel[0].tex); });
+    swapV();
+    // the pigment: new drops, then carried with a corrected step (and faded, the cover weeping, the flood)
+    for (const d of R.fluid.drops) {
+      run(prog.flDrop, R.inkNext, (u) => {
+        tex(u.uDye, R.inkCur.tex); tex(u.uArt, artTex); tex(u.uArtOld, artOldTex);
+        gl.uniform2f(u.uPoint, d.x, d.y); gl.uniform1f(u.uRadius, d.radius); gl.uniform1f(u.uAmount, d.amount);
+        gl.uniform3fv(u.uColor, d.color); gl.uniform3fv(u.uPal, R.tint);
+        gl.uniform4f(u.uCoverUv, d.coverUv ? d.coverUv[0] : 0, d.coverUv ? d.coverUv[1] : 0, d.coverUv ? 1 : 0, d.old ? 1 : 0);
+      });
+      [R.inkCur, R.inkNext] = [R.inkNext, R.inkCur];
+    }
+    R.fluid.drops.length = 0;
+    const ink = (mode, out, set) => run(prog.ink, out, (u) => {
+      gl.uniform1i(u.uMode, mode); gl.uniform1f(u.uDt, dt); gl.uniform1f(u.uTime, k.time);
+      gl.uniform4f(u.uCov, 144, 270, 446, 572); gl.uniform4f(u.uK, k.fade, k.seep, k.burst, k.flood); gl.uniform3fv(u.uPal, R.tint);
+      tex(u.uArt, artTex); tex(u.uArtOld, artOldTex); tex(u.uVel, R.vel[0].tex);
+      set(u);
+    });
+    ink(0, T.inkF, (u) => tex(u.uSrc, R.inkCur.tex));
+    ink(0, T.inkK, (u) => { tex(u.uSrc, T.inkF.tex); gl.uniform1f(u.uDt, -dt); });
+    ink(1, R.inkNext, (u) => { tex(u.uDye, R.inkCur.tex); tex(u.uFwd, T.inkF.tex); tex(u.uBwd, T.inkK.tex); });
     [R.inkCur, R.inkNext] = [R.inkNext, R.inkCur];
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
   };
   R.clearInk = () => {
-    for (const t of [R.targets.inkA, R.targets.inkB]) { gl.bindFramebuffer(gl.FRAMEBUFFER, t.fbo); gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT); }
+    const T = R.targets;
+    for (const t of [T.inkA, T.inkB, T.velA, T.velB, T.presA, T.presB]) { gl.bindFramebuffer(gl.FRAMEBUFFER, t.fbo); gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT); }
+    if (R.fluid) { R.fluid.impulses.length = 0; R.fluid.drops.length = 0; }
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
   };
   /** A frame of the screen behind the window (a VideoFrame, image or canvas), or null. */

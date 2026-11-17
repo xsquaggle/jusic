@@ -60,7 +60,7 @@ const LIGHT = MODE === 0
 // core hugging the outline (a lit edge, not a painted rim); ringMirror: the art mirrored round the ring (the marble)
 Object.assign(LIGHT, MODE === 0
   ? { bloom: 0, bloomThr: 1, bloomR: 1, bloomWarm: 0, keepRoll: LIGHT.deskKeep, sheen: 0, edgeCore: 0, ringMirror: 0, ink: 0, inkGlow: 0 }
-  : { bloom: 1.5, bloomThr: 0.5, bloomR: 1.5, bloomWarm: 1, keepRoll: 0.6, sheen: 0.1, edgeCore: 0.8, ringMirror: 0.3, ink: 0.85, inkGlow: 0.22 });
+  : { bloom: 1.5, bloomThr: 0.5, bloomR: 1.5, bloomWarm: 1, keepRoll: 0.6, sheen: 0.1, edgeCore: 0.8, ringMirror: 0.3, ink: 1, inkGlow: 0.38 });
 for (const k of Object.keys(LIGHT)) if (Q.has(k)) LIGHT[k] = Number(Q.get(k));
 
 const $ = (id) => document.getElementById(id);
@@ -104,7 +104,14 @@ function useCover(img, change = false) {
   // (reduced motion: a plain crossfade)
   const from = change ? G.tintBase() : null;
   G.setCover(img, change); G.setTint(tint, from);
-  if (change) { inkState.dissolve.snap(0); inkState.dissolve.target = 1; G.dissolveNoise = !motion.reduced; inkState.burst = motion.reduced ? 0 : 1; }
+  if (change) {
+    inkState.dissolve.snap(0); inkState.dissolve.target = 1; G.dissolveNoise = !motion.reduced; inkState.burst = motion.reduced ? 0 : 1;
+    if (!motion.reduced && mask && LIGHT.ink > 0) {
+      for (let i = 0; i < 14; i++) rimDrop(1.3, { old: true, angle: (i / 14) * Math.PI * 2 + rnd(-0.2, 0.2) });
+      G.swirl(rnd(620, 860), rnd(430, 520), 1440, 95); G.swirl(rnd(1070, 1270), rnd(390, 500), -1440, 95);
+      redraw();
+    }
+  }
   paintWords(); paintPools(); redraw();
 }
 async function setTrack(i, change = true) {
@@ -565,7 +572,9 @@ function musicStep(dt) {
     // the kick: both lobes jump and wobble back, the far one a moment later; the glass sways one way, then the other
     m.lobeL.kick(MUS.kick * (0.6 + 0.4 * a.pulse)); m.lobeR.kick(MUS.kick * 0.8 * (0.6 + 0.4 * a.pulse));
     m.side = -m.side; m.sway.kick(MUS.sway * m.side, MUS.sway * 0.4);
+    m.kicked = Math.min(1, a.pulse);
   }
+  m.mid = (a.bands[4] + a.bands[5] + a.bands[6] + a.bands[7] + a.bands[8] + a.bands[9]) / 6;
   // the bass pulls the lobes out (a spring with little damping, so they overshoot and wobble)
   m.lobeL.target = m.bass; m.lobeR.target = m.bass * 0.85;
   m.lobeL.step(dt); m.lobeR.step(dt); m.sway.step(dt);
@@ -593,16 +602,63 @@ function musicUniforms() {
 // colour floods back out of the cover. Reduced motion: no ink; the cover and the colour crossfade. ?ink=0 turns it off.
 const inkState = {
   colour: new Spring({ k: 10, c: 6.3 }), dissolve: new Spring({ k: 9, c: 6 }),
-  burst: 0, flood: 0, t0: performance.now(), pausedAt: -1e9, wasPlaying: null,
+  burst: 0, flood: 0, t0: performance.now(), pausedAt: -1e9, wasPlaying: null, nextDrop: 0, lastWake: null,
 };
 inkState.colour.snap(1); inkState.dissolve.snap(1);
 function tintNow() { return G ? G.tintNow() : tint; }
+const rnd = (a, b) => a + Math.random() * (b - a);
+const mixv = (a, b, t) => a + (b - a) * t;
+/** Is a point (reference px) on the glass? (the click-through's own silhouette) */
+function onGlassRef(u, v) {
+  if (!mask) return false;
+  const r = canvas.getBoundingClientRect();
+  const cx = FRAME_REF ? u : (u - REF0[0]) / K * (r.width / STAGE.w), cy = FRAME_REF ? v : (v - REF0[1]) / K * (r.height / STAGE.h);
+  const x = Math.floor(cx * G.size.dpr), y = Math.floor(cy * G.size.dpr);
+  return x >= 0 && y >= 0 && x < mask.w && y < mask.h && Boolean(mask.data[y * mask.w + x]);
+}
+const COVER_C = [295, 421], COVER_HALF = 151;
+/**
+ * Pigment leaving the cover (the 2D widget's rimDrop): a drop on the rim with a jet behind it. In still liquid a jet
+ * rolls up into a mushroom, which is the curl of ink. Down and to the right by default, toward the lower band, never up
+ * among the words; a track change lets go all round (the old cover's colours).
+ */
+function rimDrop(kick = 0, { old = false, angle = null } = {}) {
+  const a = angle ?? rnd(0.35, 1.45);
+  const dx = Math.cos(a), dy = Math.sin(a), m = Math.max(Math.abs(dx), Math.abs(dy));
+  const x = COVER_C[0] + dx / m * (COVER_HALF + 10), y = COVER_C[1] + dy / m * (COVER_HALF + 10);
+  if (!onGlassRef(x + dx * 30, y + dy * 30)) return;             // (it would jet straight into the wall)
+  const k = Math.min(1, kick);
+  const speed = mixv(rnd(150, 260), rnd(400, 640), k);
+  G.drop(x, y, { radius: mixv(rnd(10, 14), rnd(15, 21), k), amount: mixv(0.32, 0.55, k), coverUv: [0.5 + dx / m * 0.4, 0.5 - dy / m * 0.4], old });
+  G.push(x + dx * 8, y + dy * 8, dx * speed, dy * speed, mixv(32, 46, k));
+}
+/** What the music and the player do to the liquid this frame (the 2D widget's react()). */
+function inkReact(dt) {
+  const st = inkState, mu = music, t = (performance.now() - st.t0) / 1000;
+  if (mu.kicked) {          // a kick: pigment jets off the cover, two vortices stir the body, a soft splash
+    const p = mu.kicked; mu.kicked = 0;
+    rimDrop(p);
+    const sgn = Math.random() < 0.5 ? 1 : -1, spin = sgn * (540 + 1070 * p);
+    G.swirl(rnd(520, 890), rnd(510, 610), spin, rnd(70, 107));
+    G.swirl(rnd(1020, 1390), rnd(440, 600), -spin, rnd(70, 107));
+    G.splash(COVER_C[0], COVER_C[1], 100 * p, 250);
+  }
+  if (t >= st.nextDrop) {   // between kicks the cover still lets a drop go now and then
+    rimDrop(0.15 * (mu.mid || 0));
+    st.nextDrop = t + rnd(1.6, 2.8) / (0.6 + (mu.mid || 0) + mu.bass);
+  }
+  if (mu.highs > 0.25 && Math.random() < mu.highs * dt * 14) {   // the highs shiver the body with small eddies
+    G.swirl(rnd(170, 1470), rnd(335, 685), rnd(-1, 1) * 540 * mu.highs, rnd(30, 50));
+  }
+}
 /** Step the ink and the colour; true while either is still moving. */
 function inkStep(dt) {
   const st = inkState, playing = player.playing, now = performance.now();
   if (playing !== st.wasPlaying) {
-    if (st.wasPlaying !== null) { if (playing) st.flood = motion.reduced ? 0 : 1; else st.pausedAt = now; }
-    else if (playing) st.flood = motion.reduced ? 0 : 0.6;      // (on load, playing: a first wash of colour)
+    if (st.wasPlaying !== null) {
+      if (playing) { st.flood = motion.reduced ? 0 : 0.5; if (!motion.reduced && mask) for (let i = 0; i < 4; i++) rimDrop(0.6); }
+      else st.pausedAt = now;
+    } else if (playing) { st.flood = motion.reduced ? 0 : 0.4; if (!motion.reduced && mask) for (let i = 0; i < 3; i++) rimDrop(0.5); }
     st.wasPlaying = playing;
   }
   st.colour.target = playing ? 1 : 0;
@@ -615,7 +671,9 @@ function inkStep(dt) {
   const flowing = !motion.reduced && LIGHT.ink > 0 && !document.hidden && (playing || now - st.pausedAt < 4500 || st.burst > 0);
   if (flowing) {
     G.inkOn = true;
-    G.stepInk(dt, { fade: playing ? 10 : 1.1, seep: playing ? 1 : 0, burst: st.burst, flood: st.flood, time: (now - st.t0) / 1000 });
+    if (playing) inkReact(dt);
+    G.stepInk(dt, { fade: playing ? 11 : 1.1, seep: playing ? 0.3 : 0, burst: st.burst, flood: st.flood, time: (now - st.t0) / 1000,
+      flow: (playing ? 520 + 700 * music.bass : 160) * 2.06, vort: 6, iterations: 16 });
   } else if (G.inkOn) { G.inkOn = false; G.clearInk(); dirty = true; }
   const colouring = !st.colour.resting || !st.dissolve.resting;
   if (colouring || !was) { paintWords(); paintPools(); }
@@ -687,6 +745,11 @@ function motionMove(x, y, h) {
     const nx = Math.max(-1.2, Math.min(1.2, (x - r.width / 2) / (r.width / 2))), ny = Math.max(-1.2, Math.min(1.2, (y - r.height / 2) / (r.height / 2)));
     m.tilt.to(MOT.tilt * nx, -MOT.tilt * ny); m.lean.to(MOT.lean * nx, -MOT.lean * ny);
     const p = rootAt(x, y);
+    if (h.inside && G.inkOn) {         // a small wake behind the pointer as it travels over the liquid
+      const [u, v] = refOf(x, y), lw = inkState.lastWake;
+      if (lw && Math.hypot(u - lw[0], v - lw[1]) > 60) { G.push(u, v, (u - lw[0]) * 6, (v - lw[1]) * 6, 50); inkState.lastWake = [u, v]; }
+      else if (!lw) inkState.lastWake = [u, v];
+    } else inkState.lastWake = null;
     if (h.inside) {
       if (!m.dimpleSeen || m.dimple.x < 1e-3) m.dimpleAt.snap(p[0], p[1]); else m.dimpleAt.to(p[0], p[1]);
       m.dimpleSeen = true;
@@ -707,7 +770,10 @@ function motionDown(x, y, h) {
   if (!m.reduced) {
     const p = rootAt(x, y);
     if (MOT.rip > 0) { m.rips.push({ x: p[0], z: p[1], t0: performance.now() / 1000 }); if (m.rips.length > 4) m.rips.shift(); }
-    if (h.target === 'body' || h.target === 'cover') { m.pressAt = p; m.press.set(JELLY.in); m.press.target = MOT.press; m.pressing = true; }
+    if (h.target === 'body' || h.target === 'cover') {
+      m.pressAt = p; m.press.set(JELLY.in); m.press.target = MOT.press; m.pressing = true;
+      if (G.inkOn) { const [u, v] = refOf(x, y); G.splash(u, v, 270, 70); G.drop(u, v, { radius: 18, amount: 0.5, color: tint }); }
+    }
     redraw();
   }
   paintWords();
