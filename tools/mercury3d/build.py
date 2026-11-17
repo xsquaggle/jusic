@@ -18,7 +18,8 @@ toward the camera). Blender local axes: X right, Z up (screen up), -Y toward the
 model and its camera sit under one root tilted back by TILT, so the camera looks slightly down at the glass
 while the studio (floor, overhead light) stays level.
 
-In the live Blender:  exec(open(r'C:/Users/g8rla/jusic-mercury-3d/tools/mercury3d/build.py').read())
+In the live Blender:  p = r'<repo>/tools/mercury3d/build.py'
+                      exec(compile(open(p).read(), p, 'exec'), {'__file__': p, 'MERCURY_ARGS': {}})
 In the background:    blender -b --factory-startup -P tools/mercury3d/build.py -- render out=<png> [cover=<img>]
                       [samples=256] [save=<blend>] [transparent] [zebra] [backdrop]
 """
@@ -34,7 +35,7 @@ def log(*a):
 try:
     HERE = os.path.dirname(os.path.abspath(__file__))
 except NameError:
-    HERE = r'C:/Users/g8rla/jusic-mercury-3d/tools/mercury3d'
+    HERE = os.path.join(os.getcwd(), 'tools', 'mercury3d')
 REPO = os.path.abspath(os.path.join(HERE, '..', '..'))
 RAW = os.path.join(REPO, 'design', 'captures', 'raw', 'mercury3d')
 REF = os.path.join(REPO, 'design', 'references', 'widget-mercury.png')
@@ -155,11 +156,17 @@ COVER = dict(cu=295.0, bottom=572.0, side=302.0, tilt=4.0, d_front=4.0, thick=8.
 # The button wells in the channel: centre, radius on the surface, depth.
 WELLS = [(1077, 467, 58, 16), (1237, 460, 82, 20), (1392, 467, 58, 16)]
 
+WELL_LIP = dict(r=7.0, out=1.0, raise_=0.0, k=7.0)
+WELL_LIP['raise'] = 4.0
+# The fold under the sheet's lip: a groove carved along under the ridge's free part (offset toward the channel,
+# set back behind the ridge's centre), so the lip truly overhangs and a narrow dark gap runs beneath it.
+FOLD = dict(r=13.0, off=4.0, back=10.0, k=6.0)
+
 # Membrane: pressures (negative sags back, away from the camera) and smoothing.
 MEM = dict(p_front=-0.006, p_channel=-0.0022, p_sheet=0.0012, k_rim=16.0, k_ridge=11.0, k_sheet=14.0, k_well=10.0)
 
 # The back: how far behind the rim's centre the glass reaches (by u), and how far in from the rim it gets there.
-BACK = [(0, 130), (430, 130), (650, 80), (850, 60), (1000, 66), (1150, 80), (1440, 80), (1560, 30)]
+BACK = [(0, 130), (430, 130), (650, 80), (850, 60), (1000, 60), (1150, 55), (1440, 55), (1560, 25)]
 BACK_REACH = float(ARGS.get('back_reach', 90.0))
 
 STUDIO_GAIN = dict(refl=2.0, refr=2.0)   # overall strengths of the reflected and the seen-through studio
@@ -169,10 +176,10 @@ STUDIO_GAIN = dict(refl=2.0, refr=2.0)   # overall strengths of the reflected an
 FILL_BANDS = [(28.0, 36.0), (46.0, 54.0)]
 FILL_HALF_AZ = 55.0
 CARD = dict(half_az=60.0, el=(-48.0, 4.0), depth=0.92)   # the black card behind, as the light through the glass sees it
-STUDIO = dict(room=0.012, floor=2.0, over=6.0, side=3.0, fill=3.0, back=3.0, key=220.0, key2=60.0, rim=100.0, vert=120.0,
+STUDIO = dict(room=0.012, floor=2.0, over=6.0, side=5.0, fill=3.0, back=3.0, key=220.0, key2=60.0, rim=100.0, vert=120.0,
               low=4.0, strip_soft=0.05,
               # what light sees after passing through the glass, as a share of the above
-              t_room=1.0, t_floor=1.0, t_over=0.5, t_side=0.6, t_fill=0.15, t_back=0.25)
+              t_room=1.0, t_floor=0.5, t_over=0.5, t_side=0.6, t_fill=0.15, t_back=0.25)
 
 # The sheet over the buttons: from the rim (top) to the ridge (its rolled lower edge).
 SHEET = dict(rim_from=(986, 353), rim_to=TIP, ridge_from_u=982.0, half=13.0, bow=-14.0)
@@ -494,9 +501,6 @@ def build_field():
     for (u, v, dval, rr, sq, _), nn in zip(ridge, nrm):
         w = np.clip((u - 980.0) / 80.0, 0, 1); w = w * w * (3 - 2 * w)
         pin(u, v, dval - (lift * (1 - w) + LIP['attach'] * w) * rr * sq)
-        if w > 0.01:
-            o = rr + LIP['gap']
-            pin(u + nn[0] * o, v + nn[1] * o, dval + w * (rr * sq + LIP['drop']) + (1 - w) * (-lift * rr * sq))
     # the pocket's floor under the cover
     c = COVER
     half = c['side'] / 2 - 12
@@ -551,7 +555,13 @@ def build_field():
         dd = (D0 + np.arange(j0, j1) * VOX)[None, :, None]
         vv = (V1 - np.arange(k0, k1) * VOX)[None, None, :]
         sph = np.sqrt((uu - wu) ** 2 + (vv - wv) ** 2 + (dd - cd) ** 2) - R
-        mem[i0:i1, j0:j1, k0:k1] = smax(mem[i0:i1, j0:j1, k0:k1], -sph, MEM['k_well'])
+        blk = smax(mem[i0:i1, j0:j1, k0:k1], -sph, MEM['k_well'])
+        # the well's own lip: a rounded ring standing a little proud of the floor round the dish
+        lip = WELL_LIP
+        qr = np.sqrt((uu - wu) ** 2 + (vv - wv) ** 2) - (rho + lip['out'])
+        qd = dd - (fl - lip['raise'])
+        tor = np.sqrt(qr ** 2 + qd ** 2) - lip['r']
+        mem[i0:i1, j0:j1, k0:k1] = smin(blk, tor, lip['k'])
     log('wells cut')
     pocket_cut(mem)
     log('pocket cut')
@@ -566,6 +576,23 @@ def build_field():
     Pg, Qg = tube_mesh(ridge, closed=False)
     F = smin(F, level_set(Pg, Qg), MEM['k_ridge'])
     log('ridge joined')
+    # the fold under the sheet's lip
+    tan = np.gradient(ridge[:, :2], axis=0); tan /= np.linalg.norm(tan, axis=1, keepdims=True)
+    nrm = np.stack([-tan[:, 1], tan[:, 0]], 1)
+    nrm *= np.sign(np.sum(nrm * (np.array(CHANNEL_CENTRE) - ridge[:, :2]), 1))[:, None]
+    w = np.clip((ridge[:, 0] - 990.0) / 70.0, 0, 1); w = w * w * (3 - 2 * w)
+    n_end = np.clip((len(ridge) - 1 - np.arange(len(ridge))) / 25.0, 0, 1)      # fade out before the tail tip
+    w = w * n_end
+    sel = w > 0.02
+    gp = ridge[sel].copy()
+    off = (ridge[sel, 3] + FOLD['off'])[:, None] * nrm[sel]
+    gp[:, 0] += off[:, 0]; gp[:, 1] += off[:, 1]
+    gp[:, 2] = ridge[sel, 2] + FOLD['back']
+    gp[:, 3] = np.maximum(FOLD['r'] * w[sel], 1.5)
+    gp[:, 4] = 1.0
+    Pf, Qf = tube_mesh(gp, closed=False)
+    F = smax(F, -level_set(Pf, Qf), FOLD['k'])
+    log('fold carved')
 
     # ---- the sheet over the buttons: loft from the rim's top (right of the twist) to the ridge's free part
     # take the rim samples that belong to the top and the right end, ordered from the twist to the tip
@@ -716,6 +743,16 @@ def node_mat(name):
     out = nt.nodes.new('ShaderNodeOutputMaterial')
     return m, nt, out
 
+def real_cover(n):
+    """The owner's n-th real cover (data/real-covers.json, never in git; this worktree has no data/, so the main
+    checkout's is read). Its path is never printed; renders with it stay private in design/captures/raw/."""
+    for base in (REPO, os.path.join(os.path.dirname(REPO), 'jusic-redesign')):
+        f = os.path.join(base, 'data', 'real-covers.json')
+        if os.path.exists(f):
+            r = json.load(open(f, encoding='utf-8'))
+            return os.path.join(r['art'], r['tracks'][n - 1]['cover'])
+    raise SystemExit('no real-covers.json found')
+
 def album_colour(path):
     """A rough album colour: the mean of the cover's more saturated pixels; grey covers give silver."""
     im = bpy.data.images.load(path, check_existing=True)
@@ -747,7 +784,7 @@ def glass_material(tint):
     t = np.array(tint)
     col = 1.0 - (1.0 - t) * float(ARGS.get('absorb_mix', 0.55))
     va.inputs['Color'].default_value = (*col, 1)
-    va.inputs['Density'].default_value = float(ARGS.get('absorb', 0.3))
+    va.inputs['Density'].default_value = float(ARGS.get('absorb', 0.55))
     nt.links.new(va.outputs['Volume'], out.inputs['Volume'])
     return m
 
@@ -800,53 +837,50 @@ def cover_material(path, glow):
     nt.links.new(dim.outputs['Result'], b.inputs['Base Color'])
     b.inputs['Roughness'].default_value = 0.4
     b.inputs['Specular IOR Level'].default_value = 0.0      # no broad sheen over the art; the clear coat is the gloss
-    b.inputs['Coat Weight'].default_value = float(ARGS.get('cover_coat', 0.06))
-    b.inputs['Coat Roughness'].default_value = 0.015
+    b.inputs['Coat Weight'].default_value = float(ARGS.get('cover_coat', 0.035))
+    b.inputs['Coat Roughness'].default_value = 0.05
     nt.links.new(tex.outputs['Color'], b.inputs['Emission Color'])
     b.inputs['Emission Strength'].default_value = glow
     nt.links.new(b.outputs['BSDF'], out.inputs['Surface'])
     return m
 
 def cover_mesh(name):
-    """A thin slab with rounded corners; the face gently domed so a highlight crosses it."""
+    """A thin slab with rounded corners. Its face is a regular grid, bowed a little toward the camera along its
+    height, so one band of light crosses it; no creases for the gloss to catch."""
     c = COVER
-    n = 48
     side = c['side']; half = side / 2; rc = c['corner']; th = c['thick']
-    # rounded square outline
-    pts = []
-    for cx_, cy_, a0 in ((half - rc, half - rc, 0), (-half + rc, half - rc, 90), (-half + rc, -half + rc, 180), (half - rc, -half + rc, 270)):
-        for k in range(12):
-            a = math.radians(a0 + 90 * k / 11)
-            pts.append((cx_ + rc * math.cos(a), cy_ + rc * math.sin(a)))
+    N = 48
+    xs = np.linspace(-half, half, N + 1)
+    def clamp(x, y):
+        cx_ = math.copysign(half - rc, x); cy_ = math.copysign(half - rc, y)
+        if abs(x) > half - rc and abs(y) > half - rc:
+            dx_, dy_ = x - cx_, y - cy_
+            L = math.hypot(dx_, dy_)
+            if L > rc:
+                return cx_ + dx_ * rc / L, cy_ + dy_ * rc / L
+        return x, y
     bm = bmesh.new()
     uvl = bm.loops.layers.uv.new('UVMap')
-    # the front as rings shrinking to a centre point, domed toward the camera (-Y)
-    rings = 12
-    front_rings = []
-    for k in range(rings):
-        s = 1 - k / rings
-        front_rings.append([bm.verts.new((x * s, -c['dome'] * (1 - (y * s / half) ** 2), y * s))
-                            for (x, y) in pts])
-    centre = bm.verts.new((0.0, -c['dome'], 0.0))   # the face bows toward the camera along its height
-    back = [bm.verts.new((x, th, y)) for (x, y) in pts]
-    m = len(pts)
-    def uv_of(v):
-        return ((v.co.x + half) / side, (v.co.z + half) / side)
-    for k in range(rings - 1):
-        A_, B_ = front_rings[k], front_rings[k + 1]
-        for i in range(m):
-            i2 = (i + 1) % m
-            bm.faces.new((A_[i], B_[i], B_[i2], A_[i2]))
-    last = front_rings[-1]
-    for i in range(m):
-        bm.faces.new((last[i], centre, last[(i + 1) % m]))
-    for i in range(m):          # side wall
-        i2 = (i + 1) % m
-        bm.faces.new((front_rings[0][i2], back[i2], back[i], front_rings[0][i]))
+    grid = [[None] * (N + 1) for _ in range(N + 1)]
+    for i, x in enumerate(xs):
+        for j, y in enumerate(xs):
+            X, Y = clamp(x, y)
+            grid[i][j] = bm.verts.new((X, -c['dome'] * (1 - (Y / half) ** 2), Y))
+    for i in range(N):
+        for j in range(N):
+            bm.faces.new((grid[i][j], grid[i + 1][j], grid[i + 1][j + 1], grid[i][j + 1]))
+    ring = [grid[i][0] for i in range(N + 1)] + [grid[N][j] for j in range(1, N + 1)] +            [grid[i][N] for i in range(N - 1, -1, -1)] + [grid[0][j] for j in range(N - 1, 0, -1)]
+    back = [bm.verts.new((v.co.x, th, v.co.z)) for v in ring]
+    m = len(ring)
+    for k in range(m):
+        k2 = (k + 1) % m
+        if (ring[k].co - ring[k2].co).length > 1e-6:
+            bm.faces.new((ring[k2], back[k2], back[k], ring[k]))
     bm.faces.new(list(reversed(back)))
+    bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-3)
     for f_ in bm.faces:
         for l in f_.loops:
-            l[uvl].uv = uv_of(l.vert)
+            l[uvl].uv = ((l.vert.co.x + half) / side, (l.vert.co.z + half) / side)
         f_.smooth = True
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
     me = bpy.data.meshes.get(name)
@@ -871,8 +905,8 @@ def make_env(path, tint, w=2048, h=1024):
     st = dict(STUDIO)
     st.update({k[3:]: float(v) for k, v in ARGS.items() if k.startswith('st_')})
     warm = 0.55 * tint + 0.45 * np.array([1.0, 0.72, 0.62])          # the floor's bounce: the album's colour
-    peach = 0.9 * np.array([1.0, 0.93, 0.87]) + 0.1 * tint            # the strips: peach white
-    white = np.array([1.0, 0.97, 0.95])                               # the big soft sources: near neutral
+    peach = 0.78 * np.array([1.0, 0.9, 0.8]) + 0.22 * tint            # the strips: peach white, from the album
+    white = 0.9 * np.array([1.0, 0.97, 0.95]) + 0.1 * tint            # the big soft sources: near neutral
     az = np.degrees(phi); eld = np.degrees(el)
     cam = -90.0                                       # azimuth of the camera's side (-Y)
     dac = (az - cam + 180) % 360 - 180                # azimuth relative to the camera's side
@@ -895,7 +929,7 @@ def make_env(path, tint, w=2048, h=1024):
     sp = 0
     for a0 in (cam - 70, cam + 70, cam - 125, cam + 125):
         da = np.abs((az - a0 + 180) % 360 - 180)
-        sp = sp + ss(16, 8, da) * ss(-34, -22, eld) * ss(55, 40, eld)
+        sp = sp + ss(22, 12, da) * ss(-34, -22, eld) * ss(55, 40, eld)
     comp['side'] = sp[..., None] * white
     # a big soft box behind and above: what the top edges reflect at a grazing angle (out of the camera's sight)
     dab = np.abs((az - 90 + 180) % 360 - 180)
@@ -1092,6 +1126,8 @@ def build(cover_path=None, zebra=False):
     col.objects.link(root)
     root.rotation_euler = (-TILT, 0, 0)
 
+    if cover_path and cover_path.startswith('real:'):
+        cover_path = real_cover(int(cover_path[5:]))
     cover_path = cover_path or TEST_COVER
     tint = album_colour(cover_path)
     log('album colour', tuple(round(x, 3) for x in tint))

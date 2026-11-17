@@ -1,0 +1,25 @@
+{
+ "out": "design/captures/mercury3d-phase1-full.png",
+ "width": 3196,
+ "title": "Mercury in 3D, phase 1: one solid of thick glass modelled over the reference, Cycles, generated test cover (right), beside the main reference (left)",
+ "notes": [
+  "part: 1. Reads as thick, polished, clear glass at half size: dark middles, bright edges, rose light gathering along the bottom and in the tail. Busier than the reference (more thin highlights); the sheet and the band under the buttons are brighter, the highlights whiter than its peach.",
+  "part: 2. The cover sits on the ridge, sunk in a deep pocket with a real ring of glass round it and a gloss band across its face. The ring is thinner and less luminous than the reference's; its colours show only faintly in the glass.",
+  "ok: 3. The ridge is one roll along your trace: under the cover, level under the words, up through the twist, the sheet's lip over the wells, round into the tail tip.",
+  "part: 4. The twist, the sheet's lip with a real fold under it, and three separate wells read. The right end comes to a point, but its curl is gentler than the reference's.",
+  "part: 5. Words and controls are a crisp live layer on top (Montserrat), never bent by the glass. The title reads; the artist and the times lose contrast where our glass is brighter than the reference's under them. Light desktops not tested yet.",
+  "part: 6. Zebra stripes flow smoothly over the rolls, the bands, the hollow, the sheet and the wells; small wobbles remain at the bulb's far left and at the tail tip."
+ ],
+ "rows": [
+  [
+   {
+    "label": "main reference",
+    "src": "design/references/widget-mercury.png"
+   },
+   {
+    "label": "ours: 3D glass in Cycles, 256 samples; words and controls laid on top as the live layer",
+    "src": "design/captures/raw/mercury3d/ours_test_comp.png"
+   }
+  ]
+ ]
+}

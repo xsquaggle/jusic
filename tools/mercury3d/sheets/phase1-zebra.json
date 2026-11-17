@@ -1,0 +1,35 @@
+{
+ "out": "design/captures/mercury3d-phase1-zebra.png",
+ "width": 1600,
+ "title": "Mercury in 3D, phase 1: the zebra view (a striped room mirrored in the glass: long smooth stripes mean curvature-smooth surfaces)",
+ "rows": [
+  [
+   {
+    "label": "whole widget",
+    "src": "design/captures/raw/mercury3d/final_zebra.png"
+   }
+  ],
+  [
+   {
+    "label": "the bulb, full size",
+    "src": "design/captures/raw/mercury3d/final_zebra.png",
+    "crop": [
+     0,
+     190,
+     620,
+     580
+    ]
+   },
+   {
+    "label": "the twist, the sheet, the wells and the tail, full size",
+    "src": "design/captures/raw/mercury3d/final_zebra.png",
+    "crop": [
+     860,
+     220,
+     726,
+     520
+    ]
+   }
+  ]
+ ]
+}
