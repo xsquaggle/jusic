@@ -1,0 +1,126 @@
+{
+ "out": "design/captures/mercury-ab-round64.png",
+ "width": 1830,
+ "title": "Mercury B at half size: as it is (round 63, rose-gold metal) against as glass (round 64), both ?mat=2 (generated test cover)",
+ "rows": [
+  [
+   {
+    "label": "reference: widget-mercury.png",
+    "src": "design/references/widget-mercury.png",
+    "crop": [
+     20,
+     200,
+     1566,
+     590
+    ],
+    "w": 900
+   }
+  ],
+  [
+   {
+    "label": "B as it is (round 63), dark desktop",
+    "src": "design/captures/raw/round63-B/dark.png",
+    "crop": [
+     90,
+     50,
+     1022,
+     513
+    ]
+   },
+   {
+    "label": "B as it is, light wallpaper",
+    "src": "design/captures/raw/round63-B/light.png",
+    "crop": [
+     90,
+     50,
+     1022,
+     513
+    ]
+   },
+   {
+    "label": "B as it is, white window",
+    "src": "design/captures/raw/round63-B/window.png",
+    "crop": [
+     90,
+     50,
+     1022,
+     513
+    ]
+   }
+  ],
+  [
+   {
+    "label": "B as glass (round 64), dark desktop",
+    "src": "design/captures/raw/round64-B/dark.png",
+    "crop": [
+     90,
+     50,
+     1022,
+     513
+    ]
+   },
+   {
+    "label": "B as glass, light wallpaper",
+    "src": "design/captures/raw/round64-B/light.png",
+    "crop": [
+     90,
+     50,
+     1022,
+     513
+    ]
+   },
+   {
+    "label": "B as glass, white window",
+    "src": "design/captures/raw/round64-B/window.png",
+    "crop": [
+     90,
+     50,
+     1022,
+     513
+    ]
+   }
+  ],
+  [
+   {
+    "label": "real refracting window, white page: B as it is",
+    "src": "design/captures/raw/round63-refract/window-light.png",
+    "crop": [
+     30,
+     20,
+     900,
+     440
+    ]
+   },
+   {
+    "label": "...B as glass (what passes capped at .4)",
+    "src": "design/captures/raw/round64-refract/window-light.png",
+    "crop": [
+     30,
+     20,
+     900,
+     440
+    ]
+   },
+   {
+    "label": "refracting, stripes: B as it is",
+    "src": "design/captures/raw/round63-refract/window-stripes.png",
+    "crop": [
+     30,
+     20,
+     900,
+     440
+    ]
+   },
+   {
+    "label": "...B as glass",
+    "src": "design/captures/raw/round64-refract/window-stripes.png",
+    "crop": [
+     30,
+     20,
+     900,
+     440
+    ]
+   }
+  ]
+ ]
+}

@@ -408,7 +408,29 @@ const vec2 SHEET2 = vec2(9., 6.);
 const float MAT2_POD = .3;
 // Fresnel at normal incidence; how bright the reflection off the far face; how far it is tinted toward
 // the album; how much of the pigment's own light shows.
-const vec4 MAT2 = vec4(.22, .55, .45, .3);
+// (Round 64, at the owner's word, "make it glass": Fresnel .05 where it was .22, which with the far face
+// at a flat .55 of the room reflected about 65% of it where the glass faces the viewer: metal. The far
+// face is now weighted by its own Fresnel seen from inside, a few percent straight on and all of it past
+// the critical angle, so the light gathers in the rims and the middle stays deep; .y scales it.)
+const vec4 MAT2 = vec4(.05, 1., .3, .42);
+// The light inside the glass (round 64): how bright where it is thickest; how much more toward the lower
+// edge, where the floor's light comes up through it; how far it takes the album's colour; how much less
+// of it lies under the words. (The reference's glass under the words is about 70,50,50, not black.)
+const vec4 GLOW2 = vec4(.1, .06, .3, .3);
+// The light trapped in the edge (round 64): a band just inside the outline, never outside it. How bright
+// its coloured sides, how bright its white-hot core, how far in it lies, how wide.
+const vec4 RIM2 = vec4(.38, .75, 5., 3.8);
+// How soft the reflections are on the broad body, and the curvature over which they turn crisp toward
+// the tight rims (round 64, the owner's correction of the audit: soft across the body, crisp only on
+// tight rims).
+const vec3 SOFT2 = vec3(.2, .004, .03);
+// Refracting: the most of what is behind the window that passes into the body (it reached .48 at the rims
+// and about .39 elsewhere in round 63), and how much darker the thickest glass smokes it (round 64, the owner's answer to the audit's gap 8: 35 to 45%).
+const vec2 SEE2 = vec2(.4, .35);
+// How much of the room's soft fills the far face shows (round 64).
+const float BACK2 = .1;
+// How much less light inside the glass while it refracts what is behind the window (round 64).
+const float REFR2 = .55;
 // The lamps' strengths: the wide strip overhead, the key panel up and to the left, the tall strip
 // behind on the right, the floor's warm bounce.
 const vec4 ENV2 = vec4(3.4, 4.2, 2.4, 1.6);
@@ -694,26 +716,45 @@ vec3 env(vec3 r) {
   return c;
 }
 
-// Material 2's room: near black, with a few large lamps whose edges are crisp.
-vec3 env2(vec3 r) {
+// Material 2's room: near black, with a few large lamps whose edges are crisp. fills: how much of the
+// three soft fills (in front, round the horizon, behind) is in it. (Round 64: the far face, seen through
+// the glass and all of it past the critical angle, mirrored those even fills as an even silver ring
+// round the whole rim; through the glass only the lamps and the floor are seen, so the rims carry bright
+// streaks with dark between them and the floor's warmth low down.)
+vec3 env2(vec3 r, float fills) {
   vec3 c = vec3(.005, .005, .006);
   float left = smoothstep(.9, -.9, r.x);
   // A wide strip overhead, some 120 by 20 degrees, brightest on the left.
   c += vec3(.95, .96, 1.) * ENV2.x * (.4 + .6 * left) * softbox(r, normalize(vec3(-.1, .96, .26)), vec3(1., 0., 0.), vec2(1.7, .24), .035);
   // Behind the viewer, large and soft-edged: what level glass mirrors.
-  c += vec3(.96, .92, .92) * ENV2_FRONT.x * (1. + ENV2_FRONT.y * smoothstep(-.3, .5, r.y)) * (.6 + .4 * left) * softbox(r, normalize(vec3(-.05, .15, 1.)), vec3(1., 0., 0.), vec2(.9, .55), .3);
-  // The key: a large panel up and to the left, some 45 by 35 degrees.
-  c += vec3(1., .91, .84) * ENV2.y * softbox(r, normalize(vec3(-.62, .5, .6)), normalize(vec3(.69, 0., .72)), vec2(.42, .32), .05);
+  c += fills * vec3(.96, .92, .92) * ENV2_FRONT.x * (1. + ENV2_FRONT.y * smoothstep(-.3, .5, r.y)) * (.6 + .4 * left) * softbox(r, normalize(vec3(-.05, .15, 1.)), vec3(1., 0., 0.), vec2(.9, .55), .3);
+  // The key: a large panel up and to the left, some 55 by 45 degrees (45 by 35 until round 64: larger, it
+  // lies across more of the lobes' upper shoulders as a broad sheen).
+  c += vec3(1., .91, .84) * ENV2.y * softbox(r, normalize(vec3(-.62, .5, .6)), normalize(vec3(.69, 0., .72)), vec2(.52, .4), .05);
   // A tall, narrow strip behind on the right, for the right end's edge.
   c += vec3(.95, .96, 1.) * ENV2.z * softbox(r, normalize(vec3(.88, .12, -.46)), normalize(vec3(.46, 0., .88)), vec2(.1, .6), .03);
   // The floor's warm bounce: the album's colour, held to 60% of its saturation.
   vec3 hot = mix(uPalA, vec3(1.), .1);
   hot = mix(vec3(dot(hot, vec3(.2126, .7152, .0722))), hot, .6);
   c += hot * ENV2.w * softbox(r, normalize(vec3(0., -.75, .66)), vec3(1., 0., 0.), vec2(1.3, .45), .12);
-  c += mix(vec3(.92, .9, .9), hot, .35 * smoothstep(.2, -.6, r.y)) * ENV2_HOR.x * exp(-r.z * r.z / ENV2_HOR.y);
-  c += mix(vec3(.95, .92, .9), hot, .3 * smoothstep(.2, -.6, r.y)) * ENV2_BACK * smoothstep(-.15, -.75, r.z);
+  // (Round 64: warmer, and strongest toward the upper left: the same all round, it drew the silhouette as
+  // one even white line.)
+  float upL = clamp(.5 + .45 * (r.y - r.x), 0., 1.);
+  c += fills * mix(vec3(1., .9, .85), hot, .35 * smoothstep(.2, -.6, r.y)) * ENV2_HOR.x * (.3 + .45 * upL) * exp(-r.z * r.z / ENV2_HOR.y);
+  c += fills * mix(vec3(.95, .92, .9), hot, .3 * smoothstep(.2, -.6, r.y)) * ENV2_BACK * smoothstep(-.15, -.75, r.z);
   c += hot * .05 * smoothstep(-.1, -.7, r.y);
   return c;
+}
+
+// How much of the light inside glass (n = 1.5) its surface reflects back in, at the cosine of the angle
+// the ray meets it: 4% straight on, rising steeply toward the critical angle (about 42 degrees) and all
+// of it past that (total internal reflection).
+float fresnelIn(float ci) {
+  float st2 = 2.25 * (1. - ci * ci);
+  if (st2 >= 1.) return 1.;
+  float ct = sqrt(1. - st2);
+  float rs = (1.5 * ci - ct) / (1.5 * ci + ct), rp = (ci - 1.5 * ct) / (ci + 1.5 * ct);
+  return .5 * (rs * rs + rp * rp);
 }
 
 mat3 rotX(float a) { float c = cos(a), s = sin(a); return mat3(1, 0, 0, 0, c, s, 0, -s, c); }
@@ -1422,18 +1463,59 @@ void main() {
     }
 
     } else {
-      /* ---- material 2 (round 63) ---- */
-      vec3 Rb = reflect(-V, normalize(vec3(-N.xy, N.z)));
-      Rb = rotY(uLean.x * .26 + .02 * uAudio.x * sin(uTime * 5.3)) * rotX(uLean.y * -.2 + .016 * uAudio.y * sin(uTime * 7.1)) * Rb;
-      float F2 = MAT2.x + (1. - MAT2.x) * pow(1. - ndv, 5.);
+      /* ---- material 2 (round 63; clear glass since round 64) ---- */
       float cm = clamp(calm, 0., 1.);
       float thick = smoothstep(2., 34., -d);
       vec3 hue = hotA / max(max(hotA.r, hotA.g), max(hotA.b, 1e-3));
-      vec3 frontR = env2(R) * (1. - .6 * cm);
-      vec3 backR = env2(Rb) * mix(vec3(1.), hue, MAT2.z) * MAT2.y * thick * (1. - .7 * cm);
-      vec3 body = (vec3(.022, .015, .015) * (.7 + .6 * smoke) + uPalC * .03) * (1. - .5 * under);
-      col = body * (1. - F2) + frontR * F2 + backR * (1. - F2);
+      // Reflections soft across the broad body, crisp only where the form turns tightly (the rims); the
+      // pocket's wall keeps its edge.
+      gSoft = max(gSoft, SOFT2.x * (1. - smoothstep(SOFT2.y, SOFT2.z, curv)) * (1. - pocket));
+      float F2 = MAT2.x + (1. - MAT2.x) * pow(1. - ndv, 5.);
+      vec3 frontR = env2(R, 1.) * (1. - .6 * cm);
+      // The far face: the ray bent into the glass meets it, and what it reflects there comes back out
+      // through the front. Glass is a lens here, its far face the near one mirrored. Straight on that is
+      // a few percent; where the ray meets the far face past the critical angle, all of it.
+      vec3 T = refract(-V, N, 1. / 1.5);
+      vec3 Nb = normalize(vec3(N.xy, -N.z));
+      float Fb = fresnelIn(clamp(dot(T, Nb), 0., 1.));
+      vec3 Tr = reflect(T, Nb);
+      vec3 Rb = refract(Tr, -N, 1.5);
+      if (dot(Rb, Rb) < .5) Rb = reflect(Tr, -N);                 // trapped at the front too: on round the rim
+      Rb = rotY(uLean.x * .26 + .02 * uAudio.x * sin(uTime * 5.3)) * rotX(uLean.y * -.2 + .016 * uAudio.y * sin(uTime * 7.1)) * Rb;
+      float soft0 = gSoft;
+      gSoft = max(gSoft, .06);                                    // seen through the glass, a little softer
+      vec3 backR = env2(Rb, BACK2) * mix(vec3(1.), hue, MAT2.z * thick) * MAT2.y * Fb * (1. - F2) * (1. - .7 * cm);
+      gSoft = soft0;
+      // Light inside the glass: thicker glass holds more, more still toward the lower edge where the
+      // floor's light comes up through it, a little of the album in it, and the pigment through it.
+      vec2 gB = vec2(outline(pw + vec2(1.5, 0.)) - d, outline(pw + vec2(0., 1.5)) - d) / 1.5;
+      float down = gB.y / max(length(gB), 1e-3);
+      float low = smoothstep(-34., 6., outline(pw + vec2(0., 36.)));
+      // (How thick the glass is: a drop is about as thick as it is wide, so the thin waist holds little
+      // light and the lobes much, as in the reference: dark 2s round the words, 4s to 6s in the right end.)
+      float thickL = smoothstep(8., 95., -d);
+      vec3 tone = mix(vec3(1., .78, .76), hue, GLOW2.z);
+      vec3 inside = tone * (GLOW2.x * (.3 + .7 * thickL) * (.85 + .3 * smoke) + GLOW2.y * low * thickL) * (1. - GLOW2.w * under);
+      // (Refracting, what is behind supplies the light coming through the glass: the full inner light over it
+      // lay like a fog and hid the stripes bent through the body.)
+      inside *= 1. - REFR2 * uBackPx.y;
+      col = frontR * F2 + backR + inside * (1. - F2) * (1. - Fb);
       col += lumen * MAT2.w * (1. - F2) * (1. - .9 * cm);
+      // Light trapped in the edge: a band just inside the outline, white-hot at its core and coloured at
+      // its sides, strongest along the bottom and in the tail at the right end, faint where the edge
+      // faces up.
+      {
+        float gap = max(-d, 0.);
+        // (Its width follows how broadly the form turns there, as the rim it is trapped in does: wide in
+        // the lobes, narrow through the waist.)
+        float sc = mix(mix(MAT2_H.x, MAT2_H.y, smoothstep(250., 360., pw.x)), MAT2_H.z, smoothstep(480., 600., pw.x)) / MAT2_H.y;
+        float tail = smoothstep(690., 770., pw.x) * smoothstep(170., 235., pw.y);
+        float wE = (mix(.18, 1., smoothstep(-.2, .85, down)) + 1.2 * tail) * (1. - inBead) * born;
+        float sides = exp(-pow((gap - RIM2.z * sc) / (RIM2.w * sc), 2.));
+        float core = exp(-pow((gap - .8 * RIM2.z * sc) / (RIM2.w * sc * .32), 2.));
+        vec3 coral = mix(hotA, vec3(1., .72, .6), .35);
+        col += (coral * RIM2.x * sides + vec3(1., .96, .92) * RIM2.y * core) * wE;
+      }
       // The upper sheet's contact shadow on the glass just under its rolled lip.
       col *= 1. - .5 * smoothstep(-8., -.5, ar) * smoothstep(1., -.5, ar) * lipF;
       // The bowls: hollows of darker glass, darkest under their upper shoulders.
@@ -1459,7 +1541,11 @@ void main() {
         float soft = mix(mix(5., 1.5, rimward), 12., still);
         float clear = clamp(.5 + .12 * rimward - .1 * depth - .34 * pl.x - .16 * pl.y - .24 * pl.z
                             - .16 * podIn - .25 * dyeAmt, .06, .62) * (1. - .8 * lensMask);
-        col += smoked(behind(pw + lens, soft)) * vec3(.9, .94, 1.) * (1. - F2) * clear * uBackPx.y;
+        // (Round 64: never more than SEE2.x of it, and less where the glass is thickest, so on a white
+        // window it still reads as glass, not frosted plastic. Not held back where the far face reflects
+        // all of it: the rims are where the bending shows most, the look.)
+        float pass = min(clear * (1. - F2), SEE2.x) * (1. - SEE2.y * depth);
+        col += smoked(behind(pw + lens, soft)) * vec3(.9, .94, 1.) * pass * uBackPx.y;
       }
     }
 
