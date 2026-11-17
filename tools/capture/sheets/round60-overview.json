@@ -1,0 +1,12 @@
+{ "out": "design/captures/mercury-still-round60.png", "width": 1616,
+  "title": "Mercury still, rounds 59 and 60: a hot line along the top edge, a brighter roll along the bottom; the bowls' coral rims and inner glow of the main still (generated test cover)",
+  "rows": [
+  [ { "label": "reference: widget-mercury.png", "src": "design/references/widget-mercury.png", "crop": [20, 200, 1566, 590] } ],
+  [ { "label": "round 58", "src": "design/captures/raw/round58/dark.png", "crop": [110, 65, 990, 373] } ],
+  [ { "label": "round 60", "src": "design/captures/raw/round60/dark.png", "crop": [110, 65, 990, 373] } ],
+  [ { "label": "main reference: the bowls", "src": "design/references/widget-mercury.png", "crop": [990, 370, 480, 190] },
+    { "label": "round 58", "src": "design/captures/raw/round58/dark.png", "crop": [720, 230, 300, 119] },
+    { "label": "round 60", "src": "design/captures/raw/round60/dark.png", "crop": [720, 230, 300, 119] } ],
+  [ { "label": "round 60, refracting: dark window behind", "src": "design/captures/raw/round60-refract/window-dark.png", "crop": [12, 12, 936, 456] },
+    { "label": "round 60, refracting: colourful window behind", "src": "design/captures/raw/round60-refract/window-busy.png", "crop": [12, 12, 936, 456] } ]
+] }

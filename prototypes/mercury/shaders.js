@@ -271,10 +271,14 @@ const vec3 RIM = vec3(.6, .5, .6);
 // The lit rims of the button bowls: how bright the crescent of the floor's light in the lower rim;
 // how bright that light on the pod just below the edge; how dark the rest of the inside of the rim;
 // how bright the fine line at the edge elsewhere. And the key lamp's short arc at 1:30.
-const vec4 BTN_RIM = vec4(.5, .35, .4, .5);     // (x 1.3 and w .5 until round 51; x 1.15 and w .6 in round 51)
+const vec4 BTN_RIM = vec4(1., .35, .4, .5);     // (round 60: x .5 in round 53, the flow still's thin rims)     // (x 1.3 and w .5 until round 51; x 1.15 and w .6 in round 51)
 // The bowls' rims thin and coral (round 51): how wide the crescent at 6 o'clock (units, for a bowl of
 // radius 37); how far its colour is toward coral at its core; how bright its hot core (.35 until round 53).
-const vec3 BTN_THIN = vec3(3.2, .55, .22);
+const vec3 BTN_THIN = vec3(6.5, .7, .3);   // (round 60, the main still again: 3.2, .55 and .22 in rounds 53 to 59)
+// A soft warm glow low inside each bowl (round 60): the main reference's play bowl is 119,79,68 there,
+// ours was 34,22,23; its middle 55,34,32, ours 29,19,20. How bright; how much of the light through the
+// glass is let into the bowls (it was .4).
+const vec2 BTN_GLOW = vec2(.2, .7);
 const float BTN_KEY = .7;
 // The pod round the bowls: how bright the floor's light rising toward its lower rim; how bright it
 // gathers at the pod's right end; a little light in the gaps at the bowls' middle height.
@@ -305,6 +309,11 @@ const vec4 CURL_W = vec4(30., 1.7, 735., 760.);
 const vec4 END_TIP = vec4(780., 230., 12., 1.5);      // (its glow reached 20 units and lit the 'end' cut 26 units off: 8s where the reference has 5s)
 // The copper line along the upper silhouette: how bright.
 const float RIM_TOP = .6;
+// The upper silhouette's hot line (round 59): in the main reference a crisp peach-white line right at the
+// top edge (7s over about 3 units across the waist's edge at x 320, warmth 1) with dark glass just inside
+// it, where ours had only a faint copper line in a soft band. How bright; where (units in from the
+// silhouette); half its width where it swells; how dark the glass just inside it.
+const vec4 EDGE_HOT = vec4(1.05, 2.2, 1.1, .35);
 // How deep the shade is on the pocket's wall and bank to the right of the cover.
 const float WALL_R = .66;
 // The soft light at the top of the ring.
@@ -328,7 +337,7 @@ const vec3 LIP_RIBBON = vec3(1., .8, 5.);
 // The lower lip: how bright the streak just inside the lower edge, how bright the copper line at
 // the edge itself, how deep the line of shade above the streak; how much of the soft glow from
 // the floor is taken out round it.
-const vec4 LOW_EDGE = vec4(1., .55, .55, .78);
+const vec4 LOW_EDGE = vec4(1.8, .55, .55, .78);   // (x 1 until round 59: its swells 7s where the reference's roll is 9s)
 // How dark the underside goes below its first few units.
 const float UNDER_FALL = .78;
 // The upper lip's sheet over the pod: how far its glass takes on the album's colour; how much of
@@ -1024,8 +1033,10 @@ void main() {
       // (Peach-white at its core, 231,196,183 in the reference, coral toward its sides; the bowl's
       // wall under it mirrors a neutral light of its own, which takes the same warmth.)
       col *= mix(vec3(1.), vec3(1., .64, .5), max(cres, glowIn * 2.) * smoothstep(-1., 1., t));
-      col += mix(hotA, vec3(1., .62, .42), BTN_THIN.y + .4 * (1. - u)) * BTN_RIM.x * big * (cres * .85 + BTN_THIN.z * hot);
+      col += mix(mix(hotA, vec3(1., .56, .38), BTN_THIN.y + .4 * (1. - u)), vec3(1., .9, .82), .5 * hot) * BTN_RIM.x * big * (cres * .85 + BTN_THIN.z * hot);
       col += hotA * BTN_RIM.x * big * glowIn * glowIn;
+      float lowIn = smoothstep(-.05, .75, nb.y * rho / r) * smoothstep(r - 1., r * .5, rho);
+      col += mix(hotA, vec3(1., .6, .45), .35) * BTN_GLOW.x * big * lowIn;
       col += hotA * BTN_RIM.y * big * low * smoothstep(-6.5 * sc, -.5, t) * smoothstep(.6, -.6, t);
       col += mix(hotA, vec3(1., .96, .92), .6) * BTN_KEY * big * key * smoothstep(.6, -.6, abs(t - 1.2) - 1.6);
       // A fine line at the bowl's edge, plainest at the top and bottom and nearly gone at the sides.
@@ -1099,12 +1110,17 @@ void main() {
     // inside the edge: in the reference the drop's whole upper outline is warm (measured: the
     // first columns of every cut), where ours was a cool white line or nothing. It swells on
     // the shoulders of the two lobes and thins between them, and is worked out only at the edge.
-    if (-d < 8.) {
+    if (-d < 11.) {
       vec2 gR = vec2(outline(pw + vec2(1.5, 0.)) - d, outline(pw + vec2(0., 1.5)) - d) / 1.5;
       float up = smoothstep(.15, .85, -gR.y / max(length(gR), 1e-3));
       // (No floor under it: of even strength all the way it is an outline again, and item 1 of the audit was outlines.)
       float swell = min(1., .12 + exp(-pow((pw.x - 250.) / 80., 2.)) + exp(-pow((pw.x - 590.) / 70., 2.)) + exp(-pow((pw.x - 760.) / 45., 2.)));
-      col += mix(hotA, vec3(1., .72, .5), .5) * RIM_TOP * smoothstep(.7, -.6, abs(-d - 2.4) - .9 * swell) * up * swell * born;
+      // (Round 59: a hot peach-white line, still swelling on the shoulders and thinning between them, but
+      // never out, with dark glass just inside it; until round 58 a faint copper line, out between swells.)
+      float sw2 = .3 + .7 * swell;
+      float hotT = smoothstep(.6, -.6, abs(-d - EDGE_HOT.y) - EDGE_HOT.z * sw2);
+      col *= 1. - EDGE_HOT.w * smoothstep(.9, -.9, abs(-d - (EDGE_HOT.y + EDGE_HOT.z * sw2 + 3.2)) - 1.7) * up * sw2 * born * (1. - inBead);
+      col += mix(vec3(1., .94, .9), mix(hotA, vec3(1., .72, .5), .5), .3) * EDGE_HOT.x * hotT * up * sw2 * born * (1. - inBead);
     }
 
     // Inside that line, on the right lobe's upper-left shoulder, the upper lip's thick glass shows
@@ -1300,11 +1316,13 @@ void main() {
       col *= SHEEN_CUT.x + (1. - SHEEN_CUT.x) * smoothstep(SHEEN_CUT.y, SHEEN_CUT.z, dot(col, vec3(.2126, .7152, .0722)));
       vec2 gB = vec2(outline(pw + vec2(1.5, 0.)) - d, outline(pw + vec2(0., 1.5)) - d) / 1.5;
       float down = smoothstep(.1, .8, gB.y / max(length(gB), 1e-3));
-      float lowB = down * exp(-max(-d, 0.) / 34.) + .45 * smoothstep(170., 300., pw.y);
+      // (Round 59: close to the lower edge, 16 units, not 34, and less from below: in the reference the glass
+      // just above the lower edge's lit roll is dark, 2s, where ours was 4s to 7s.)
+      float lowB = down * exp(-max(-d, 0.) / 16.) + .12 * smoothstep(170., 300., pw.y);
       float drift = 1. + BODY_GLOW.z * (fbm2(pw * .0065 + vec2(uTime * .025, -uTime * .018)) - .5) * 2.;
       vec3 tone = mix(vec3(.95, .82, .8), hotA, .45);
       float glowB = (BODY_GLOW.x * (.6 + .4 * depth) + BODY_GLOW.y * lowB) * drift * (1. + .12 * uAudio.w);
-      col += tone * glowB * (1. - BODY_GLOW.w * clamp(calm, 0., 1.)) * (1. - .6 * dish) * (1. - inBead) * born;
+      col += tone * glowB * (1. - BODY_GLOW.w * clamp(calm, 0., 1.)) * (1. - (1. - BTN_GLOW.y) * dish) * (1. - inBead) * born;
       // The thick edge, lit through.
       float lobeE = 1. - smoothstep(300., 380., pw.x) * smoothstep(600., 520., pw.x);
       float eRg = mix(EDGE_R, EDGE_R_LOBE, lobeE);
@@ -1379,7 +1397,9 @@ void main() {
     float played = smoothstep(sx + 1., sx - 1., q.x);
     float core = smoothstep(2.5 + .6 * uSeek.w, 1.1, dl);
     emis += mix(vec3(.8, .8, .84) * .62, warmWhite * 1.3, played) * core;
-    emis += hotA * played * (.8 * exp(-dl * dl / 30.) + .16 * exp(-dl * dl / 380.)) * (.7 + .5 * uAudio.w + .25 * uSeek.z);
+    // (Round 59: its wide glow is a third of what it was, .06 where it was .16: it lit the glass between the
+    // timeline and the lower edge to 4s and 5s, where the reference's is dark, 2s, down to the edge's roll.)
+    emis += hotA * played * (.8 * exp(-dl * dl / 30.) + .06 * exp(-dl * dl / 380.)) * (.7 + .5 * uAudio.w + .25 * uSeek.z);
     // The bead stretches the way it is being pulled and thins as it does.
     float st = clamp(uSeekPull.x, -1., 1.);
     vec2 bq = q - vec2(sx - 5. * st, seekLine(sx));

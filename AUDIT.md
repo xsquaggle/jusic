@@ -711,6 +711,19 @@ round 58          3 18 17 16 15 12  7  5  5  2                                .0
 - **The streak in the bulb's upper left** (`RING_KEY_G`): silver with a little of the album in it, brightest against the cover's side and fading toward the rim, as the main reference's is; it was a flat white petal. Down the up-left ray it still peaks at 8s and 9s, as the reference's does.
 - **Still short:** the reference's edges have a crisp hot peach line along their outer side over the glow, ours only the glow; the reference has fewer mid-tones still (13% at .3 to .4 against our 16%) and more at .1 to .2 (28% against our 18%); and its glass shows the room bent through it, which only the refracting window does in ours.
 
+## What round 59 changed (items 1 and 4: the edges crisp over their glow)
+
+- **The owner, after round 58:** "Keep refining. I'm going to have a separate agent run the visual audit so there's no conflict of interest, and I'll come back with what it finds."
+- **Measured first**, with vertical cuts in both pictures (`col.js`, each in its own pixels at the same stage x). Across the waist's top edge at x 320 the main reference has a crisp peach-white line right at the silhouette (7s over about 3 units, warmth 1), dark glass just inside it (1s), then the body (3s and 4s); ours had a soft band of 2s to 4s. Across the lower edge at x 400 the reference is dark (2s) for about 20 units above the edge, then the edge's thick lit roll, 8s and 9s, ending sharply at the silhouette; ours was 4s to 7s above the edge (round 58's light through the glass reached 34 units in, and the timeline's wide glow) and its roll peaked at 7.
+- **The upper silhouette's line is hot** (`EDGE_HOT`, in the `RIM_TOP` block): peach-white, still swelling on the lobes' shoulders and thinning between them but never out, with dark glass just inside it. **The lower roll is brighter** (`LOW_EDGE.x` 1.8 where it was 1): its swells are 9s. **The glass above the lower edge is darker:** the light through the glass rises over 16 units of the edge, not 34, with less from below in general (`.12` where it was `.45`), and the timeline's wide glow is a third of what it was.
+- Measured after: across the waist's top `26533` where the reference has `274111 3344` (the line is there; the dark just inside it not yet); across the lower edge at x 500 the roll's 9s, as the reference's.
+
+## What round 60 changed (item 8: the bowls of the main still again)
+
+- **Measured first** with `bowlstat.js` against the main reference (rounds 51 and 53 had thinned and dimmed the bowls' rims toward the flow still). The main reference's bowls are brighter and warmer than ours had become: its lower rims a mean of 154 to 224 against our 114 to 146 (the play bowl 224,175,161), its play bowl warm low inside (119,79,68 against our 34,22,23), its middles a level lighter (55 to 60 against 29 to 39).
+- **The crescent is broad and coral again** (`BTN_THIN` 6.5 units at 6 o'clock, more coral, its core a little hotter and whiter; `BTN_RIM.x` 1), and **each bowl has a soft warm glow low inside** (`BTN_GLOW`), with more of the light through the glass let into the bowls.
+- Measured after: lower rims 178 to 203, lower insides 95 to 112, middles 41 to 49. Still a little less warm than the reference's (the play bowl's lower rim 203,177,165 against 224,175,161): strong light turns white in the tone curve, so more warmth there needs less light and more colour.
+
 ## What changed on 14 November 2026 at the owner's word (the cursor's light; item 12 in part)
 
 - The owner found the light round the cursor "far too bright ... essentially completely white" and the title hard to read under it. Its core is now .55 (was 3.2) and its soft light .12 (was .2), it lies under the words, and words turn dark where it is bright behind them (`CURSOR_LIGHT`, `WORD_FLIP`). `mercury-cursor-light.png` shows before and after.
