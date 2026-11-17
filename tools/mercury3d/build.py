@@ -93,33 +93,41 @@ TIP_R = 9.0                 # its radius: crisp, but thick enough for the voxels
 # radius r in the picture's plane, centre depth d, squash sq (depth radius / r), tilt (degrees).
 RIM_STATIONS = [
     # (u, v) on SIL      r    d    sq   tilt
-    ((24, 365),          52,  -6, 1.45,  0),   # the bulb's left end: a thick ring
-    ((48, 495),          40,  -4, 1.40,  0),
-    ((80, 566),          28,   0, 1.50,  0),   # passes close to the cover's lower left corner
-    ((125, 622),         28,   2, 1.40,  0),
-    ((200, 684),         46,  14,  .85,  0),   # the bulb's fat bottom
-    ((350, 734),         66,  12,  .90,  0),
-    ((450, 744),         72,  12,  .90,  0),
-    ((650, 721),         62,  10,  .90,  0),
-    ((850, 662),         48,   6,  .90,  0),   # the lower band under the waist
-    ((1050, 622),        42,   6,  .90,  0),
-    ((1300, 664),        50,   6,  .90,  0),   # under the buttons
-    ((1398, 626),        30,   2,  .80,  0),
-    ((1475, 566),        16, -14,  .95,  0),   # the band's end, under the tail
+    # (The model pass, 17 November: the outer roll fatter wherever there is room and rounder in section (squash near
+    # 1: a deep, narrow roll turns its face quickly and stacks the studio's strips into tight bunches of thin lines),
+    # and joined to the body more softly (MEM k_rim). Slim only where the reference's edge is slim: over the end of
+    # the title and past the cover's top right corner.)
+    ((24, 365),          62,  -4, 1.10,  0),   # the bulb's left end: a thick ring
+    ((48, 495),          56,  -2, 1.08,  0),
+    ((80, 566),          36,   2, 1.05,  0),   # passes close to the cover's lower left corner
+    ((125, 622),         44,   6,  .95,  0),
+    # The lower band: one fat roll whose broad crest carries the timeline and the times (its centre line inset
+    # from the bottom edge to just under the timeline), shallower than wide, set back so the ridge stays proud.
+    ((200, 684),         66,  18,  .80,  0),   # the bulb's fat bottom
+    ((350, 734),        103,  27,  .56,  0),
+    ((450, 744),        108,  28,  .54,  0),
+    ((650, 721),        100,  24,  .58,  0),
+    ((850, 662),         76,  16,  .70,  0),   # the lower band under the waist
+    ((1050, 622),        40,   8,  .90,  0),
+    ((1300, 664),        76,  16,  .74,  0),   # under the buttons (its crest under the time)
+    ((1398, 626),        46,   8,  .85,  0),
+    ((1475, 566),        20, -14,  .95,  0),   # the band's end, under the tail
     (TIP,                 5, -38,  .95,  0),   # the tail tip, curled forward
-    ((1547, 528),        14, -22,  .95,  0),
-    ((1556, 470),        26,   4,  .95,  0),   # round the right end
-    ((1506, 343),        24,   2, 1.15,  0),
-    ((1326, 252),        21,   0, 1.30,  0),   # the right lobe's top: the sheet hangs from here
-    ((1126, 294),        22,   0, 1.30,  0),
-    ((946, 378),         27,  -2, 1.30,  0),   # where the twist nearly touches it
-    ((806, 421),         25,  -2, 1.50,  0),   # the waist's top edge
-    ((566, 347),         24,   0, 1.60,  0),
-    ((466, 271),         16,   2, 1.60,  0),   # past the cover's top right corner: thin, deep
-    ((406, 225),         24,   0, 1.40,  0),
-    ((286, 208),         33,   0, 1.35,  0),   # the bulb's top
-    ((146, 230),         24,   0, 1.45,  0),
-    ((86, 272),          34,   0, 1.60,  0),
+    ((1547, 528),        16, -22,  .95,  0),
+    ((1556, 470),        32,   4,  .98,  0),   # round the right end
+    ((1506, 343),        32,  -8, 1.00,  0),
+    ((1326, 252),        21, -24, 1.05,  0),   # the right lobe's top: the sheet hangs from here (clear of the volume)
+    ((1126, 294),        22, -20, 1.08,  0),
+    ((946, 378),         24,  -2, 1.10,  0),   # where the twist nearly touches it
+    ((886, 407),         12, -12, 1.00,  0),
+    ((806, 421),          8, -16, 1.00,  0),   # the waist's top edge, over the end of the title: slim and calm
+    ((726, 413),         10, -14, 1.00,  0),
+    ((566, 347),         22,  -4, 1.12,  0),
+    ((466, 271),         18,   2, 1.20,  0),   # past the cover's top right corner: thin
+    ((406, 225),         28,   0, 1.15,  0),
+    ((286, 208),         32,   0, 1.12,  0),   # the bulb's top
+    ((146, 230),         36,   0, 1.12,  0),
+    ((86, 272),          48,   0, 1.12,  0),
 ]
 
 # The ridge: the owner's trace, start under the cover's lower left, the twist, the sheet's edge, the tail tip.
@@ -150,20 +158,42 @@ CHANNEL_CENTRE = (1240, 520)  # a point inside the channel under the sheet's lip
 LIP = dict(attach=0.35, gap=8.0, drop=16.0)   # the sheet meets the lip this far toward its crest; the fold under it
 
 # The cover: a square slab resting on the ridge, tilted back so its top sinks deeper into the pocket.
-POCKET = dict(margin=5.0, behind=4.0, k=9.0)   # the dent round the cover: clearance, depth behind its back, lip
+# The pocket (the model pass): carved after every roll is on, so it is round on every side. Clearance round the cover,
+# depth behind its back, and the rounding of its lip (a broad smooth maximum: no straight wall, no flat ledge).
+POCKET = dict(margin=5.0, behind=4.0, k=float(ARGS.get('pocket_k', 24.0)))
+# The ring of glass wrapping the cover: a rounded roll round the cover's outline (a rounded-square torus), standing
+# in front of the cover's face and joined softly to the body; the pocket then carves its inside, so the lip that
+# meets the cover's edges is the ring's own rounded inner side.
+# (Off by default: where it met the words' hollow it raised two thin spikes; the pocket's own broad rounding wraps
+# the cover. ring_r=18 turns it on.)
+RING = dict(off=float(ARGS.get('ring_off', 14.0)), r=float(ARGS.get('ring_r', 0.0)), sq=1.0,
+            front=float(ARGS.get('ring_front', 14.0)), k=float(ARGS.get('ring_k', 20.0)))
 COVER = dict(cu=295.0, bottom=572.0, side=302.0, tilt=4.0, d_front=4.0, thick=8.0, corner=28.0, dome=3.0)
 
-# The button wells in the channel: centre, radius on the surface, depth.
-WELLS = [(1077, 467, 58, 16), (1237, 460, 82, 20), (1392, 467, 58, 16)]
+# The button wells in the channel: centre, radius on the surface, depth. (The model pass: each a flat-floored dish,
+# its floor square to the camera so the middle stays dark, its wall turning up in a round fillet that gathers the
+# light into the rim; no bowl to mirror a bright U under the icon.)
+WELLS = [(1077, 467, 58, 14), (1237, 460, 82, 16), (1392, 467, 58, 14)]
+WELL_FILLET = float(ARGS.get('well_fillet', 18.0))
 
-WELL_LIP = dict(r=7.0, out=1.0, raise_=0.0, k=7.0)
+WELL_LIP = dict(r=float(ARGS.get('lip_r', 12.0)), out=2.0, raise_=0.0, k=float(ARGS.get('lip_k', 14.0)))
 WELL_LIP['raise'] = 4.0
+# The glass behind the words calm: the hollow's front eased toward a plane facing the camera, tipped a few degrees
+# down (it mirrors the studio's dark band, between the floor's glow and the key strip), over the title and artist.
+# Each region: its box, how far below the silhouette's top edge and above the ridge it keeps, the feather.
+# depth: how far in front of the front's own mean depth the plane sits (negative: toward the camera; a shallow hollow
+# whose edges rise gently to the rolls round it instead of a deep tray with walls).
+CALM = [dict(name='words', u=(470.0, 846.0), v=(416.0, 560.0), top=8.0, bottom=0.0, feather=16.0, depth=0.0, round=6.0),
+        dict(name='volume', u=(1176.0, 1466.0), v=(280.0, 352.0), top=40.0, bottom=10.0, feather=14.0, depth=0.0, round=2.0)]
+CALM_TILT = float(ARGS.get('calm_tilt', 1.0))          # degrees up (negative: down); the dark band is -8.5..+3
+CALM_AMOUNT = float(ARGS.get('calm', 1.0))
 # The fold under the sheet's lip: a groove carved along under the ridge's free part (offset toward the channel,
 # set back behind the ridge's centre), so the lip truly overhangs and a narrow dark gap runs beneath it.
 FOLD = dict(r=13.0, off=4.0, back=10.0, k=6.0)
 
 # Membrane: pressures (negative sags back, away from the camera) and smoothing.
-MEM = dict(p_front=-0.006, p_channel=-0.0022, p_sheet=0.0012, k_rim=16.0, k_ridge=11.0, k_sheet=14.0, k_well=10.0)
+MEM = dict(p_front=float(ARGS.get('p_front', -0.0015)), p_channel=-0.0022, p_sheet=0.0012, k_rim=float(ARGS.get('k_rim', 30.0)),
+           k_ridge=float(ARGS.get('k_ridge', 20.0)), k_sheet=14.0, k_well=10.0)
 
 # The back: how far behind the rim's centre the glass reaches (by u), and how far in from the rim it gets there.
 BACK = [(0, 130), (430, 130), (650, 80), (850, 60), (1000, 60), (1150, 55), (1440, 55), (1560, 25)]
@@ -507,8 +537,9 @@ def build_field():
     cosT = math.cos(math.radians(c['tilt']))
     top = c['bottom'] - c['side'] * cosT
     pocket = (np.abs(GU - c['cu']) < half - 18) & (GV > top + 30) & (GV < c['bottom'] - 28)
-    pins_f |= pocket
-    fval = np.where(pocket, cover_back_depth(GV) + 3.0, fval)
+    if 'pocket_pin' in FLAGS:       # (phase 1 pinned the front behind the cover; the pocket is now carved after the rolls,
+        pins_f |= pocket            # and the pin dragged the words' hollow down toward it)
+        fval = np.where(pocket, cover_back_depth(GV) + 3.0, fval)
     # the sag: the words' hollow is shallow; the channel under the buttons spans more, so it sags less per pixel;
     # the sheet between the rim and the lip bulges forward
     pf = np.interp(GU, [0, 980, 1060, 1600], [MEM['p_front'], MEM['p_front'], MEM['p_channel'], MEM['p_channel']])
@@ -517,11 +548,13 @@ def build_field():
     pf = np.where(in_sheet, MEM['p_sheet'], pf)
     f = poisson(pins_f, fval, pf, cell, 400)
     f = np.where(inside, gblur2(f, 2.5), f)
+    f = calm_words(f, GU, GV, inside)
     # the back: rounded like a pebble, deepest behind the bulb, leaving the rim's back gently
     Bdep = np.interp(GU, [u for u, _ in BACK], [d for _, d in BACK])
     q = np.clip(-sd2 / BACK_REACH, 0, 1)
     b = d_rim + Bdep * (q * q * (3 - 2 * q)) ** 0.75
     b = gblur2(b, 4.0)
+    b = calm_back(b, GU, GV, inside)
     # a minimum thickness away from the rim (fading to none at its centre line, where the rim covers it)
     need = f + float(ARGS.get('min_thick', 34.0)) * np.clip(-sd2 / 40.0, 0, 1)
     b = 0.5 * (b + need + np.sqrt((b - need) ** 2 + 8.0 ** 2))
@@ -540,21 +573,26 @@ def build_field():
     mem = np.maximum(mem, SD[:, None, :])
     log('membrane field', mem.shape)
 
-    # ---- wells: smooth subtraction of spheres from the membrane's front (before the rolls and the sheet go on)
+    # ---- wells: smooth subtraction of flat-floored dishes from the membrane's front (before the rolls go on): a
+    # rounded cylinder along the view, its floor w behind the surface, its floor-to-wall edge a fillet
     for (wu, wv, rho, w) in WELLS:
-        R = (rho * rho + w * w) / (2 * w)
         fl = float(bilinear(f, cell, U0, V0, np.array([wu]), np.array([wv]))[0])
-        cd = fl + w - R          # the sphere's centre, in front of the floor
+        re = min(WELL_FILLET, rho * 0.45)
+        near = 70.0                               # the cylinder reaches this far in front of the surface
+        h = (w + near) / 2.0
+        cd = fl + w - h                           # its middle (depth)
         pad = 24
-        i0, i1 = int((wu - R - pad - U0) / VOX), int((wu + R + pad - U0) / VOX) + 1
-        k0, k1 = int((V1 - (wv + R + pad)) / VOX), int((V1 - (wv - R - pad)) / VOX) + 1
-        j0, j1 = int((cd - R - pad - D0) / VOX), int((cd + R + pad - D0) / VOX) + 1
+        i0, i1 = int((wu - rho - pad - U0) / VOX), int((wu + rho + pad - U0) / VOX) + 1
+        k0, k1 = int((V1 - (wv + rho + pad)) / VOX), int((V1 - (wv - rho - pad)) / VOX) + 1
+        j0, j1 = int((cd - h - pad - D0) / VOX), int((cd + h + pad - D0) / VOX) + 1
         i0, k0, j0 = max(i0, 0), max(k0, 0), max(j0, 0)
         i1, k1, j1 = min(i1, NX), min(k1, NZ), min(j1, NY)
         uu = (U0 + np.arange(i0, i1) * VOX)[:, None, None]
         dd = (D0 + np.arange(j0, j1) * VOX)[None, :, None]
         vv = (V1 - np.arange(k0, k1) * VOX)[None, None, :]
-        sph = np.sqrt((uu - wu) ** 2 + (vv - wv) ** 2 + (dd - cd) ** 2) - R
+        qx = np.sqrt((uu - wu) ** 2 + (vv - wv) ** 2) - (rho - re)
+        qy = np.abs(dd - cd) - (h - re)
+        sph = np.sqrt(np.maximum(qx, 0) ** 2 + np.maximum(qy, 0) ** 2) + np.minimum(np.maximum(qx, qy), 0) - re
         blk = smax(mem[i0:i1, j0:j1, k0:k1], -sph, MEM['k_well'])
         # the well's own lip: a rounded ring standing a little proud of the floor round the dish
         lip = WELL_LIP
@@ -563,8 +601,6 @@ def build_field():
         tor = np.sqrt(qr ** 2 + qd ** 2) - lip['r']
         mem[i0:i1, j0:j1, k0:k1] = smin(blk, tor, lip['k'])
     log('wells cut')
-    pocket_cut(mem)
-    log('pocket cut')
 
     # ---- rolls
     Pr, Qr = tube_mesh(rim, closed=True)
@@ -593,6 +629,10 @@ def build_field():
     Pf, Qf = tube_mesh(gp, closed=False)
     F = smax(F, -level_set(Pf, Qf), FOLD['k'])
     log('fold carved')
+    # ---- the ring of glass round the cover, then the pocket carved through everything (round on every side)
+    pocket_ring(F)
+    pocket_cut(F)
+    log('ring joined, pocket cut')
 
     # ---- the sheet over the buttons: loft from the rim's top (right of the twist) to the ridge's free part
     # take the rim samples that belong to the top and the right end, ordered from the twist to the tip
@@ -617,27 +657,106 @@ def build_field():
         log('sheet joined')
     return F, dict(rim=rim, ridge=ridge, sheet=G, f=f, b=b)
 
-def pocket_cut(F):
-    """Carve the cover's pocket: the cover's rounded square, a little larger, open toward the camera, so the
-    cover sits in air in a dent with a rounded lip and no glass over its face."""
+def calm_mask(c, GU, GV, inside):
+    """The weight (0..1) of a CALM region on the membrane's grid: its box, kept below the silhouette's top edge and
+    above the ridge (clear of both rolls), feathered and rounded so the zebra stays smooth."""
+    sil = np.array(SIL, float)
+    top = sil[:int(np.argmax(sil[:, 0])) + 1]
+    rg = np.array(RIDGE, float)
+    ridge_top = np.interp(GU, rg[:, 0], rg[:, 1]) - np.interp(GU, rg[:, 0], rg[:, 3])
+    v0 = np.maximum(c['v'][0], np.interp(GU, top[:, 0], top[:, 1]) + c['top'])
+    v1 = np.minimum(c['v'][1], ridge_top - c['bottom'])
+    F_ = c['feather']
+    def sm(x):
+        t = np.clip((x + F_) / (2 * F_), 0, 1)
+        return t * t * (3 - 2 * t)
+    w = sm(GU - c['u'][0]) * sm(c['u'][1] - GU) * sm(GV - v0) * sm(v1 - GV) * inside
+    return gblur2(w, c['round'])                # (in 4 px cells: rounds the region's corners)
+
+def calm_plane(F, w, GU, GV, tilt_deg, depth=0.0, max_across=0.08):
+    """F eased toward a plane where w is 1: at F's own mean depth there (plus depth), across as F leans (clamped),
+    tipped tilt_deg up (negative: down). Returns the new F and the largest change."""
+    core = w > 0.5
+    if core.sum() < 20:
+        return F, 0.0
+    uc, vc = GU[core].mean(), GV[core].mean()
+    A = np.stack([np.ones(core.sum()), GU[core] - uc, GV[core] - vc], 1)
+    a, b, _ = np.linalg.lstsq(A, F[core], rcond=None)[0]
+    b = float(np.clip(b, -max_across, max_across))
+    target = a + depth + b * (GU - uc) - math.tan(math.radians(tilt_deg)) * (GV - vc)
+    return F + CALM_AMOUNT * w * (target - F), float(np.abs(F[core] - target[core]).max())
+
+def calm_words(f, GU, GV, inside):
+    """Ease the front toward a calm plane behind the words and the controls (CALM's regions): square to the camera
+    across, tipped CALM_TILT degrees (so it mirrors the studio's dark band, between the floor's glow and the key
+    strip), at the front's own mean depth there."""
+    if CALM_AMOUNT <= 0:
+        return f
+    for c in CALM:
+        w = calm_mask(c, GU, GV, inside)
+        f, resid = calm_plane(f, w, GU, GV, CALM_TILT, c['depth'])
+        log('calm %s: largest change %.1f px' % (c['name'], resid))
+    return f
+
+def calm_back(b, GU, GV, inside):
+    """The back behind the words parallel to the calm front, so light crosses the glass there straight to the dark
+    behind it (a rounded back bends those rays down onto the studio's bright floor: pink, milky glass)."""
+    if CALM_AMOUNT <= 0:
+        return b
+    w = calm_mask(CALM[0], GU, GV, inside)
+    w = gblur2(w, 4.0)                          # (wider: the back bends rays, so its own edges are softened more)
+    b, resid = calm_plane(b, w, GU, GV, 0.0, 0.0, max_across=0.05)
+    log('calm back behind the words: largest change %.1f px' % resid)
+    return b
+
+def cover_frame(i0, i1, k0, k1):
+    """Grid coordinates in the cover's frame for the block [i0:i1, :, k0:k1]: x across, y up its face from its middle,
+    z in front of its face."""
     c = COVER
     t = math.radians(c['tilt'])
-    m = POCKET['margin']; half = c['side'] / 2 + m; rc = c['corner'] + m
     Bu, Bv, Bd = c['cu'], c['bottom'], c['d_front']
-    pad = 40
-    i0, i1 = int((Bu - half - pad - U0) / VOX), int((Bu + half + pad - U0) / VOX) + 1
-    k0, k1 = int((V1 - (Bv + pad)) / VOX), int((V1 - (Bv - c['side'] - pad)) / VOX) + 1
-    i0, k0 = max(i0, 0), max(k0, 0); i1, k1 = min(i1, NX), min(k1, NZ)
     uu = (U0 + np.arange(i0, i1) * VOX)[:, None, None]
     dd = (D0 + np.arange(NY) * VOX)[None, :, None]
     vv = (V1 - np.arange(k0, k1) * VOX)[None, None, :]
     x = uu - Bu
-    y = (vv - Bv) * (-math.cos(t)) + (dd - Bd) * math.sin(t) - c['side'] / 2   # up the face, from its middle
-    z = (vv - Bv) * (-math.sin(t)) + (dd - Bd) * (-math.cos(t))                # in front of the face
+    y = (vv - Bv) * (-math.cos(t)) + (dd - Bd) * math.sin(t) - c['side'] / 2
+    z = (vv - Bv) * (-math.sin(t)) + (dd - Bd) * (-math.cos(t))
+    return x, y, z
+
+def cover_block(pad):
+    c = COVER
+    half = c['side'] / 2
+    i0, i1 = int((c['cu'] - half - pad - U0) / VOX), int((c['cu'] + half + pad - U0) / VOX) + 1
+    k0, k1 = int((V1 - (c['bottom'] + pad)) / VOX), int((V1 - (c['bottom'] - c['side'] - pad)) / VOX) + 1
+    return max(i0, 0), min(i1, NX), max(k0, 0), min(k1, NZ)
+
+def rrect2(x, y, half, rc):
     qx = np.abs(x) - (half - rc); qy = np.abs(y) - (half - rc)
-    d2 = np.sqrt(np.maximum(qx, 0) ** 2 + np.maximum(qy, 0) ** 2) + np.minimum(np.maximum(qx, qy), 0) - rc
+    return np.sqrt(np.maximum(qx, 0) ** 2 + np.maximum(qy, 0) ** 2) + np.minimum(np.maximum(qx, qy), 0) - rc
+
+def pocket_ring(F):
+    """The ring of glass round the cover: a rounded roll following the cover's rounded square RING['off'] px outside
+    its edge, its centre RING['front'] px in front of the face, joined softly to the body."""
+    c, R = COVER, RING
+    if R['r'] <= 0:
+        return
+    pad = R['off'] + R['r'] + R['k'] + 12
+    i0, i1, k0, k1 = cover_block(pad)
+    x, y, z = cover_frame(i0, i1, k0, k1)
+    dc = rrect2(x, y, c['side'] / 2, c['corner'])
+    tube = np.sqrt((dc - R['off']) ** 2 + ((z - R['front']) / R['sq']) ** 2) - R['r']
+    F[i0:i1, :, k0:k1] = smin(F[i0:i1, :, k0:k1], tube.astype(np.float32), R['k'])
+
+def pocket_cut(F):
+    """Carve the cover's pocket: the cover's rounded square, a little larger, open toward the camera, so the
+    cover sits in air in a dent with a rounded lip and no glass over its face."""
+    c = COVER
+    m = POCKET['margin']
+    i0, i1, k0, k1 = cover_block(POCKET['k'] + m + 16)
+    x, y, z = cover_frame(i0, i1, k0, k1)
+    d2 = rrect2(x, y, c['side'] / 2 + m, c['corner'] + m)
     cut = np.maximum(d2, -(z + c['thick'] + POCKET['behind']))
-    F[i0:i1, :, k0:k1] = smax(F[i0:i1, :, k0:k1], -cut, POCKET['k'])
+    F[i0:i1, :, k0:k1] = smax(F[i0:i1, :, k0:k1], -cut.astype(np.float32), POCKET['k'])
 
 def sheet_rim_span(rim):
     """The rim's samples from just right of the twist along the top and round the right end to the tail tip."""
@@ -805,6 +924,36 @@ def chrome_material():
     nt.links.new(b.outputs['BSDF'], out.inputs['Surface'])
     return m
 
+def bands_material():
+    """A map of which part of the studio each point mirrors (the reflection's elevation, in the studio's level frame):
+    black where it mirrors the dark band (the calm faces), dark blue the floor's glow, red the key strip (23 deg),
+    green the soft strips (28-36, 46-54), yellow the second strip (41), white the overhead light."""
+    m, nt, out = node_mat('Mercury3D_Bands')
+    tc = nt.nodes.new('ShaderNodeTexCoord')
+    sep = nt.nodes.new('ShaderNodeSeparateXYZ')
+    nt.links.new(tc.outputs['Reflection'], sep.inputs['Vector'])
+    asn = nt.nodes.new('ShaderNodeMath'); asn.operation = 'ARCSINE'
+    nt.links.new(sep.outputs['Z'], asn.inputs[0])
+    mr = nt.nodes.new('ShaderNodeMapRange')
+    mr.inputs['From Min'].default_value = -math.pi / 2; mr.inputs['From Max'].default_value = math.pi / 2
+    nt.links.new(asn.outputs['Value'], mr.inputs['Value'])
+    ramp = nt.nodes.new('ShaderNodeValToRGB')
+    ramp.color_ramp.interpolation = 'CONSTANT'
+    el = lambda deg: (deg + 90.0) / 180.0
+    stops = [(-90, (0.02, 0.05, 0.25)), (-2, (0, 0, 0)), (21.5, (0.9, 0.08, 0.05)), (24.5, (0, 0, 0)),
+             (27, (0.1, 0.55, 0.1)), (37, (0, 0, 0)), (39.5, (0.9, 0.85, 0.1)), (42.5, (0, 0, 0)),
+             (45, (0.1, 0.55, 0.1)), (55, (0, 0, 0)), (58, (0.9, 0.9, 0.9))]
+    els = ramp.color_ramp.elements
+    els[0].position = el(stops[0][0]); els[0].color = (*stops[0][1], 1)
+    els[1].position = el(stops[1][0]); els[1].color = (*stops[1][1], 1)
+    for deg, c in stops[2:]:
+        e = els.new(el(deg)); e.color = (*c, 1)
+    nt.links.new(mr.outputs['Result'], ramp.inputs['Fac'])
+    em = nt.nodes.new('ShaderNodeEmission')
+    nt.links.new(ramp.outputs['Color'], em.inputs['Color'])
+    nt.links.new(em.outputs['Emission'], out.inputs['Surface'])
+    return m
+
 def zebra_material():
     m, nt, out = node_mat('Mercury3D_Zebra')
     tc = nt.nodes.new('ShaderNodeTexCoord')
@@ -837,7 +986,8 @@ def cover_material(path, glow):
     nt.links.new(dim.outputs['Result'], b.inputs['Base Color'])
     b.inputs['Roughness'].default_value = 0.4
     b.inputs['Specular IOR Level'].default_value = 0.0      # no broad sheen over the art; the clear coat is the gloss
-    b.inputs['Coat Weight'].default_value = float(ARGS.get('cover_coat', 0.035))
+    # (The model pass: a faint sheen. At .035 the key strip mirrored in it laid a grey band across the art.)
+    b.inputs['Coat Weight'].default_value = float(ARGS.get('cover_coat', 0.01))
     b.inputs['Coat Roughness'].default_value = 0.05
     nt.links.new(tex.outputs['Color'], b.inputs['Emission Color'])
     b.inputs['Emission Strength'].default_value = glow
@@ -1138,8 +1288,10 @@ def build(cover_path=None, zebra=False):
     me = field_to_mesh(F, 'Mercury3D_GlassMesh')
     del F
     glass = add_obj(col, 'Mercury3D_Glass', me, root)
-    look = (zebra_material() if zebra else clay_material() if 'clay' in FLAGS else chrome_material() if 'chrome' in FLAGS
-            else glass_material(tint))
+    if 'bands' in FLAGS:
+        zebra = True                     # (the same treatment as the zebra view: a diagnostic, no studio needed)
+    look = (bands_material() if 'bands' in FLAGS else zebra_material() if zebra else clay_material() if 'clay' in FLAGS
+            else chrome_material() if 'chrome' in FLAGS else glass_material(tint))
     glass.data.materials.append(look)
 
     # cover
