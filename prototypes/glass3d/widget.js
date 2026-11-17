@@ -385,16 +385,21 @@ function onUp(e) {
 // everything has settled. Reduced motion (Windows' setting, or ?still): none of it, only the glyphs dimming while
 // pressed. Strengths: ?m_tilt= m_lean= m_dimple= m_press= m_rip= m_sink= (0 turns one off).
 const RM = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
-const MOT = { tilt: 0.05, lean: 0.045, dimple: 0.045, dimpleR: 0.17, press: 0.07, pressR: 1.1, rip: 0.011, ripSpeed: 9, ripWave: 0.36,
-  ripDecay: 0.55, sink: 1 };
+// (the owner, 17 November: "a little bit stronger", and the press to squish more like jelly)
+const MOT = { tilt: 0.065, lean: 0.06, dimple: 0.06, dimpleR: 0.2, press: 0.11, pressR: 1.3, rip: 0.015, ripSpeed: 9, ripWave: 0.38,
+  ripDecay: 0.6, jig: 0.022, jigSpeed: 3.4, jigWave: 1.1, jigDecay: 0.9, sink: 1 };
 for (const k of Object.keys(MOT)) if (Q.has('m_' + k)) MOT[k] = Number(Q.get('m_' + k));
-const SINK = { hover: 0.022, down: 0.055 };                 // how far a well's floor goes back (root units: 1 = 100 ref px)
+const SINK = { hover: 0.03, down: 0.07 };                   // how far a well's floor goes back (root units: 1 = 100 ref px)
+// Jelly: a press goes in with a little overshoot and comes back bouncing three or four times; a button's floor the same,
+// smaller. (springs.js's 'press' is critically damped: it read as a stiff push, not jelly.)
+const JELLY = { in: { k: 380, c: 15 }, out: { k: 230, c: 6.5 }, sinkIn: { k: 600, c: 22 }, sinkOut: { k: 300, c: 8 } };
 const motion = {
   reduced: Q.has('still') || Boolean(RM && RM.matches),
   tilt: new Spring2('glide'), lean: new Spring2('lean'),
   dimpleAt: new Spring2({ k: 520, c: 40 }), dimple: new Spring('glide'), dimpleSeen: false,
   press: new Spring('press'), pressAt: [0, 0],
   rips: [],                                    // { x, z, t0 }: a click's ripple, in root units, started at t0 (s)
+  jig: null, pressing: false,                  // the wobble rolling out from a release
   sink: [0, 1, 2].map(() => new Spring('press')), hoverBtn: -1, downBtn: -1,
   pointer: null, last: 0,
 };
@@ -407,7 +412,7 @@ function rootAt(cx, cy) {
 function setReduced(on) {
   motion.reduced = on;
   if (on) {
-    motion.tilt.snap(0, 0); motion.lean.snap(0, 0); motion.dimple.snap(0); motion.press.snap(0); motion.rips = [];
+    motion.tilt.snap(0, 0); motion.lean.snap(0, 0); motion.dimple.snap(0); motion.press.snap(0); motion.rips = []; motion.jig = null;
     motion.sink.forEach((s) => s.snap(0));
   }
   paintWords(); redraw();
@@ -420,7 +425,7 @@ function sinkTargets() {
   const m = motion;
   m.sink.forEach((s, i) => {
     const t = m.reduced ? 0 : MOT.sink * (m.downBtn === i ? SINK.down : m.hoverBtn === i ? SINK.hover : 0);
-    if (t < s.target) s.set('pop'); else s.set('press');
+    if (t < s.target) s.set(JELLY.sinkOut); else s.set(JELLY.sinkIn);
     s.target = t;
   });
 }
@@ -455,15 +460,22 @@ function motionDown(x, y, h) {
   if (!m.reduced) {
     const p = rootAt(x, y);
     if (MOT.rip > 0) { m.rips.push({ x: p[0], z: p[1], t0: performance.now() / 1000 }); if (m.rips.length > 4) m.rips.shift(); }
-    if (h.target !== 'button') { m.pressAt = p; m.press.set('press'); m.press.target = MOT.press; }
+    if (h.target !== 'button') { m.pressAt = p; m.press.set(JELLY.in); m.press.target = MOT.press; m.pressing = true; }
     redraw();
   }
   paintWords();
 }
 function motionUp() {
   const m = motion;
+  const btn = m.downBtn;
   m.downBtn = -1; sinkTargets();
-  m.press.set('jelly'); m.press.target = 0;           // back with a wobble or two
+  m.press.set(JELLY.out); m.press.target = 0;         // back bouncing, three or four times
+  // and a slow, wide wobble rolling out through the body from where it was let go (smaller from a button)
+  if (!m.reduced && MOT.jig > 0 && (m.pressing || btn >= 0)) {
+    const at = m.pressing ? m.pressAt : G.wells[btn].slice(0, 2);
+    m.jig = { x: at[0], z: at[1], t0: performance.now() / 1000, s: MOT.jig * (m.pressing ? 1 : 0.5) };
+  }
+  m.pressing = false;
   paintWords(); if (!m.reduced) redraw();
 }
 /** Step the springs; hand the renderer what it needs. True while anything is still moving. */
@@ -476,9 +488,10 @@ function motionStep(now) {
   for (const s of springs) s.step(dt);
   const t = performance.now() / 1000;
   m.rips = m.rips.filter((r) => t - r.t0 < MOT.ripDecay * 5);
+  if (m.jig && t - m.jig.t0 > MOT.jigDecay * 5) m.jig = null;
   const sinking = m.sink.some((s) => !s.resting) || m.sink.some((s, i) => !was[5 + i]);
   if (sinking) paintWords();
-  const moving = springs.some((s) => !s.resting) || m.rips.length > 0;
+  const moving = springs.some((s) => !s.resting) || m.rips.length > 0 || Boolean(m.jig);
   const any = moving || Math.abs(m.tilt.x) + Math.abs(m.tilt.y) + Math.abs(m.lean.x) + Math.abs(m.lean.y) + Math.abs(m.dimple.x)
     + Math.abs(m.press.x) + m.sink.reduce((a, s) => a + Math.abs(s.x), 0) > 1e-5;
   G.motion = any ? {
@@ -487,6 +500,8 @@ function motionStep(now) {
     press: [m.pressAt[0], m.pressAt[1], m.press.x, MOT.pressR],
     rips: [0, 1, 2, 3].map((i) => (m.rips[i] ? [m.rips[i].x, m.rips[i].z, t - m.rips[i].t0, MOT.rip] : [0, 0, -1, 0])),
     ripK: [MOT.ripSpeed, MOT.ripWave, MOT.ripDecay],
+    jig: m.jig ? [m.jig.x, m.jig.z, t - m.jig.t0, m.jig.s] : [0, 0, -1, 0],
+    jigK: [MOT.jigSpeed, MOT.jigWave, MOT.jigDecay],
     sink: m.sink.map((s) => s.x),
   } : null;
   if (moving || springs.some((s, i) => s.resting !== was[i])) dirty = true;

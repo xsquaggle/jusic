@@ -847,6 +847,38 @@ async function runRecord() {
   app.quit();
 }
 
+/**
+ * A film of the 3D widget drawn off screen: no window on any monitor (for when the second monitor is not there), over
+ * a still of one of our own backdrop windows (design/captures/raw/mercury3d/desks/<backdrop>.png, bent through the
+ * glass as refraction does), a pretend pointer playing an interaction. Nothing of the owner's screen is in it.
+ *   test=film page=glass3d drive=cursor|dimple|ripple|press|buttons [seconds=8] [backdrop=dark|busy|light] [out=<file.webm>]
+ * After the film it waits for everything to settle and prints how many frames were drawn then (it should be none).
+ */
+async function runFilm() {
+  const w = Math.round(STAGE.w * SIZE), h = Math.round(STAGE.h * SIZE);
+  const win = new BrowserWindow({ show: false, width: w, height: h, useContentSize: true, frame: false, transparent: true,
+    webPreferences: { offscreen: true, backgroundThrottling: false, contextIsolation: true, sandbox: true } });
+  win.webContents.setFrameRate(60);
+  win.webContents.on('console-message', (event) => { if (event.level === 'error') console.log('page error: ' + event.message); });
+  const desk = `/design/captures/raw/mercury3d/desks/${args.backdrop || 'dark'}.png`;
+  await win.loadURL(`http://127.0.0.1:${PORT}/prototypes/glass3d/?play&deskimg=${encodeURIComponent(desk)}${args.q ? '&' + args.q : ''}`);
+  const run = (js) => win.webContents.executeJavaScript(js, true);
+  for (let i = 0; i < 600 && !(await run('Boolean(window.__glass && (window.__glass.ready || window.__glass.error))')); i++) await sleep(50);
+  const err = await run('window.__glass.error');
+  if (err) { console.log('film: page error ' + err); app.quit(); return; }
+  await sleep(800);
+  const seconds = Number(args.seconds) || 8;
+  const b64 = await run(`window.__glass.record(${seconds}, 30, ${JSON.stringify(args.drive || 'cursor')})`);
+  const out = path.resolve(REPO, args.out || 'design/captures/raw/mercury3d/film.webm');
+  fs.mkdirSync(path.dirname(out), { recursive: true });
+  fs.writeFileSync(out, Buffer.from(b64, 'base64'));
+  await sleep(4000);
+  const f0 = await run('window.__glass.frames'); await sleep(2000); const f1 = await run('window.__glass.frames');
+  const info = await run('JSON.stringify(window.__glass.motionInfo())');
+  console.log(`film ${path.relative(REPO, out)}, ${Math.round(fs.statSync(out).size / 1024)} KB; settled: ${f1 - f0} frames in 2 s; ${info}`);
+  app.quit();
+}
+
 /* -------------------------------------------------------------------- boot --- */
 
 app.whenReady().then(async () => {
@@ -858,6 +890,7 @@ app.whenReady().then(async () => {
   if (TEST === 'drag') { await runDragTest(); return; }
   if (TEST === 'refract') { await runRefractTest(); return; }
   if (TEST === 'record') { await runRecord(); return; }
+  if (TEST === 'film') { await runFilm(); return; }
   if (TEST === 'spike') {
     await require('./spike-test.js').runSpike({ app, screen, createWidget, getWidget: () => widget, args, REPO });
     return;

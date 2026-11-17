@@ -43,6 +43,16 @@ uniform vec4 uDimple;      // centre (x, z), depth (+: pushed back), radius
 uniform vec4 uPress;       // centre, depth, radius
 uniform vec4 uRip[4];      // centre, age (s; < 0: none), strength
 uniform vec3 uRipK;        // speed (units a second), wavelength (units), decay (s)
+uniform vec4 uJig;         // the slow, wide wobble rolling out from a release: centre, age (s; < 0: none), strength
+uniform vec3 uJigK;        // its speed, wavelength, decay
+// a ring of waves running out from r.xy (age r.z, strength r.w), its slope added to grad
+float ring(vec2 p, vec4 r, vec3 K, inout vec2 grad) {
+  vec2 d = p - r.xy; float rr = max(length(d), 1e-4);
+  float q = rr - K.x * r.z, w = K.y * 1.3, k = 6.2831853 / K.y;
+  float amp = r.w * exp(-r.z / K.z) * smoothstep(0., .08, r.z), env = exp(-q * q / (w * w));
+  grad += amp * env * (k * cos(k * q) - 2. * q / (w * w) * sin(k * q)) * d / rr;
+  return amp * env * sin(k * q);
+}
 uniform vec4 uWellC[3];    // the wells: centre, radius, how far the floor has sunk
 float motionField(vec2 p, out vec2 grad) {
   float g = 0.; grad = vec2(0.);
@@ -54,15 +64,8 @@ float motionField(vec2 p, out vec2 grad) {
     vec2 d = p - uPress.xy; float R2 = uPress.w * uPress.w; float s = dot(d, d) / R2; float e = exp(-.5 * s) * uPress.z;
     g += e * (1. - s); grad -= e * d / R2 * (3. - s);
   }
-  for (int i = 0; i < 4; i++) {
-    vec4 r = uRip[i];
-    if (r.z < 0.) continue;
-    vec2 d = p - r.xy; float rr = max(length(d), 1e-4);
-    float q = rr - uRipK.x * r.z, w = uRipK.y * 1.3, k = 6.2831853 / uRipK.y;
-    float amp = r.w * exp(-r.z / uRipK.z) * smoothstep(0., .08, r.z), env = exp(-q * q / (w * w));
-    g += amp * env * sin(k * q);
-    grad += amp * env * (k * cos(k * q) - 2. * q / (w * w) * sin(k * q)) * d / rr;
-  }
+  for (int i = 0; i < 4; i++) if (uRip[i].z >= 0.) g += ring(p, uRip[i], uRipK, grad);
+  if (uJig.z >= 0.) g += ring(p, uJig, uJigK, grad);
   for (int i = 0; i < 3; i++) {
     vec4 wl = uWellC[i];
     if (wl.w == 0.) continue;
@@ -618,6 +621,7 @@ export async function createGlass(canvas, { assets, ss = 2, studio = 'live', lig
     if (M) {
       gl.uniform4fv(u.uTilt, M.tilt); gl.uniform4fv(u.uDimple, M.dimple); gl.uniform4fv(u.uPress, M.press);
       gl.uniform4fv(u.uRip, new Float32Array(M.rips.flat())); gl.uniform3fv(u.uRipK, M.ripK);
+      gl.uniform4fv(u.uJig, M.jig); gl.uniform3fv(u.uJigK, M.jigK);
       gl.uniform4fv(u.uWellC, new Float32Array(WELLS.map((w, i) => [w[0], w[1], w[2], M.sink[i]]).flat()));
     }
     // (the words' boxes, reference px -> canvas fractions, y up)
