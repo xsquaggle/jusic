@@ -1,0 +1,58 @@
+{
+ "out": "design/captures/mercury-blender-proof-sheet.png",
+ "width": 1830,
+ "title": "Step 1 proof: our shape modelled as real glass in Blender and rendered in Cycles (generated cover), beside the main reference, same framing",
+ "notes": [
+  "part: The cover sits on the ridge and looks heavy: set deep in a thick ring of glass, the ridge rolling under its lower edge; the ring reads thinner and darker than the reference.",
+  "part: The ridge is one unbroken line from under the cover to the tail: one roll all the way, under the words, up the twist, along the sheet, into the tail; its highlight breaks in places.",
+  "ok: The twist and the sheet over the buttons read clearly: the sheet hangs over the wells as real glass.",
+  "part: The words are clean: crisp on top, but a reflection line wraps the end of the title and the artist.",
+  "part: The glass shines: real refraction and highlights along every roll, but darker and less luminous than the reference."
+ ],
+ "rows": [
+  [
+   {
+    "label": "main reference",
+    "src": "design/references/widget-mercury.png",
+    "crop": [
+     0,
+     0,
+     1586,
+     992
+    ]
+   },
+   {
+    "label": "our shape as real glass (Cycles, 256 samples; words and glyphs laid on top from the prototype)",
+    "src": "design/captures/raw/blender/proof-generated-words.png",
+    "crop": [
+     0,
+     0,
+     1586,
+     992
+    ]
+   }
+  ],
+  [
+   {
+    "label": "main reference, cover to buttons",
+    "src": "design/references/widget-mercury.png",
+    "crop": [
+     65,
+     197,
+     1134,
+     577
+    ]
+   },
+   {
+    "label": "ours, cover to buttons",
+    "src": "design/captures/raw/blender/proof-generated-words.png",
+    "crop": [
+     65,
+     197,
+     1134,
+     577
+    ]
+   }
+  ]
+ ]
+}

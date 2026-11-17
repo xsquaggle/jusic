@@ -4,7 +4,8 @@
  *
  *   npx electron tools/capture/sheet.js tools/capture/sheets/round8-overview.json
  *
- * Spec: { out, width, title?, rows: [ [ cell, cell, ... ], ... ] }
+ * Spec: { out, width, title?, notes?: [line, ...], rows: [ [ cell, cell, ... ], ... ] }
+ * notes: short lines under the title (the checklist of what must not be lost; 'ok: ', 'no: ' or 'part: ' marks each).
  * Cell: { label, src, crop?: [x, y, w, h] in source pixels, w?: width on the sheet, pixel?: true for hard pixel zoom }
  * Cells in a row share the sheet width equally unless they give w.
  */
@@ -37,7 +38,7 @@ function html() {
     return `<div class="row">${cells}</div>`;
   }).join('');
   return `<!DOCTYPE html><meta charset="utf-8"><style>
-    html, body { margin: 0; background: #0c0c0f; }
+    html, body { margin: 0; background: #0c0c0f; overflow: hidden; }
     body { width: ${spec.width}px; font: 500 13px/1 'Segoe UI', system-ui, sans-serif; color: #c9c9d2; padding-bottom: ${GAP}px; }
     h1 { margin: 0; padding: 12px ${GAP}px 4px; font: 600 15px/1.2 'Segoe UI', system-ui, sans-serif; color: #fff; }
     .row { display: flex; gap: ${GAP}px; padding: 0 ${GAP}px; align-items: flex-start; }
@@ -46,7 +47,9 @@ function html() {
     .clip { position: relative; overflow: hidden; background: #000; }
     .clip img { position: absolute; display: block; max-width: none; }
     img.pixel { image-rendering: pixelated; }
-  </style>${spec.title ? `<h1>${esc(spec.title)}</h1>` : ''}${rows}
+    ul { margin: 2px 0 2px; padding: 4px ${GAP + 18}px 2px; columns: 2; font: 400 13px/1.45 'Segoe UI', system-ui, sans-serif; color: #c9c9d2; }
+    li b { color: #fff; font-weight: 600; }
+  </style>${spec.title ? `<h1>${esc(spec.title)}</h1>` : ''}${spec.notes ? `<ul>${spec.notes.map((n) => { const m = String(n).match(/^(w+): (.*)$/s); return `<li>${m ? `<b>${esc(m[1])}</b> ` + esc(m[2]) : esc(n)}</li>`; }).join('')}</ul>` : ''}${rows}
   <script>
     window.laid = Promise.all([...document.images].map((img) => img.decode().catch(() => {}))).then(() => {
       for (const clip of document.querySelectorAll('.clip')) {
