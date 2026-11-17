@@ -59,8 +59,8 @@ const LIGHT = MODE === 0
 // the desktop is what the glass shows); sheen: a broad, soft reflection; edgeCore: the edge's light toward a narrower
 // core hugging the outline (a lit edge, not a painted rim); ringMirror: the art mirrored round the ring (the marble)
 Object.assign(LIGHT, MODE === 0
-  ? { bloom: 0, bloomThr: 1, bloomR: 1, bloomWarm: 0, keepRoll: LIGHT.deskKeep, sheen: 0, edgeCore: 0, ringMirror: 0, ink: 0 }
-  : { bloom: 1.5, bloomThr: 0.5, bloomR: 1.5, bloomWarm: 1, keepRoll: 0.6, sheen: 0.1, edgeCore: 0.8, ringMirror: 0.3, ink: 3.5 });
+  ? { bloom: 0, bloomThr: 1, bloomR: 1, bloomWarm: 0, keepRoll: LIGHT.deskKeep, sheen: 0, edgeCore: 0, ringMirror: 0, ink: 0, inkGlow: 0 }
+  : { bloom: 1.5, bloomThr: 0.5, bloomR: 1.5, bloomWarm: 1, keepRoll: 0.6, sheen: 0.1, edgeCore: 0.8, ringMirror: 0.3, ink: 0.85, inkGlow: 0.22 });
 for (const k of Object.keys(LIGHT)) if (Q.has(k)) LIGHT[k] = Number(Q.get(k));
 
 const $ = (id) => document.getElementById(id);
@@ -502,7 +502,9 @@ function inkFrame(now) {
 // (source=system) it hears what the PC really plays (the shell's sound helper, as in the 2D widget); the test
 // tracks move to a made-up beat (silent). On pause it all fades out and the glass goes still. Reduced motion: none.
 // Strengths by URL: ?mu_flex= mu_beat= mu_glint= mu_spec= (0: off).
-const MUS = { flex: 0.04, beat: 0.014, glint: 1, spec: 4.5, specSwing: 0.1, specWidth: 0.022, bpm: 112 };
+// (the owner: "the glass doesn't react jelly-like enough": the lobes are springs the bass pulls and every beat kicks,
+// each wobbling on its own; the beat's wave rolls slower and deeper; the glass sways a little on the beat)
+const MUS = { flex: 0.055, kick: 1.6, beat: 0.026, sway: 0.5, glint: 1, spec: 3.2, specSwing: 0.1, specWidth: 0.022, bpm: 112 };
 for (const k of Object.keys(MUS)) if (Q.has('mu_' + k)) MUS[k] = Number(Q.get('mu_' + k));
 const listener = (() => {
   // (from the 2D widget: 16 loudnesses on a decibel scale about 30 times a second, evened out so a quiet song moves
@@ -537,7 +539,8 @@ function madeUpBeat(t, bpm) {
   }
   return { bands, pulse: Math.min(1, kick * 1.1) };
 }
-const music = { on: new Spring('glide'), bands: new Float32Array(16), bass: 0, highs: 0, pulse: 0, beats: [], lastBeat: -1e9, t0: performance.now() };
+const music = { on: new Spring('glide'), bands: new Float32Array(16), bass: 0, highs: 0, pulse: 0, beats: [], lastBeat: -1e9, t0: performance.now(),
+  lobeL: new Spring({ k: 150, c: 4.2 }), lobeR: new Spring({ k: 195, c: 4.8 }), sway: new Spring2({ k: 120, c: 4 }), side: 1 };
 if (host && host.onBands) host.onBands((b) => listener.feed(b));
 /** Step the music; true while it is moving the glass. Its uniforms ride along with the motion's. */
 function musicStep(dt) {
@@ -546,7 +549,12 @@ function musicStep(dt) {
   const live = player.playing && !motion.reduced && !document.hidden;
   m.on.target = live ? 1 : 0; m.on.step(dt);
   if (motion.reduced) m.on.snap(0);
-  if (m.on.x < 1e-3 && !live) { m.beats = []; return false; }
+  if (m.on.x < 1e-3 && !live) {
+    m.beats = [];
+    for (const sp of [m.lobeL, m.lobeR]) sp.snap(0);
+    m.sway.snap(0, 0);
+    return false;
+  }
   const a = SYSTEM ? (listener.ready ? listener.analyse() : { bands: new Float32Array(16), pulse: 0 }) : madeUpBeat(t, MUS.bpm);
   for (let i = 0; i < 16; i++) m.bands[i] = a.bands[i];
   m.bass = (a.bands[0] + a.bands[1] + a.bands[2]) / 3;
@@ -554,7 +562,13 @@ function musicStep(dt) {
   // a beat: the pulse rising through a threshold, not too soon after the last
   if (a.pulse > 0.55 && m.pulse <= 0.55 && t - m.lastBeat > 0.28 && MUS.beat > 0) {
     m.lastBeat = t; m.beats.push({ x0: -5.4, t0: t, s: MUS.beat * (0.6 + 0.4 * a.pulse) }); if (m.beats.length > 2) m.beats.shift();
+    // the kick: both lobes jump and wobble back, the far one a moment later; the glass sways one way, then the other
+    m.lobeL.kick(MUS.kick * (0.6 + 0.4 * a.pulse)); m.lobeR.kick(MUS.kick * 0.8 * (0.6 + 0.4 * a.pulse));
+    m.side = -m.side; m.sway.kick(MUS.sway * m.side, MUS.sway * 0.4);
   }
+  // the bass pulls the lobes out (a spring with little damping, so they overshoot and wobble)
+  m.lobeL.target = m.bass; m.lobeR.target = m.bass * 0.85;
+  m.lobeL.step(dt); m.lobeR.step(dt); m.sway.step(dt);
   m.pulse = a.pulse;
   m.beats = m.beats.filter((b) => t - b.t0 < 3.5);
   return true;
@@ -562,9 +576,10 @@ function musicStep(dt) {
 function musicUniforms() {
   const m = music, t = (performance.now() - m.t0) / 1000, on = m.on.x;
   return {
-    flex: MUS.flex * m.bass * on,
+    flex: [MUS.flex * m.lobeL.x * on, MUS.flex * m.lobeR.x * on],
+    sway: [m.sway.x * 0.05 * on, m.sway.y * 0.05 * on],
     beats: [0, 1].map((i) => (m.beats[i] ? [m.beats[i].x0, t - m.beats[i].t0, m.beats[i].s * on, 0] : [0, -1, 0, 0])),
-    beatK: [6.5, 0.7, 0.75],
+    beatK: [4.5, 1.0, 1.0],
     music: [m.bass, m.highs * MUS.glint, t, on],
     bands: m.bands,
     spec: [MUS.spec, MUS.specSwing, MUS.specWidth, 0],
@@ -730,7 +745,7 @@ function motionStep(now) {
   const any = moving || Math.abs(m.tilt.x) + Math.abs(m.tilt.y) + Math.abs(m.lean.x) + Math.abs(m.lean.y) + Math.abs(m.dimple.x)
     + Math.abs(m.press.x) + m.sink.reduce((a, s) => a + Math.abs(s.x), 0) > 1e-5;
   G.motion = any || playingMusic ? {
-    tilt: [m.tilt.x, m.tilt.y, m.lean.x, m.lean.y],
+    tilt: [m.tilt.x + music.sway.x * 0.05 * music.on.x, m.tilt.y + music.sway.y * 0.05 * music.on.x, m.lean.x, m.lean.y],
     dimple: [m.dimpleAt.x, m.dimpleAt.y, m.dimple.x, MOT.dimpleR],
     press: [m.pressAt[0], m.pressAt[1], m.press.x, MOT.pressR],
     rips: [0, 1, 2, 3].map((i) => (m.rips[i] ? [m.rips[i].x, m.rips[i].z, t - m.rips[i].t0, MOT.rip] : [0, 0, -1, 0])),

@@ -45,7 +45,7 @@ uniform vec4 uRip[4];      // centre, age (s; < 0: none), strength
 uniform vec3 uRipK;        // speed (units a second), wavelength (units), decay (s)
 uniform vec4 uJig;         // the slow, wide wobble rolling out from a release: centre, age (s; < 0: none), strength
 // the music: the lobes swell with the bass; on the beat a wave runs along the ribbon, from the cover to the tail
-uniform float uFlex;       // the bass swell (units toward the camera)
+uniform vec2 uFlex;        // the lobes' swell with the music (units toward the camera): the bulb, the right lobe
 uniform vec4 uBeat[2];     // beat waves: start x, age (s; < 0: none), strength, -
 uniform vec3 uBeatK;       // their speed, wavelength, decay
 uniform vec3 uJigK;        // its speed, wavelength, decay
@@ -69,11 +69,11 @@ float motionField(vec2 p, out vec2 grad) {
     g += e * (1. - s); grad -= e * d / R2 * (3. - s);
   }
   for (int i = 0; i < 4; i++) if (uRip[i].z >= 0.) g += ring(p, uRip[i], uRipK, grad);
-  if (uFlex != 0.) {         // the two lobes breathing with the bass (the bulb round the cover, the right lobe)
+  if (uFlex != vec2(0.)) {   // the two lobes wobbling with the music, each on its own spring
     vec2 c1 = vec2(-5.63, .26), c2 = vec2(5.07, .66);
     vec2 d1 = p - c1, d2 = p - c2;
-    float e1 = exp(-.5 * dot(d1, d1) / 2.9), e2 = exp(-.5 * dot(d2, d2) / 2.6);
-    g -= uFlex * (e1 + e2); grad += uFlex * (e1 * d1 / 2.9 + e2 * d2 / 2.6);
+    float e1 = exp(-.5 * dot(d1, d1) / 2.9) * uFlex.x, e2 = exp(-.5 * dot(d2, d2) / 2.6) * uFlex.y;
+    g -= e1 + e2; grad += e1 * d1 / 2.9 + e2 * d2 / 2.6;
   }
   for (int i = 0; i < 2; i++) {
     vec4 b = uBeat[i];
@@ -143,7 +143,9 @@ vec3 pigment(vec3 art) {
   float hi = max(art.r, max(art.g, art.b)), lo = min(art.r, min(art.g, art.b));
   float coloured = smoothstep(.12, .4, (hi - lo) / max(hi, 1e-3));
   vec3 own = uPal / max(max(uPal.r, max(uPal.g, uPal.b)), .08);
-  return mix(own, art / max(hi, .08), coloured) * smoothstep(.015, .3, hi);
+  vec3 c = mix(own, art / max(hi, .08), coloured) * smoothstep(.015, .3, hi);
+  float l = dot(c, vec3(.2126, .7152, .0722));
+  return max(mix(vec3(l), c, 1.45), 0.);           // (richer: a little more chroma than the art's own)
 }
 `;
 /**
@@ -212,7 +214,7 @@ void main() {
   dye += art * lowerEdge * (.06 + 3.2 * thread) * uK.y * uDt;
   // a track change: the old cover turns to pigment where it lay, and is pushed out (mode 2)
   float inCov = step(uCov.x, p.x) * step(p.x, uCov.z) * step(uCov.y, p.y) * step(p.y, uCov.w);
-  dye = mix(dye, pigment(textureLod(uArtOld, cuv, 1.5).rgb) * 1.2, uK.z * inCov * .3);
+  dye = mix(dye, pigment(textureLod(uArtOld, cuv, 1.5).rgb), uK.z * inCov * .22);
   // play: colour floods back out of the cover, round its edges
   float rimD = abs(max(max(uCov.x - p.x, p.x - uCov.z), max(uCov.y - p.y, p.y - uCov.w)) - 6.);
   dye += art * smoothstep(30., 0., rimD) * uK.w * 3. * uDt;
@@ -284,7 +286,7 @@ uniform float uBands[16];          // its spectrum, low to high
 uniform vec2 uFold[8];             // the fold under the sheet's lip (root x, z), left to right
 uniform vec4 uSpec;                // the spectrum in the fold: strength, strands' swing (units), their width, -
 uniform sampler2D uInk;            // the ink: pigment carried through the glass (canvas uv)
-uniform float uInkK;               // how strongly it glows
+uniform vec2 uInkK;                // the ink: how strongly it dyes the glass, how much it glows
 uniform vec4 uWords[4];            // behind the words and times: boxes in canvas fractions (x0, y0, x1, y1; y up)
 uniform vec2 uWordsDim;            // how much of the desktop still comes through there, the feather (fractions of width)
 uniform int uDbg;
@@ -468,7 +470,16 @@ void main() {
   wellLight *= uL2.y * .35;
   vec3 col = refl * F + (trans + deskT + lobe + spill + marble + ringArt) * (1. - F) + band + wellLight;
   // the ink glowing in the glass, more where it is thick, little behind the words
-  if (uInkK > 0.) col += texture(uInk, gl_FragCoord.xy / uRes).rgb * uInkK * (.35 + .65 * (1. - exp(-thick * 3.))) * (1. - F) * (1. - .8 * wm);
+  if (uInkK.x > 0.) {
+    // the ink as dye in the glass: where it is dense the glass takes its pure, saturated colour (what passes through
+    // is filtered by it), and it glows a little, never so bright that the tone curve washes it toward white
+    vec3 ink = texture(uInk, gl_FragCoord.xy / uRes).rgb;
+    float mx = max(ink.r, max(ink.g, ink.b));
+    vec3 hue = pow(ink / max(mx, 1e-3), vec3(1.35));
+    float dense = (1. - exp(-mx * 2.2)) * (.45 + .55 * (1. - exp(-thick * 3.))) * (1. - .8 * wm) * (1. - F);
+    col = mix(col, col * hue * 1.15, dense * uInkK.x);
+    col += hue * dense * uInkK.y;
+  }
   if (uMotionOn == 1 && uMusic.w > 0.) {
     // glints running along the hot highlights with the highs
     vec3 rF = refl * F;
@@ -493,7 +504,8 @@ void main() {
         I += exp(-pow((dz - off) / w, 2.)) * (1. - .25 * fk);
       }
       float e = (.2 + 1.4 * lv) * ends * uSpec.x * uMusic.w;
-      col += (coral * vec3(1.15, .8, .7) * I + vec3(1., .92, .86) * pow(min(I, 1.), 3.) * .6) * e;   // coral, white where the strands are brightest
+      vec3 sc = coral * vec3(1.25, .62, .5);
+      col += (sc * I + sc * vec3(1., 1.25, 1.3) * pow(min(I, 1.), 3.) * .25) * e;   // coral strands, a little paler at their cores
     }
   }
   if (uDbg == 1) col = refl * F; else if (uDbg == 2) col = (trans + deskT) * (1. - F); else if (uDbg == 3) col = bands(R) * 4.;
@@ -821,7 +833,7 @@ export async function createGlass(canvas, { assets, ss = 2, studio = 'live', lig
     gl.uniform2f(u.uL4, L.marble, L.marbleReach);
     gl.uniform4f(u.uL5, L.keepRoll, L.sheen, L.edgeCore, L.ringMirror);
     gl.uniform3fv(u.uTint, TINT); gl.uniform3fv(u.uArtMean, R.artMean.map((c, i) => c * (0.25 + 0.75 * R.colour)));
-    tex(u.uInk, R.inkCur.tex); gl.uniform1f(u.uInkK, R.inkOn ? L.ink : 0);
+    tex(u.uInk, R.inkCur.tex); gl.uniform2f(u.uInkK, R.inkOn ? L.ink : 0, R.inkOn ? L.inkGlow : 0);
     gl.uniform4fv(u.uWells, new Float32Array(WELLS.flat())); gl.uniform1i(u.uDbg, R.dbg);
     // phase 3: the cursor and the presses (R.motion, set by the page each frame while anything moves)
     const M = R.motion;
@@ -830,7 +842,7 @@ export async function createGlass(canvas, { assets, ss = 2, studio = 'live', lig
       gl.uniform4fv(u.uTilt, M.tilt); gl.uniform4fv(u.uDimple, M.dimple); gl.uniform4fv(u.uPress, M.press);
       gl.uniform4fv(u.uRip, new Float32Array(M.rips.flat())); gl.uniform3fv(u.uRipK, M.ripK);
       gl.uniform4fv(u.uJig, M.jig); gl.uniform3fv(u.uJigK, M.jigK);
-      gl.uniform1f(u.uFlex, M.flex || 0); gl.uniform4fv(u.uBeat, new Float32Array((M.beats || [[0, -1, 0, 0], [0, -1, 0, 0]]).flat()));
+      gl.uniform2fv(u.uFlex, M.flex || [0, 0]); gl.uniform4fv(u.uBeat, new Float32Array((M.beats || [[0, -1, 0, 0], [0, -1, 0, 0]]).flat()));
       gl.uniform3fv(u.uBeatK, M.beatK || [6, 0.6, 0.7]);
       gl.uniform4fv(u.uMusic, M.music || [0, 0, 0, 0]); gl.uniform1fv(u.uBands, M.bands || new Float32Array(16));
       gl.uniform2fv(u.uFold, R.fold); gl.uniform4fv(u.uSpec, M.spec || [0, 0, 0, 0]);
