@@ -61,9 +61,9 @@ async function runSpike({ app, screen, createWidget, getWidget, args, REPO }) {
   if (err) { console.log('page error: ' + err); app.quit(); return; }
   await sleep(1500);
   const tag = args.tag || `${args.frame === 'ref' ? 'ref' : 'widget'}-${args.dsf || 'native'}`;
-  const image = await win.webContents.capturePage();
+  // (with refraction on the page bends what is really on the screen: measured, never photographed)
   const file = path.join(OUT, `live-${tag}.png`);
-  fs.writeFileSync(file, image.toPNG());
+  if (args.refract !== 'live') fs.writeFileSync(file, (await win.webContents.capturePage()).toPNG());
   const size = await run('JSON.stringify(window.__glass.size)').then(JSON.parse);
   const gpu = app.getAppMetrics().find((m) => m.type === 'GPU');
   // drawing every frame
@@ -80,7 +80,7 @@ async function runSpike({ app, screen, createWidget, getWidget, args, REPO }) {
   const idle = gpu ? await gpuEngine(gpu.pid, Math.max(4, Math.round(SECONDS / 2))) : [];
   const cardIdle = card.stop();
   const r = {
-    tag, photo: path.relative(REPO, file), size,
+    tag, photo: args.refract === 'live' ? 'none (refraction on)' : path.relative(REPO, file), size,
     drawing: { fps: round((f1 - f0) / ((t1 - t0) / 1000)), pageCpuMsPerFrame: round(cpuMs, 2),
       gpuProcess3dPercent: busy.length ? { mean: round(mean(busy)), max: round(Math.max(...busy)) } : 'no reading', wholeCard: cardBusy || 'nvidia-smi not available' },
     idle: { gpuProcess3dPercent: idle.length ? { mean: round(mean(idle)), max: round(Math.max(...idle)) } : 'no reading', wholeCard: cardIdle || 'nvidia-smi not available' },

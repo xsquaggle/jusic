@@ -807,6 +807,43 @@ async function runRefractTest() {
   app.quit();
 }
 
+/**
+ * A short recording of the 3D widget sitting on the desktop of the other monitor (the owner asked for one), refraction
+ * on. The window is out of screen captures while it refracts, so the page composes what is really on the screen there
+ * itself (the desktop under the window, the glass bending it, the words) and records that. It shows whatever is on that
+ * monitor: it is written only to design/captures/raw/ (never committed) and handed to the owner directly.
+ *   test=record page=glass3d [seconds=6] [out=<file.webm>]
+ */
+async function runRecord() {
+  const display = pickDisplay('other');
+  if (display.id === screen.getPrimaryDisplay().id) { console.log('record: no second monitor; nothing recorded'); app.quit(); return; }
+  const area = display.workArea;
+  const w = Math.round(STAGE.w * SIZE), h = Math.round(STAGE.h * SIZE);
+  const at = { x: area.x + area.width - w - 60, y: area.y + area.height - h - 60 };
+  if (args.backdrop) {
+    // (a check of the recording itself: one of our own backdrop windows behind the widget instead of the desktop)
+    const bd = new BrowserWindow({ x: at.x - 40, y: at.y - 40, width: w + 80, height: h + 80, frame: false, resizable: false, skipTaskbar: true,
+      focusable: false, show: false, alwaysOnTop: true, backgroundColor: '#000000', webPreferences: { contextIsolation: true, sandbox: true } });
+    await bd.loadFile(path.join(__dirname, 'backdrop.html'), { query: { mode: args.backdrop } });
+    onTop(bd); bd.showInactive(); bd.moveTop();
+  }
+  await createWidget({ query: 'play', display: 'other', ...at });
+  widget.moveTop();
+  widget.showInactive();
+  const run = (js) => widget.webContents.executeJavaScript(js, true);
+  for (let i = 0; i < 600 && !(await run('Boolean(window.__glass && window.__glass.ready)')); i++) await sleep(50);
+  const p = await placement();
+  if (!p.sourceId || p.sourceId !== screenSources.get(String(display.id))) { console.log('record: the capture is not of this monitor; nothing recorded'); app.quit(); return; }
+  for (let i = 0; i < 100 && !(await run('window.__glass.backdrop.frames > 5')); i++) await sleep(100);
+  await sleep(1500);
+  const b64 = await run(`window.__glass.record(${Number(args.seconds) || 6})`);
+  const out = path.resolve(REPO, args.out || 'design/captures/raw/mercury3d/desktop.webm');
+  fs.mkdirSync(path.dirname(out), { recursive: true });
+  fs.writeFileSync(out, Buffer.from(b64, 'base64'));
+  console.log('recorded ' + path.relative(REPO, out) + ', ' + Math.round(fs.statSync(out).size / 1024) + ' KB');
+  app.quit();
+}
+
 /* -------------------------------------------------------------------- boot --- */
 
 app.whenReady().then(async () => {
@@ -817,6 +854,7 @@ app.whenReady().then(async () => {
   if (TEST === 'listen') { await runListenTest(); return; }
   if (TEST === 'drag') { await runDragTest(); return; }
   if (TEST === 'refract') { await runRefractTest(); return; }
+  if (TEST === 'record') { await runRecord(); return; }
   if (TEST === 'spike') {
     await require('./spike-test.js').runSpike({ app, screen, createWidget, getWidget: () => widget, args, REPO });
     return;

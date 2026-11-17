@@ -37,9 +37,10 @@ const toRef = (x, y) => [REF0[0] + x * K, REF0[1] + y * K];
 const MODE = Q.has('light') ? Number(Q.get('light')) : 1;
 const LIGHT = MODE === 0
   ? { exposure: 1, soft: 0, band: 0, lobe: 0, middle: 1, spill: 0, well: 0, warmth: 0, path: 1, through: 1, mirror: 1, hot: 0, hotk: 0,
-      below: 1, marble: 0, marbleReach: 0.4, desk: 0.14, deskGap: 0.4, deskKeep: 0.15, coat: 0.006, edgeReach: 45 }
-  : { exposure: 1, soft: 0, band: 2.5, lobe: 1, middle: 0.6, spill: 0.15, well: 0.6, warmth: 0.35, path: 2.2, through: 0.6, mirror: 1,
-      hot: 0, hotk: 0, below: 1, marble: 0.35, marbleReach: 0.35, desk: 0.22, deskGap: 0.4, deskKeep: 0.05, coat: 0.006, edgeReach: 45 };
+      below: 1, marble: 0, marbleReach: 0.4, desk: 0.14, deskGap: 0.4, deskKeep: 0.15, coat: 0.006, edgeReach: 45, wordsDesk: 1 }
+  : { exposure: 1, soft: 0, band: 3.2, lobe: 1, middle: 0.6, spill: 0.15, well: 0.6, warmth: 0.35, path: 2.2, through: 0.6, mirror: 1,
+      hot: 0, hotk: 0, below: 1, marble: 1.4, marbleReach: 0.6, desk: 0.22, deskGap: 0.4, deskKeep: 0.05, coat: 0.006, edgeReach: 45,
+      wordsDesk: 0.3 };
 for (const k of Object.keys(LIGHT)) if (Q.has(k)) LIGHT[k] = Number(Q.get(k));
 
 const $ = (id) => document.getElementById(id);
@@ -152,7 +153,14 @@ async function startBackdrop() {
       const { value, done } = await reader.read();
       if (done || backdrop.track !== track) { if (value) value.close(); break; }
       backdrop.frames++;
-      if (!backdrop.frozen) { G.setDesk(value); fadeDesk(1); redraw(); }
+      if (!backdrop.frozen) {
+        G.setDesk(value); fadeDesk(1); redraw();
+        if (rec.on) {        // (recording: the piece of screen under the window, as it was when this frame was drawn)
+          const m = G.desk.map, fw = value.displayWidth, fh = value.displayHeight;
+          const sx = m[0] * fw, sy = (1 - m[1] - m[3]) * fh, sw = m[2] * fw, sh = m[3] * fh;
+          createImageBitmap(value, sx, sy, sw, sh).then((bm) => { if (rec.under) rec.under.close(); rec.under = bm; }).catch(() => {});
+        }
+      }
       value.close();
     }
   } catch (e) {
@@ -192,7 +200,7 @@ function paintWords() {
   const T = tint;
   const coral = (a) => `rgba(${Math.round(255 * T[0])},${Math.round(255 * (0.35 + 0.65 * T[1]))},${Math.round(255 * (0.3 + 0.7 * T[2]))},${a})`;
   // Words fit the reference's line lengths at the reference's size; longer titles keep that size and are cut.
-  const shade = Q.has('shade') ? Number(Q.get('shade')) : 0.55;
+  const shade = Q.has('shade') ? Number(Q.get('shade')) : 0.85;
   function words(txt, weight, x, baseline, refWidth, refText, colour, spacing = 0, maxW = refWidth) {
     let size = 40;
     for (let i = 0; i < 4; i++) {
@@ -335,13 +343,42 @@ function onUp(e) {
   passThrough(!h.inside);
 }
 
+/* ------------------------------------------------------------- recording --- */
+// What is really on the screen there, composed by the page itself (the window is left out of screen captures while it
+// refracts): the desktop under the window, the pools, the glass bending that desktop, the words. A WebM, as base64.
+const rec = { on: false, under: null };
+async function record(seconds = 6, fps = 30) {
+  const [W, H] = G.size.canvas;
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const x = c.getContext('2d');
+  rec.on = true;
+  const stream = c.captureStream(fps);
+  const mr = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9', videoBitsPerSecond: 12e6 });
+  const chunks = [];
+  mr.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+  const t = setInterval(() => {
+    if (rec.under) x.drawImage(rec.under, 0, 0, W, H); else { x.fillStyle = '#000'; x.fillRect(0, 0, W, H); }
+    x.drawImage(under, 0, 0); x.drawImage(canvas, 0, 0); x.drawImage(ink, 0, 0);
+  }, 1000 / fps);
+  mr.start(250);
+  await new Promise((r) => setTimeout(r, seconds * 1000));
+  mr.stop(); clearInterval(t); rec.on = false;
+  await new Promise((r) => { mr.onstop = r; });
+  const buf = new Uint8Array(await new Blob(chunks, { type: 'video/webm' }).arrayBuffer());
+  let bin = ''; for (let i = 0; i < buf.length; i += 0x8000) bin += String.fromCharCode.apply(null, buf.subarray(i, i + 0x8000));
+  return btoa(bin);
+}
+
 /* ----------------------------------------------------------------- loop --- */
-let dirty = true, raf = 0;
+let dirty = true, raf = 0, lastDraw = -1e9;
+const CAP = Number(Q.get('fps')) || 0;           // ?fps=60: at most this often (the spike measures at the display's rate)
 function redraw() { dirty = true; if (!raf && !state.paused) raf = requestAnimationFrame(frame); }
-function frame() {
+function frame(now) {
   raf = 0;
   if (state.paused) return;
   if (!dirty && !SPIKE) return;
+  if (CAP && now - lastDraw < 1000 / CAP - 1.5) { raf = requestAnimationFrame(frame); return; }
+  lastDraw = now;
   const t0 = performance.now();
   G.draw();
   state.cpuMs = state.cpuMs * 0.95 + (performance.now() - t0) * 0.05;
@@ -359,6 +396,8 @@ async function main() {
   const dpr = window.devicePixelRatio || 1;
   const ref = FRAME_REF ? [0, 0, 1586, 992] : [REF0[0], REF0[1], STAGE.w * K, STAGE.h * K];
   G.resize(css[0], css[1], dpr, ref);
+  // behind the title and artist, the two times, the volume's word (reference px): calmer, less desktop through
+  G.words = [[492, 418, 830, 520], [240, 608, 322, 646], [1276, 572, 1370, 610], [1176, 290, 1330, 340]];
   for (const c of [under, ink]) { c.width = G.size.canvas[0]; c.height = G.size.canvas[1]; c.style.width = css[0] + 'px'; c.style.height = css[1] + 'px'; }
   await Promise.all(['500 40px Montserrat', '300 40px Montserrat', '400 40px Montserrat'].map((f) => document.fonts.load(f)));
   if (SYSTEM) {
@@ -403,6 +442,7 @@ async function main() {
       if (type === 'move') onMove(e); if (type === 'down') onDown(e); if (type === 'up') onUp(e);
     },
     setLight(k, v) { LIGHT[k] = v; redraw(); },
+    record,
     /** Where the controls are, in stage units, for the shell's tests. */
     layout: {
       buttons: WELLS.map(([u, v]) => [(u - REF0[0]) / K, (v - REF0[1]) / K]),

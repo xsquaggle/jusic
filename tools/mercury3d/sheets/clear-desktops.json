@@ -1,0 +1,64 @@
+{
+ "out": "design/captures/mercury3d-clear-desktops.png",
+ "width": 1772,
+ "title": "On screen, refraction on, over our own backdrop windows: a dark desktop, a light wallpaper, a white window (second monitor, 100%)",
+ "rows": [
+  [
+   {
+    "label": "reference (same scale)",
+    "src": "design/references/widget-mercury.png",
+    "crop": [
+     0,
+     88,
+     1586,
+     825
+    ],
+    "w": 860
+   },
+   {
+    "label": "dark desktop",
+    "src": "design/captures/raw/mercury3d/shots-final/window-dark.png",
+    "crop": [
+     50,
+     40,
+     860,
+     400
+    ],
+    "w": 860
+   }
+  ],
+  [
+   {
+    "label": "light wallpaper",
+    "src": "design/captures/raw/mercury3d/shots-final/window-busy.png",
+    "crop": [
+     50,
+     40,
+     860,
+     400
+    ],
+    "w": 860
+   },
+   {
+    "label": "white window",
+    "src": "design/captures/raw/mercury3d/shots-final/window-light.png",
+    "crop": [
+     50,
+     40,
+     860,
+     400
+    ],
+    "w": 860
+   }
+  ]
+ ],
+ "notes": [
+  "part: 1. Over a desktop it reads as clear glass: the desktop shows through the middles, bent (a white page at about 40%), one hot narrow line per roll, deep darks beside it, luminous rose rims gathered along the bottom and the tail. Less luminous than the reference over dark (its body glows rose; ours stays darker), and the lower band still carries a broad pinkish sheen in places.",
+  "part: 2. The cover sits on the ridge in a pocket round on every side, its sheen faint; its colours now glow rose in the ring round it, more faintly than the reference's marble.",
+  "ok: 3. The ridge is one roll along your trace: under the cover, level under the words, up through the twist, the sheet's lip over the wells, into the tail tip.",
+  "part: 4. The twist, the sheet over the wells, three round wells with dark middles and warm rims; the right end's curl is still gentler than the reference's.",
+  "part: 5. Words and controls crisp and readable over dark, a light wallpaper and a white window (the glass behind them calmer, with less desktop through it and a soft shade). No line crosses the artist or the times; the twist's hot line still meets the foot of the title's last letter.",
+  "ok: 6. Zebra smooth in Blender and in the live renderer, the bumps under the wells gone (soft humps remain between them).",
+  "part: 7. 60 fps at the widget's real size (125%, drawn at 2150 x 1000) using 3.5% of the GPU, 3.8% with refraction on; 0% when still, 0.4% with refraction (the desktop keeps arriving). Audio not part of this still."
+ ]
+}

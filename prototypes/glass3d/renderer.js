@@ -106,6 +106,8 @@ uniform vec2 uL4;                  // marble (the cover's colours in the ring), 
 uniform vec3 uTint;                // the album's colour
 uniform vec3 uArtMean;             // the cover's mean colour (linear)
 uniform vec4 uWells[3];            // the wells: centre (Blender X, Z), radius, -
+uniform vec4 uWords[4];            // behind the words and times: boxes in canvas fractions (x0, y0, x1, y1; y up)
+uniform vec2 uWordsDim;            // how much of the desktop still comes through there, the feather (fractions of width)
 uniform int uDbg;
 out vec4 o;
 
@@ -200,7 +202,17 @@ void main() {
     }
   }
   trans *= exp(-uAbsorb * path);
-  deskT *= exp(-uAbsorb * path * .5);                          // (a white page through the glass stays near white)
+  deskT *= exp(-uAbsorb * path * .5);
+  // the glass behind the words calm and a little darker: less of the desktop through it (on a white page its own
+  // words showed behind the artist's)
+  vec2 fc = gl_FragCoord.xy / uRes;
+  float wm = 0.;
+  for (int i = 0; i < 4; i++) {
+    vec4 b = uWords[i];
+    vec2 d = max(b.xy - fc, fc - b.zw) / vec2(uWordsDim.y, uWordsDim.y * uRes.x / uRes.y);
+    wm = max(wm, 1. - smoothstep(0., 1., max(d.x, d.y)));
+  }
+  deskT *= mix(1., uWordsDim.x, wm);                          // (a white page through the glass stays near white)
 
   // ---- the light pass (all zero with light=0)
   vec3 Lc = texture(uLightMap, vUv).rgb / uLightRef;          // Cycles' light on this point of the glass
@@ -212,7 +224,7 @@ void main() {
   float edge = pow(smoothstep(.995, .5, texture(uEdge, gl_FragCoord.xy / uRes).r), 1.3);
   // (never an even outline: strongest where the edge faces down, the bottom and the tail; faint along the top)
   float lowE = smoothstep(.3, -.6, N.z);
-  vec3 coral = mix(warm, uTint * vec3(1., .62, .58), .7);
+  vec3 coral = mix(warm, uTint * vec3(1., .5, .45), .85);        // (saturated: the tone curve pales bright colours)
   vec3 band = mix(warm, coral, lowE) * uL1.y * edge * mix(.1, 1., lowE) * (.6 + .4 * min(L, 1.5)) * .45;
   vec3 lobe = warm * uL1.z * low * (1. - exp(-thick * 1.5)) * (1. - rim) * .06;          // and in the thick lobes, low
   // the cover's colours glowing in the ring round it, like a marble: the colour of the art's nearest edge,
@@ -281,7 +293,8 @@ void main() {
 const fetchBin = (url) => fetch(url).then((r) => { if (!r.ok) throw new Error(url + ' ' + r.status); return r.arrayBuffer(); });
 
 export async function createGlass(canvas, { assets, ss = 2, studio = 'live', light, dbg = 0 }) {
-  const gl = canvas.getContext('webgl2', { antialias: false, alpha: true, premultipliedAlpha: true });
+  // (preserveDrawingBuffer: the page's own recorder copies the canvas between frames)
+  const gl = canvas.getContext('webgl2', { antialias: false, alpha: true, premultipliedAlpha: true, preserveDrawingBuffer: true });
   if (!gl) throw new Error('WebGL2 is not available');
   if (!gl.getExtension('EXT_color_buffer_float')) throw new Error('no EXT_color_buffer_float');
 
@@ -462,6 +475,12 @@ export async function createGlass(canvas, { assets, ss = 2, studio = 'live', lig
     gl.uniform2f(u.uL4, L.marble, L.marbleReach);
     gl.uniform3fv(u.uTint, R.tint); gl.uniform3fv(u.uArtMean, R.artMean);
     gl.uniform4fv(u.uWells, new Float32Array(WELLS.flat())); gl.uniform1i(u.uDbg, R.dbg);
+    // (the words' boxes, reference px -> canvas fractions, y up)
+    const [rx, ry, rw, rh] = R.size.ref;
+    const boxes = (R.words || []).slice(0, 4).map(([u0, v0, u1, v1]) => [(u0 - rx) / rw, 1 - (v1 - ry) / rh, (u1 - rx) / rw, 1 - (v0 - ry) / rh]);
+    while (boxes.length < 4) boxes.push([2, 2, 2, 2]);
+    gl.uniform4fv(u.uWords, new Float32Array(boxes.flat()));
+    gl.uniform2f(u.uWordsDim, L.wordsDesk, 14 / rw);
     gl.bindVertexArray(vao); gl.drawElements(gl.TRIANGLES, nt * 3, gl.UNSIGNED_INT, 0);
     // 5: down to the canvas
     gl.disable(gl.DEPTH_TEST); gl.disable(gl.CULL_FACE);
