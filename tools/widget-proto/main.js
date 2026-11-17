@@ -36,6 +36,7 @@
  *   test=spike page=glass3d [frame=ref] [dsf=1|1.25] [out=<folder>] [seconds=8]   the phase 2 spike: the 3D glass still in
  *                                                           this window on the other monitor, photographed (the page's own
  *                                                           pixels) and measured: fps, the GPU process's share, idle
+ *   test=refract page=glass3d                               the tray's Refraction switch, off and on, checked (3D page)
  *   display=primary|other                                   which monitor (shots and tests default to the other one, to
  *                                                           stay out of the way of whatever is on the main screen)
  */
@@ -55,8 +56,9 @@ const TEST = args.test || null;
 // framing, 1586 x 992).
 const PAGE = args.page === 'glass3d' ? 'glass3d' : 'mercury';
 // Refraction is the look (the owner's decision, 13 November 2026): on unless refract=off, or glass= is being tried.
-// (The 3D page does not bend the desktop yet: off there.)
-const REFRACT = PAGE === 'glass3d' || args.refract === 'off' || (args.glass && !args.refract) ? null : (args.refract || 'live');
+// (test=spike photographs the page's own pixels, so it runs without refraction unless refract=live is given: a picture
+// must never carry what is really on the owner's screen.)
+const REFRACT = (TEST === 'spike' && args.refract !== 'live') || args.refract === 'off' || (args.glass && !args.refract) ? null : (args.refract || 'live');
 // Options that are simply handed on to the page.
 const SYSTEM = args.source === 'system' || TEST === 'media' || TEST === 'listen';
 const PAGE_OPTIONS = (args.mat ? `&mat=${encodeURIComponent(args.mat)}` : '') + (REFRACT ? `&refract=${encodeURIComponent(REFRACT)}` : '') + (SYSTEM ? '&source=system' : '')
@@ -68,7 +70,9 @@ const PORT = 5190;
 const STAGE = PAGE === 'glass3d' && args.frame === 'ref' ? { w: 1586, h: 992 } : { w: 860, h: 400 };
 
 // Keep this prototype's browser profile inside the repo's ignored data folder, not in %APPDATA%.
-app.setPath('userData', path.join(REPO, 'data', 'widget-proto'));
+// (Tests and shots keep a profile of their own: an instance of the widget left running holds the shader cache, and
+// a test then compiled everything from scratch and ran late.)
+app.setPath('userData', TEST || SHOTS ? path.join(REPO, 'data', 'widget-proto-tests', TEST || 'shots') : path.join(REPO, 'data', 'widget-proto'));
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -186,7 +190,9 @@ async function placement() {
   }
   const bounds = widget.getContentBounds();
   const display = screen.getDisplayMatching(bounds);
-  return { window: bounds, display: display.bounds, sourceId: screenSources.get(String(display.id)) || [...screenSources.values()][0] };
+  // (No guessing: a capture of another screen would bend what is on that one. With the display unmatched the page
+  // gets no source and the glass stays as it is without refraction.)
+  return { window: bounds, display: display.bounds, sourceId: screenSources.get(String(display.id)) || null };
 }
 ipcMain.handle('widget:backdrop', () => placement());
 function sendPlacement() {
@@ -310,7 +316,9 @@ async function runMediaTest() {
   widget.showInactive();
   widget.moveTop();
   const run = (js) => widget.webContents.executeJavaScript(js, true);
-  for (let i = 0; i < 200 && !(await run('Boolean(window.__mercury && window.__mercury.ready)')); i++) await sleep(50);
+  const GLASS = PAGE === 'glass3d';
+  const H = GLASS ? 'window.__glass' : 'window.__mercury';
+  for (let i = 0; i < 600 && !(await run(`Boolean(${H} && ${H}.ready)`)); i++) await sleep(50);
   startMediaHelper(ours);
 
   let failed = 0, count = 0;
@@ -322,14 +330,16 @@ async function runMediaTest() {
     console.log(`${ok ? 'ok  ' : 'FAIL'} ${label}`);
     return ok;
   };
-  const shown = () => run('JSON.stringify({ title: window.__mercury.player.track.title, artist: window.__mercury.player.track.artist, playing: window.__mercury.player.playing, time: window.__mercury.player.time, duration: window.__mercury.player.track.duration, dim: window.__mercury.mercury.labels ? window.__mercury.mercury.labels.dim : null, art: Boolean(window.__mercury.media.art), sent: window.__mercury.media.sent })').then(JSON.parse);
+  const shown = GLASS
+    ? () => run('JSON.stringify({ title: window.__glass.player.track.title, artist: window.__glass.player.track.artist, playing: window.__glass.player.playing, time: window.__glass.time, duration: window.__glass.player.track.duration, dim: window.__glass.player.dim, art: Boolean(window.__glass.media.art), sent: window.__glass.media.sent })').then(JSON.parse)
+    : () => run('JSON.stringify({ title: window.__mercury.player.track.title, artist: window.__mercury.player.track.artist, playing: window.__mercury.player.playing, time: window.__mercury.player.time, duration: window.__mercury.player.track.duration, dim: window.__mercury.mercury.labels ? window.__mercury.mercury.labels.dim : null, art: Boolean(window.__mercury.media.art), sent: window.__mercury.media.sent })').then(JSON.parse);
   const click = async (x, y) => {
-    await run(`window.__mercury.pointer('move', ${x}, ${y}); window.__mercury.pointer('down', ${x}, ${y}); 0`);
+    await run(`${H}.pointer('move', ${x}, ${y}); ${H}.pointer('down', ${x}, ${y}); 0`);
     await sleep(120);
-    await run(`window.__mercury.pointer('up', ${x}, ${y}); 0`);
+    await run(`${H}.pointer('up', ${x}, ${y}); 0`);
   };
-  const B = JSON.parse(await run('JSON.stringify(window.__mercury.L.buttons.map((b) => b.c))'));
-  const seek = JSON.parse(await run('JSON.stringify({ x0: window.__mercury.L.seek.x0, x1: window.__mercury.L.seek.x1 })'));
+  const B = JSON.parse(await run(GLASS ? 'JSON.stringify(window.__glass.layout.buttons)' : 'JSON.stringify(window.__mercury.L.buttons.map((b) => b.c))'));
+  const seek = GLASS ? null : JSON.parse(await run('JSON.stringify({ x0: window.__mercury.L.seek.x0, x1: window.__mercury.L.seek.x1 })'));
 
   await check('the widget shows the other app\'s title and artist', async () => { const s = await shown(); return s.title === 'Test Source One' && s.artist === 'Media Test'; });
   await check('...its artwork', async () => (await shown()).art);
@@ -345,27 +355,27 @@ async function runMediaTest() {
   await check('...and the widget shows the new title', async () => (await shown()).title === 'Test Source Two');
   await click(B[0][0], B[0][1]);
   await check('the previous button goes back', async () => (await src('window.__source.index === 0')) && (await shown()).title === 'Test Source One');
-  const sx = Math.round(seek.x0 + (seek.x1 - seek.x0) * 0.75);
-  const sy = Number(await run(`(async () => (await import('./shape.js')).seekY(${sx}))()`));
-  await click(sx, sy);
+  const [sx, sy] = GLASS ? JSON.parse(await run('JSON.stringify(window.__glass.layout.seekAt(0.75))'))
+    : [Math.round(seek.x0 + (seek.x1 - seek.x0) * 0.75), 0];
+  await click(sx, GLASS ? sy : Number(await run(`(async () => (await import('./shape.js')).seekY(${sx}))()`)));
   await check('a click three quarters of the way along the timeline seeks the other app there', async () => { const t = await src('window.__source.audio.currentTime'); return t > 43 && t < 50; });
   await check('...and the widget follows', async () => { const t = (await shown()).time; return t > 43 && t < 52; });
 
   // A source like the browser tab seen on this PC: it allows no next and no previous.
   await loadSource(true);
   await check('a source that allows no next or previous: the helper says so', async () => mediaState && mediaState.source && !mediaState.canNext && !mediaState.canPrev, 50);
-  await check('...the widget dims those two buttons', async () => run('window.__mercury.media.state && !window.__mercury.media.state.canNext && !window.__mercury.media.state.canPrev'));
+  await check('...the widget dims those two buttons', async () => run(`${H}.media.state && !${H}.media.state.canNext && !${H}.media.state.canPrev`));
   const before = (await shown()).sent.length;
   await click(B[2][0], B[2][1]);
   await sleep(600);
   await check('...and pressing a dimmed button sends nothing', async () => (await shown()).sent.length === before, 1);
 
-  await run(`window.__mercury.pointer('leave', 0, 0); 0`);
+  await run(`${H}.pointer('leave', 0, 0); 0`);
   await sleep(1500);
   if (SHOTS_DIR_FOR_MEDIA) {
     fs.mkdirSync(SHOTS_DIR_FOR_MEDIA, { recursive: true });
     // Let back into captures to be photographed, with the picture it bends held still meanwhile.
-    if (REFRACT) { await run('window.__mercury.mercury.backdrop.frozen = true; 0'); widget.setContentProtection(false); await sleep(700); }
+    if (REFRACT) { await run(GLASS ? 'window.__glass.backdrop.frozen = true; 0' : 'window.__mercury.mercury.backdrop.frozen = true; 0'); widget.setContentProtection(false); await sleep(700); }
     const image = await grabScreen(area, display);
     if (saveShot(image, path.join(SHOTS_DIR_FOR_MEDIA, 'media-limited.png'))) console.log('photographed: media-limited.png');
   }
@@ -576,17 +586,32 @@ async function runShots() {
   backdrop.showInactive();
   backdrop.moveTop();
 
-  await createWidget({ query: 'capture=1&play', x: area.x + 50, y: area.y + 40 });
+  const GLASS = PAGE === 'glass3d';
+  await createWidget({ query: GLASS ? 'play' : 'capture=1&play', x: area.x + 50, y: area.y + 40 });
   widget.webContents.setAudioMuted(true);
   widget.showInactive();
   widget.moveTop();
   const run = (js) => widget.webContents.executeJavaScript(js, true);
-  for (let i = 0; i < 200 && !(await run('Boolean(window.__mercury && window.__mercury.ready)')); i++) await sleep(50);
-  for (let done = 0; done < 720; done += 30) await run('window.__mercury.step(30, 1 / 60, true); window.__mercury.mercury.gl.finish(); 0');
+  if (GLASS) {
+    // the 3D glass draws only when something changes: ready once it has drawn and read its silhouette
+    for (let i = 0; i < 600 && !(await run('Boolean(window.__glass && (window.__glass.ready || window.__glass.error))')); i++) await sleep(50);
+    const err = await run('window.__glass.error');
+    if (err) { console.log('page error: ' + err); app.quit(); return; }
+  } else {
+    for (let i = 0; i < 200 && !(await run('Boolean(window.__mercury && window.__mercury.ready)')); i++) await sleep(50);
+    for (let done = 0; done < 720; done += 30) await run('window.__mercury.step(30, 1 / 60, true); window.__mercury.mercury.gl.finish(); 0');
+  }
+  const B = GLASS ? 'window.__glass.backdrop' : 'window.__mercury.backdrop';
 
   if (REFRACT) {
-    for (let i = 0; i < 100 && !(await run('Boolean(window.__mercury.mercury.backdrop.frame || window.__mercury.mercury.backdrop.has)')); i++) await sleep(100);
-    console.log('capture: ' + await run('JSON.stringify({ settings: window.__mercury.backdrop.settings, error: window.__mercury.backdrop.error, frames: window.__mercury.backdrop.frames })'));
+    const p = await placement();
+    if (!p.sourceId || p.sourceId !== screenSources.get(String(display.id))) {
+      console.log('NOT SAVED: the refraction capture is not of the monitor the widget is on (it would bend another screen). Stopping.');
+      app.exit(1); return;
+    }
+    const has = GLASS ? 'window.__glass.backdrop.frames > 2' : 'Boolean(window.__mercury.mercury.backdrop.frame || window.__mercury.mercury.backdrop.has)';
+    for (let i = 0; i < 100 && !(await run(has)); i++) await sleep(100);
+    console.log('capture: ' + await run(`JSON.stringify({ settings: ${B}.settings, error: ${B}.error, frames: ${B}.frames })`));
   }
 
   for (const mode of (args.modes || 'dark,light,busy').split(',')) {
@@ -595,25 +620,30 @@ async function runShots() {
     widget.moveTop();
     if (REFRACT) {
       await sleep(900);         // the capture has to see the new backdrop first
-      await run('window.__mercury.step(1, 1 / 60, true); window.__mercury.mercury.springs.refract.snap(1); 0');
+      if (GLASS) { await sleep(400); await run('window.__glass.backdrop.frozen = true; window.__glass.redraw(); 0'); }
+      else await run('window.__mercury.step(1, 1 / 60, true); window.__mercury.mercury.springs.refract.snap(1); 0');
     }
-    await run('window.__mercury.step(2, 1 / 60, true); 0');
+    if (!GLASS) await run('window.__mercury.step(2, 1 / 60, true); 0');
     await sleep(600);
     if (REFRACT) {
       // What the capture sees: the same piece of screen with the widget left out of it.
       if (!saveShot(await grabScreen(area, display), path.join(SHOTS, `behind-${mode}.png`))) return;
+      // (the page's own pixels, the glass bending what its capture saw: only now that the screen behind is known
+      // to be our own backdrop, and the capture known to be of this monitor)
+      if (GLASS) fs.writeFileSync(path.join(SHOTS, `page-${mode}.png`), (await widget.webContents.capturePage()).toPNG());
       // To photograph the result the window has to be let back into captures. Nothing is redrawn
       // while the page's clock is stopped, so it cannot start bending a picture of itself.
       widget.setContentProtection(false);
       await sleep(700);
     }
     const image = await grabScreen(area, display);
-    if (REFRACT) { widget.setContentProtection(true); await sleep(700); }
+    if (REFRACT) { widget.setContentProtection(true); await sleep(700); if (GLASS) await run('window.__glass.backdrop.frozen = false; 0'); }
     if (!saveShot(image, path.join(SHOTS, `window-${mode}.png`))) return;
     const size = image.getSize();
     console.log(`window-${mode}: ${size.width}x${size.height}`);
   }
-  if (REFRACT) console.log('capture at the end: ' + await run('JSON.stringify({ frames: window.__mercury.backdrop.frames, uploads: window.__mercury.mercury.backdrop.uploads, size: [window.__mercury.mercury.backdrop.w, window.__mercury.mercury.backdrop.h], map: window.__mercury.mercury.backdrop.map })'));
+  if (REFRACT && !GLASS) console.log('capture at the end: ' + await run('JSON.stringify({ frames: window.__mercury.backdrop.frames, uploads: window.__mercury.mercury.backdrop.uploads, size: [window.__mercury.mercury.backdrop.w, window.__mercury.mercury.backdrop.h], map: window.__mercury.mercury.backdrop.map })'));
+  if (REFRACT && GLASS) console.log('capture at the end: ' + await run('JSON.stringify({ frames: window.__glass.backdrop.frames, uploads: window.__glass.G.desk.uploads, size: [window.__glass.G.desk.w, window.__glass.G.desk.h], map: window.__glass.G.desk.map })'));
   app.quit();
 }
 
@@ -657,15 +687,48 @@ async function runPassThroughTest() {
   widget.showInactive();
   widget.moveTop();
   const run = (js) => widget.webContents.executeJavaScript(js, true);
-  for (let i = 0; i < 200 && !(await run('Boolean(window.__mercury && window.__mercury.ready)')); i++) await sleep(50);
-  // Let it finish forming. The first launch after the shaders change spends a couple of
-  // seconds compiling them before anything moves, so wait for the drop itself, not the clock.
-  for (let i = 0; i < 100 && !(await run('window.__mercury.mercury.springs.form.x > 0.97')); i++) await sleep(100);
-  await sleep(500);
+  // Every check waits for the state it depends on, and says so when that state never comes, instead of
+  // checking against whatever is there when a fixed pause runs out. (One run in three failed this way on
+  // 17 November: under a loaded GPU, with another instance holding the shader cache, the 2D page took longer
+  // to compile and form than the old 10 s wait, and the first checks ran against a drop not yet there.)
+  const waitFor = async (js, ms) => {
+    const t0 = Date.now();
+    while (Date.now() - t0 < ms) { if (await run(js).catch(() => false)) return Date.now() - t0; await sleep(40); }
+    return -1;
+  };
+  const GLASS = PAGE === 'glass3d';
+  const H = GLASS ? 'window.__glass' : 'window.__mercury';
+  const quit = (why) => { console.log('FAIL ' + why); console.log('stopped: nothing was checked'); app.quit(); };
+  if (await waitFor(`Boolean(${H} && ${H}.ready)`, 30000) < 0) return quit('the page was not ready after 30 s');
+  const formed = GLASS ? `${H}.formed` : `${H}.mercury.springs.form.x > 0.97 && ${H}.mercury.springs.form.resting`;
+  const formedIn = await waitFor(formed, 60000);
+  if (formedIn < 0) return quit('the drop had not formed after 60 s');
+  console.log(`(formed after ${(formedIn / 1000).toFixed(1)} s)`);
+  // what the page decided last (true: let the mouse through), and when the window has done it
+  const pageSays = `${H}.passing`;
+  // nothing in the shape still moving (the beads bud out while the pointer is over the right end)
+  const still = GLASS ? 'true' : `${H}.mercury.springs.util.resting`;
 
   const names = new Map([[handleOf(widget), 'the widget'], [handleOf(backdrop), 'the window behind']]);
   // label, where the pretend pointer goes (stage units), where Windows is asked, what should be there
-  const cases = [
+  const cases = GLASS ? [
+    // The 3D glass: stage = (reference px + (96.6, -87.6)) / 2.0619, the points kept well inside or outside
+    // the model's real silhouette (it has no beads yet).
+    ['no pointer yet, asked at the play button', null, [647, 181], 'the window behind'],
+    ['no pointer yet, asked on the cover', null, [190, 161], 'the window behind'],
+    ['pointer on the play button', [647, 181], [647, 181], 'the widget'],
+    ['pointer on the body, by the title', [299, 210], [299, 210], 'the widget'],
+    ['pointer on the cover', [190, 161], [190, 161], 'the widget'],
+    ['pointer in the notch above the waist', [438, 142], [438, 142], 'the window behind'],
+    ['pointer in the corner of the window', [20, 20], [20, 20], 'the window behind'],
+    ['pointer just below the lower edge', [438, 293], [438, 293], 'the window behind'],
+    ['pointer on the right end', [784, 176], [784, 176], 'the widget'],
+    ['pointer beyond the right end', [823, 176], [823, 176], 'the window behind'],
+    ['pointer above the right lobe', [677, 66], [677, 66], 'the window behind'],
+    ['pointer on the bulb\'s left ring', [81, 152], [81, 152], 'the widget'],
+    ['pointer left of the bulb', [50, 152], [50, 152], 'the window behind'],
+    ['pointer back on the timeline', [338, 262], [338, 262], 'the widget'],
+  ] : [
     ['no pointer yet, asked at the play button', null, [642, 198], 'the window behind'],
     ['no pointer yet, asked where the upper bead rests', null, [807, 184], 'the window behind'],
     ['pointer on the play button', [642, 198], [642, 198], 'the widget'],
@@ -684,15 +747,63 @@ async function runPassThroughTest() {
   ];
   let failed = 0;
   for (const [label, pointer, probe, want] of cases) {
-    if (pointer) await run(`window.__mercury.pointer('move', ${pointer[0]}, ${pointer[1]}); 0`);
-    await sleep(250);
+    let note = '';
+    if (pointer) {
+      // the shape at rest before the pointer arrives (a bead still budding is not where it will be)
+      if (await waitFor(still, 5000) < 0) note += ' (the shape was still moving after 5 s)';
+      await run(`${H}.pointer('move', ${pointer[0]}, ${pointer[1]}); 0`);
+    }
+    // the page's decision has reached the window (and Windows has had a moment to apply it)
+    const t0 = Date.now();
+    while (Date.now() - t0 < 3000) { const p = await run(pageSays); if (p === ignoring) break; await sleep(30); }
+    if (await run(pageSays) !== ignoring) note += ' (the window never took the page\'s decision)';
+    await sleep(120);
     const at = screen.dipToScreenPoint({ x: Math.round(origin.x + probe[0] * SIZE), y: Math.round(origin.y + probe[1] * SIZE) });
     const got = names.get(windowAt(at)) || 'something else';
     if (got !== want) failed++;
-    console.log(`${got === want ? 'ok  ' : 'FAIL'} ${label}: a click would reach ${got}${got === want ? '' : ' (expected ' + want + ')'}; the page asked the window to ${ignoring ? 'let the mouse through' : 'take the mouse'}`);
+    console.log(`${got === want ? 'ok  ' : 'FAIL'} ${label}: a click would reach ${got}${got === want ? '' : ' (expected ' + want + ')'}; the page asked the window to ${ignoring ? 'let the mouse through' : 'take the mouse'}${note}`);
   }
   console.log(`focused: widget ${widget.isFocused()}, window behind ${backdrop.isFocused()}`);
   console.log(failed ? `${failed} of ${cases.length} failed` : `all ${cases.length} passed`);
+  app.quit();
+}
+
+/**
+ * The tray's Refraction switch, without the tray or the mouse: switches it off and on as the menu does and checks what
+ * the page and the window then do (3D page). Off: the capture stops, the glass eases to its look without the desktop,
+ * and only then is the window let back into screen captures. On: out of captures first, then the capture starts again
+ * and the desktop eases back into the glass. Nothing of the screen is saved.
+ */
+async function runRefractTest() {
+  const display = pickDisplay('other');
+  const area = display.workArea;
+  await createWidget({ query: '', display: 'other', x: area.x + 40, y: area.y + 40 });
+  widget.showInactive();
+  const run = (js) => widget.webContents.executeJavaScript(js, true);
+  const H = PAGE === 'glass3d' ? 'window.__glass' : null;
+  if (!H) { console.log('test=refract is for page=glass3d'); app.quit(); return; }
+  let failed = 0, count = 0;
+  const check = async (label, test, tries = 40) => {
+    count++;
+    let ok = false;
+    for (let i = 0; i < tries && !ok; i++) { ok = Boolean(await test()); if (!ok) await sleep(150); }
+    if (!ok) failed++;
+    console.log(`${ok ? 'ok  ' : 'FAIL'} ${label}`);
+  };
+  for (let i = 0; i < 600 && !(await run(`Boolean(${H} && ${H}.ready)`)); i++) await sleep(50);
+  await check('on at start: the window is out of screen captures', () => refracting && widget.isContentProtected());
+  await check('...the page captures the monitor it is on and bends it through the glass', () => run(`${H}.backdrop.frames > 3 && ${H}.G.desk.on > 0.99 && ${H}.G.desk.has`));
+  await setRefracting(false);
+  await check('switched off: the capture stops', () => run(`!${H}.backdrop.track`));
+  await check('...the glass eases to its look without the desktop', () => run(`${H}.G.desk.on === 0`));
+  await check('...and then the window is back in screen captures', () => !widget.isContentProtected());
+  const frames = await run(`${H}.backdrop.frames`);
+  await sleep(1000);
+  await check('...and no frame of the screen is taken while off', async () => (await run(`${H}.backdrop.frames`)) === frames, 1);
+  await setRefracting(true);
+  await check('switched on again: out of captures first', () => widget.isContentProtected());
+  await check('...the capture starts again and the desktop eases back in', () => run(`${H}.backdrop.frames > ${frames} && ${H}.G.desk.on > 0.99`));
+  console.log(failed ? `${failed} of ${count} failed` : `all ${count} passed`);
   app.quit();
 }
 
@@ -705,6 +816,7 @@ app.whenReady().then(async () => {
   if (TEST === 'media') { await runMediaTest(); return; }
   if (TEST === 'listen') { await runListenTest(); return; }
   if (TEST === 'drag') { await runDragTest(); return; }
+  if (TEST === 'refract') { await runRefractTest(); return; }
   if (TEST === 'spike') {
     await require('./spike-test.js').runSpike({ app, screen, createWidget, getWidget: () => widget, args, REPO });
     return;

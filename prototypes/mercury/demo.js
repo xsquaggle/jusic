@@ -760,5 +760,7 @@ window.__mercury = {
     if (type === 'up') onUp(event);
     if (type === 'leave') { mercury.pointerLeave(); tipState = null; }
   },
+  /** What the page last asked of its window (true: let the mouse through), for the pass-through test. */
+  get passing() { return passing; },
   ready: true,
 };

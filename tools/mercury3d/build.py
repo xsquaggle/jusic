@@ -1171,6 +1171,61 @@ def make_env(path, tint, w=2048, h=1024):
     LIVE['env_soft'] = soft.astype(np.float32)
     return path
 
+# The studio made for the live widget (phase 2's clear-glass pass, the owner, 17 November 2026): fewer, softer
+# strips than Cycles' (which stays as it is): one hot strip in front for the narrow highlight along each roll, a soft
+# light overhead, a warm floor and a low warm strip for the coral along the bottoms, soft panels for the ends, a dark
+# card behind. Neutral: the live page warms it with the album. Radiances as Cycles' (the page applies the same gain).
+LIVE_STUDIO = dict(room=0.01, floor=1.4, over=2.2, back=1.2, side=0.7, key=70.0, key_el=24.0, key_half=1.4,
+                   low=5.0, low_el=-7.0, low_half=3.0,
+                   t_room=1.0, t_floor=0.45, t_over=0.5, t_back=0.2, t_side=0.4, strip_soft=0.03)
+
+def make_env_live(w=2048, h=1024):
+    """The live studio as a pair of panoramas (Blender's equirectangular mapping, rows from the bottom): what the
+    glass mirrors, and what light sees after it has passed through the glass (softened, the card behind dark)."""
+    st = dict(LIVE_STUDIO)
+    st.update({k[3:]: float(v) for k, v in ARGS.items() if k.startswith('ls_')})
+    u = (np.arange(w) + 0.5) / w
+    v = (np.arange(h) + 0.5) / h
+    U, V = np.meshgrid(u, v)
+    phi = (0.5 - U) * 2 * np.pi
+    el = (V - 0.5) * np.pi
+    dx = np.cos(el) * np.cos(phi); dy = np.cos(el) * np.sin(phi); dz = np.sin(el)
+    az = np.degrees(phi); eld = np.degrees(el)
+    cam = -90.0
+    dac = (az - cam + 180) % 360 - 180
+    dab = np.abs((az - 90 + 180) % 360 - 180)
+    def ss(e0, e1, x):
+        t = np.clip((x - e0) / (e1 - e0), 0, 1)
+        return t * t * (3 - 2 * t)
+    white = np.array([1.0, 0.98, 0.96]); warm = np.array([1.0, 0.82, 0.74])
+    comp = {}
+    comp['room'] = np.ones_like(eld)[..., None] * white
+    comp['floor'] = (ss(-2, -16, eld) * ss(-85, -40, eld) * (0.4 + 0.6 * ss(120, 20, np.abs(dac))))[..., None] * warm
+    ov = np.array([0.0, -0.15, 1.0]); ov /= np.linalg.norm(ov)
+    ang = np.degrees(np.arccos(np.clip(dx * ov[0] + dy * ov[1] + dz * ov[2], -1, 1)))
+    comp['over'] = ss(40, 16, ang)[..., None] * white
+    comp['back'] = (ss(80, 55, dab) * ss(0, 10, eld) * ss(55, 40, eld))[..., None] * white
+    sp = 0
+    for a0 in (cam - 75, cam + 75):
+        sp = sp + ss(26, 12, np.abs((az - a0 + 180) % 360 - 180)) * ss(-20, -5, eld) * ss(45, 30, eld)
+    comp['side'] = sp[..., None] * white
+    card = 1.0 - ss(48, 30, dab) * ss(-6, -10, eld) * ss(-40, -28, eld)
+    comp['room'] = comp['room'] * card[..., None]
+    base = sum(st[n] * c for n, c in comp.items()).astype(np.float32)
+    base_t = sum(st[n] * st['t_' + n] * c for n, c in comp.items()).astype(np.float32)
+    strips = np.zeros((h, w, 3), np.float32)
+    def strip_h(e0, half, span, rad, col):
+        m = ss(half, half * 0.35, np.abs(eld - e0)) * ss(span, span - 18, np.abs(dac))
+        strips[...] += (rad * m)[..., None] * col
+    strip_h(st['key_el'], st['key_half'], 70, st['key'], white)          # the one hot strip in front
+    strip_h(st['low_el'], st['low_half'], 85, st['low'], warm)           # low and warm: coral along the bottoms
+    sharp = base + strips
+    soft = blur_equirect(base_t + st['strip_soft'] * strips, float(ARGS.get('soft_deg', 12.0)))
+    c0, c1 = CARD['el']
+    card_t = ss(CARD['half_az'], CARD['half_az'] - 12, dab) * ss(c0 - 6, c0 + 6, eld) * ss(c1 + 6, c1 - 6, eld)
+    soft = soft * (1.0 - CARD['depth'] * card_t)[..., None]
+    return sharp.astype(np.float32), soft.astype(np.float32)
+
 def write_exr(path, img):
     h, w = img.shape[:2]
     im = bpy.data.images.new('mercury3d_tmp_exr', w, h, alpha=False, float_buffer=True)
@@ -1497,6 +1552,11 @@ def export_live(d, sc):
     hs, ws = soft.shape[0] // 2, soft.shape[1] // 2
     soft = soft[:hs * 2, :ws * 2].reshape(hs, 2, ws, 2, 3).mean((1, 3))
     meta['envSoft'] = half_bin(os.path.join(d, 'env-soft.bin'), soft)
+    # the studio made for the live widget
+    sharp, soft = make_env_live()
+    meta['envLive'] = half_bin(os.path.join(d, 'env-live.bin'), sharp)
+    hs, ws = soft.shape[0] // 2, soft.shape[1] // 2
+    meta['envLiveSoft'] = half_bin(os.path.join(d, 'env-live-soft.bin'), soft[:hs * 2, :ws * 2].reshape(hs, 2, ws, 2, 3).mean((1, 3)))
     # Cycles' light on the glass, rendered from the camera onto those UVs (the glass white diffuse, the cover black)
     if 'nolight' not in FLAGS:
         use_gpu(sc)
