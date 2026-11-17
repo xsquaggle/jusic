@@ -730,6 +730,30 @@ round 58          3 18 17 16 15 12  7  5  5  2                                .0
 - **The dark glass inside the top edge's hot line:** across the waist's edge at x 320 the reference reads `274111 3344` (the line, then 1s for about 6 units, then the body); ours `26533343` after round 59. Round 58's glowing edge lay right on that gap, so it is less where the edge faces up (.45 of it; it stays full where the edge faces the floor), and the dark inside the line is deeper and wider (`EDGE_HOT.w` .8, over 5 units): now `26522333`.
 - Seen as the opaque base, refracting over dark and light windows (`mercury-still-round61.png`), and with real covers.
 
+## The independent visual audit (16 November 2026, after round 61)
+
+A separate agent, at the owner's request, compared the main reference with the owner's real-cover captures of rounds 57 and 58 and with `mercury-still-round60.png`. Its findings, worst first (its file stays with the owner):
+
+1. **Thin lines where the reference has broad light.** The height is a narrow edge tube (`edgeR` 17 to 25, `edgeH` 14 to 19, `edgeDip` 5.5 down to a level body); the pools flatten the slope by 93%; so light catches only on narrow steep bands, and the level body mirrors the dim wash toward the viewer. The lamps in `env()` are small (most under .45 in tangent units).
+2. **The album's colour on everything.** The reference's reflections stay near neutral silver; coral is an accent. Measured: the floor's glow under the bulb (108,65,61) in the reference against (167,71,83) in ours with the pink cover; the glass below the cover (56,43,43) against (79,50,55). Tint the light sources (the floor's bounce, the rim lamp, the lower edge), not the reflections; the floor at about 60% of today's saturation.
+3. **A glow round the whole silhouette** (round 58's `EDGE_GLOW` and the bloom): the reference's outline is crisp, with glow at two or three hot spots only. Remove the all-round glow; bloom only above about 1.5, at about .2 to .25 (it is .42).
+4. **No real overlap at the S-fold; the pod reads as a contour map** (three or four nested outlines). The upper sheet should be a layer of its own lying over the button channel, with a rolled lip and a contact shadow; the pod's bottom a soft gradient.
+5. **The cover reads as a framed tile:** an even bright bevel. In the reference the glass meets the art directly, a crisp highlight on the pocket's rim, a thin dark contact line, the ring's reflections as stacked broad bands, a faint streak across the art's upper left.
+6. **The right end is blunt:** the reference's rises, rolls over in a full crest and comes down to a sharp tail tip at the lower right, the lower body tucked under; round 56's dome went the wrong way.
+7. **The buttons are rings on dark discs:** the reference's are deep wells with thick lit walls (silver upper left, a broad coral crescent lower right, a raised ring round play).
+8. **Light backdrops make the body milky** (the white cover over a white window reads as frosted plastic): cap how see-through the glass is at about 35 to 45%. The owner's call: it reverses round 58.
+9. **Covers with little colour get an invented one** (a bug): when no hue qualifies, `vivify(mean(all))` forces saturation to at least .45 on a near-grey mean: the white cover turned the drop khaki, the near-black one bronze.
+10. **The timeline's and volume's fills:** played a hot near-white core with a coral glow, unplayed a thinner grey line at about 40% white; ours' unplayed part is nearly as bright.
+11. **Type:** title weight 500 (560), artist 300 at about 55% white; optionally the small "VOLUME" label at about 35%.
+12. **Floor:** two separate desaturated peach pools, one under each lobe, darker under the waist; ours one wide saturated band.
+
+**The plan, in the audit's order, at the owner's word:** the palette fix; then one structural material pass behind `?mat=2` (one convex profile per layer and no tube; a few large lights with crisp edges in a near-black room; a reflection off the back of the glass; Fresnel from about .15 to .5 by eye; the light painted by region removed, at most two or three accents driven by the surface, never by position; bloom and tint as in 2 and 3), shown to the owner as one A/B sheet at half size. Done when the difference is obvious at half size, `texture.js`'s share of mid-tones inside the drop is near the reference's with less line energy, and moving the cursor slides the broad reflections across the body.
+
+## What round 62 changed (the audit's gap 9: covers with little colour get silver)
+
+- `paletteFromImage` in `palette.js` now measures how colourful a cover is (the share of its pixels with saturation over .2 and lightness between .12 and .93, the audit's measure) and blends all three swatches toward a cool silver (hue .6, saturation .06, at each swatch's own lightness): fully silver below 5%, fully the cover's own above 15%. It also returns the share (`colourful`).
+- Seen with real covers (private): the white cover's drop is chrome where it was khaki, the near-black cover's chrome where it was bronze; the pink cover is unchanged. Only the palette changed.
+
 ## What changed on 14 November 2026 at the owner's word (the cursor's light; item 12 in part)
 
 - The owner found the light round the cursor "far too bright ... essentially completely white" and the title hard to read under it. Its core is now .55 (was 3.2) and its soft light .12 (was .2), it lies under the words, and words turn dark where it is bright behind them (`CURSOR_LIGHT`, `WORD_FLIP`). `mercury-cursor-light.png` shows before and after.
