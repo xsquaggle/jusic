@@ -56,8 +56,11 @@ export const L = {
   // cover rests on the roll of the edge; and it sags by 'sag' under the cover's middle 'c' (over 'w')
   // where its weight presses. It fades in from the bulb's rim at lipFade. Until round 48 it melted
   // away beside the cover, between x 266 and 304, and the cover had no seat.)
-  seat: { blend: [305, 255], at: [190, 253.5], slope: -0.096, gap: 7, sag: 2.5, c: 188, w: 48 },   // (gap 3.5 in round 49: no room for the ledge's top)
-  lipFade: [92, 128],
+  // (Round 57, the owner, sent the main reference: "Match this still". The seat is out again: the line
+  // under the words melts into the cover's bank between the x of lipFade, as in the main reference and
+  // as it did until round 48, and 'blend' lies left of that so the seat's path is never taken.)
+  seat: { blend: [250, 200], at: [190, 253.5], slope: -0.096, gap: 7, sag: 2.5, c: 188, w: 48 },   // (blend 305 to 255 in rounds 49 to 56)
+  lipFade: [266, 304],                               // (92 to 128 in rounds 49 to 56, while the line was the cover's seat)
   lipH: 7,            // how high the lip's rolled leading edge stands
   lipRoll: 7,         // how wide that roll is
   lipDome: 5,         // how full the lip is between its leading edge and the outline
@@ -84,7 +87,8 @@ export const L = {
   // (Round 49, at the owner's word: it is also turned about its upright axis, its right side pushed
   // back by 'yaw' (12 degrees), seen in perspective from 'persp' units away, so its right edge is
   // drawn about 5% shorter than its left, as the flow reference's cover is.)
-  cover: { c: [188, 175], half: 74, r: 19, rot: -0.07, lean: 0.0012, squash: 0.965, yaw: 0.21, persp: 600 },
+  // (Round 57: square on again, as the main reference's cover is; yaw was 0.21 in rounds 49 to 56.)
+  cover: { c: [188, 175], half: 74, r: 19, rot: -0.07, lean: 0.0012, squash: 0.965, yaw: 0, persp: 600 },
   // The hollow it presses: how deep, how far out the liquid starts to sink toward it, and how
   // high what it pushes aside stands up beyond that.
   // (Round 49, the owner: the cover "a little bit heavy squishing into it". It presses deeper, 6 where it

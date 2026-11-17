@@ -254,6 +254,9 @@ vec3 pools(vec2 p) {
 // The key lamp in the ring round the cover: it shows where the outline faces up and to the left
 // by more than x, fully from y; its half-width as a share of the ring's width; its strength.
 const vec4 RING_KEY = vec4(.84, .975, .25, 1.);
+// Its colour and grading (round 58): how far toward the album's colour; how much it fades across the
+// ring from the cover's side toward the rim.
+const vec2 RING_KEY_G = vec2(.3, .45);
 // The floor's light in the ring, down and to the left: from x, fully from y; how bright the
 // album's colour is there; how much white it carries at the rim (.22 until round 52).
 const vec4 RING_FLOOR = vec4(.8, .97, .78, .06);
@@ -343,6 +346,23 @@ const float TUBE_CLEAR = .6;
 
 // How high the tube of glass between the bulb's outline and the cover's pocket is crowned.
 const float TUBE_H = 7.;
+// Light carried through the glass itself (round 58): clear glass lit from within, as the main
+// reference's is, where ours was dark smoked glass. Measured inside the drop, only 3% of the reference
+// is near black (under .1) against 15% of ours: its darkest glass is a lifted rose-grey. How much
+// everywhere; how much more rising toward the lower edge, where the floor's light comes up through
+// the body; how much it drifts, slowly, so the glass breathes; how much of it is kept from under the words.
+const vec4 BODY_GLOW = vec4(.028, .09, .35, .55);
+// The thick edge glowing (round 58): light caught in the rolled edge of thick glass and carried round
+// it, so every edge reads as a tube of lit glass, peach where it faces up and coral where it faces the
+// floor, as the main reference's do all the way round; ours were thin white strokes over a dark band.
+// How bright; where across the edge its middle lies (a share of the edge's width from the
+// silhouette); how wide (the same share); how much brighter where it faces the floor.
+const vec4 EDGE_GLOW = vec4(.11, .42, .3, .6);
+// Fewer milky sheens, the same hot highlights (round 58): the surface's own light is held down where it
+// is weak and left where it is strong, before the light through the glass is laid under it. Measured
+// inside the drop the reference has 7% of its glass between .6 and .9 against our 15%, and 5% over .9
+// against our 3%. How much a weak sheen keeps; from what level it starts to keep more; where it keeps all.
+const vec3 SHEEN_CUT = vec3(.62, .2, 1.4);
 // Along the cover's lower side (round 47; since round 49 the lip's edge is the cover's seat there,
 // L.seat in shape.js): x, how far below the cover's lower edge carried on past its lower right corner;
 // y, how much of the cover's lower side this is. The pocket's sharp bank and round 26's hard ribbon
@@ -884,7 +904,10 @@ void main() {
         col *= 1. - TUBE_CLEAR * tubeS * (1. - silver) * (1. - .6 * faceU) * (1. - RING_FLOOR_C.x * faceDL);
         // 12 o'clock: an even soft light with a little of the album in it, a shade brighter toward the rim.
         col += mix(vec3(.47, .48, .5), hotA, .25) * RING_TOP * (.75 + .25 * uu) * faceU * tubeS;
-        col += vec3(1., .99, .97) * RING_KEY.w * (silver + skirt) * tubeS;
+        // (Round 58: silver with a little of the album in it, brightest against the cover's side and
+        // fading toward the rim, as the main reference's streak there is; a flat white petal, it was the
+        // brightest and least glassy thing in the drop.)
+        col += mix(vec3(1., .99, .97), mix(hotA, vec3(1., .9, .86), .5), RING_KEY_G.x) * RING_KEY.w * (silver + skirt) * (1. - RING_KEY_G.y * smoothstep(.3, .62, uu)) * tubeS;
         // 7 to 8 o'clock, the floor's light: it rises toward the rim and is cut off hard just
         // short of it, and it is bright again close by the cover's corner.
         float hotRim = smoothstep(.5, .88, uu) * smoothstep(.9 + aa, .9 - aa, uu);
@@ -1268,6 +1291,26 @@ void main() {
       cL = mix(cL, mix(hotA, vec3(1., .72, .5), .5), LOW_EDGE.y * smoothstep(3., 1.2, gapL));
       col += cL * LOW_EDGE.x * (.3 + .7 * swellL) * bandL * qL;
       col *= 1. - LOW_EDGE.z * smoothstep(.7, -.7, abs(gapL - (1.2 + 2. * hL + 1.7)) - .55) * (.3 + .7 * swellL) * qL;
+    }
+
+    /* ---- light carried through the glass (round 58) ---- */
+    // Rose-grey with the album in it, more in thick glass, rising toward the lower edge, never quite
+    // still: a slow drift through it, and a breath on the beat.
+    {
+      col *= SHEEN_CUT.x + (1. - SHEEN_CUT.x) * smoothstep(SHEEN_CUT.y, SHEEN_CUT.z, dot(col, vec3(.2126, .7152, .0722)));
+      vec2 gB = vec2(outline(pw + vec2(1.5, 0.)) - d, outline(pw + vec2(0., 1.5)) - d) / 1.5;
+      float down = smoothstep(.1, .8, gB.y / max(length(gB), 1e-3));
+      float lowB = down * exp(-max(-d, 0.) / 34.) + .45 * smoothstep(170., 300., pw.y);
+      float drift = 1. + BODY_GLOW.z * (fbm2(pw * .0065 + vec2(uTime * .025, -uTime * .018)) - .5) * 2.;
+      vec3 tone = mix(vec3(.95, .82, .8), hotA, .45);
+      float glowB = (BODY_GLOW.x * (.6 + .4 * depth) + BODY_GLOW.y * lowB) * drift * (1. + .12 * uAudio.w);
+      col += tone * glowB * (1. - BODY_GLOW.w * clamp(calm, 0., 1.)) * (1. - .6 * dish) * (1. - inBead) * born;
+      // The thick edge, lit through.
+      float lobeE = 1. - smoothstep(300., 380., pw.x) * smoothstep(600., 520., pw.x);
+      float eRg = mix(EDGE_R, EDGE_R_LOBE, lobeE);
+      float bandE = exp(-pow((max(-d, 0.) / eRg - EDGE_GLOW.y) / EDGE_GLOW.z, 2.));
+      vec3 edgeTone = mix(mix(vec3(1., .86, .78), hotA, .35), mix(hotA, vec3(1., .7, .55), .35), down);
+      col += edgeTone * EDGE_GLOW.x * bandE * (1. + EDGE_GLOW.w * down) * drift * (1. - .7 * clamp(calm, 0., 1.)) * (1. - inBead) * born;
     }
 
     /* ---- the spectral surface glowing through the fold ---- */

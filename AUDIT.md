@@ -687,6 +687,30 @@ end    r55   4341111235687546763534444456776334445666   warm 2100011122211111001
 - **Tried:** a dome over the end in `base()` (centre 768,214, radius 44, 10 high; then 772,226, radius 50, 12 high). Under the present material it showed only as a pale wedge right of the last button, and down the 'end' cut it lit the lower part to 6s and 7s where the reference has 3s to 5s. Reverted.
 - **What it showed:** the reference's right end, like the rest of it, is clear glass full of broad warm light; ours is dark smoked glass with thin bright lines on it, and a change of form there barely shows under it. The material (the owner's "not as clear as the still") is now the largest gap, ahead of any one part: the visual audit the owner asked for comes next.
 
+## What round 57 changed (item 9, at the owner's word: the cover square in the bulb again)
+
+- **The owner, asked whether to keep the cover's turn and its ledge seat (from the flow still) or go back to the main reference's:** "Match this still"; and then: "match this still, but have your own creative take on it. Feel free to do whatever to add depth and make it look more alive."
+- **The cover is square on again** (`L.cover.yaw` 0; it was 0.21, 12 degrees, in rounds 49 to 56), its right side's thickness showing as before round 49 (`uTile` in `mercury.js`). **The seat is out:** the line under the words melts into the cover's bank between x 266 and 304 (`L.lipFade`), as in the main reference and as it did until round 48; the seat's path in `archSdf` is never taken (`L.seat.blend` lies left of that), so round 50's ledge lights go with it. The deeper press of round 49 (6) stays: the main reference's pocket is deep.
+- `test=passthrough` 14 of 14 (the cover's hit test follows `tilePlane`).
+
+## What round 58 changed (items 1, 2 and 4, at the owner's word: clear glass lit from within)
+
+- **Measured first** (a scratch tool, `texture.js` in `design/captures/raw/`: inside the drop, the cover left out, the main reference mapped onto the stage as `outline.js` maps it): the brightness histogram in tenths, how much of the light lies in thin lines, and the mean saturation. The mean brightness was the reference's already (3.37 in `area-map.js` over the whole drop, both); how it is spread was not:
+
+```
+                 histogram of brightness, % of the drop, from 0-.1 to .9-1    saturation
+reference         3 28 22 13 11  9  5  3  2  5                                .112
+round 57         15 17 14 12 11  9  7  6  6  3                                .089
+round 58          3 18 17 16 15 12  7  5  5  2                                .093
+```
+
+  The reference has almost no black: its darkest glass is a lifted rose-grey (.1 to .3), the light seen through clear glass; ours was 15% near black, dark smoked glass. And ours had twice the reference's milky mid-whites (.6 to .9), where the reference has fewer, hotter highlights.
+- **Light carried through the glass** (`BODY_GLOW`, a block before the words in `main`): a rose-grey with the album in it, a little everywhere, more in thick glass, and rising toward the lower edge where the floor's light comes up through the body; it drifts slowly through the glass and breathes a little on the beat (the owner's "more alive"), and is kept mostly from under the words and out of the bowls.
+- **The thick edge glowing** (`EDGE_GLOW`): light caught in the rolled edge and carried round it, a broad warm band inside the silhouette all the way round, peach where the edge faces up and coral, brighter, where it faces the floor; so every edge reads as a tube of lit glass, not a thin white stroke over a dark band.
+- **Fewer milky sheens** (`SHEEN_CUT`): before that light is laid in, the surface's own light is held down where it is weak (to .62) and left where it is strong (from 1.4 up).
+- **The streak in the bulb's upper left** (`RING_KEY_G`): silver with a little of the album in it, brightest against the cover's side and fading toward the rim, as the main reference's is; it was a flat white petal. Down the up-left ray it still peaks at 8s and 9s, as the reference's does.
+- **Still short:** the reference's edges have a crisp hot peach line along their outer side over the glow, ours only the glow; the reference has fewer mid-tones still (13% at .3 to .4 against our 16%) and more at .1 to .2 (28% against our 18%); and its glass shows the room bent through it, which only the refracting window does in ours.
+
 ## What changed on 14 November 2026 at the owner's word (the cursor's light; item 12 in part)
 
 - The owner found the light round the cursor "far too bright ... essentially completely white" and the title hard to read under it. Its core is now .55 (was 3.2) and its soft light .12 (was .2), it lies under the words, and words turn dark where it is bright behind them (`CURSOR_LIGHT`, `WORD_FLIP`). `mercury-cursor-light.png` shows before and after.

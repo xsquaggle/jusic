@@ -1,0 +1,11 @@
+{ "out": "design/captures/mercury-still-round58.png", "width": 1616,
+  "title": "Mercury still, rounds 57 and 58: the cover square in the bulb again; clear glass lit from within, edges glowing (generated test cover)",
+  "rows": [
+  [ { "label": "reference: widget-mercury.png", "src": "design/references/widget-mercury.png", "crop": [20, 200, 1566, 590] } ],
+  [ { "label": "round 55: dark smoked glass, thin white strokes, the cover turned on a ledge", "src": "design/captures/raw/round55/dark.png", "crop": [110, 65, 990, 373] } ],
+  [ { "label": "round 58: the cover square in the bulb; light through the glass; the thick edges glowing", "src": "design/captures/raw/round58/dark.png", "crop": [110, 65, 990, 373] } ],
+  [ { "label": "round 58, refracting in the real window: dark window behind", "src": "design/captures/raw/round58-refract/window-dark.png", "crop": [12, 12, 936, 456] },
+    { "label": "round 58, refracting: colourful window behind", "src": "design/captures/raw/round58-refract/window-busy.png", "crop": [12, 12, 936, 456] } ],
+  [ { "label": "round 58, refracting: light window behind", "src": "design/captures/raw/round58-refract/window-light.png", "crop": [12, 12, 936, 456] },
+    { "label": "round 58, the opaque base: light desktop", "src": "design/captures/raw/round58/light.png", "crop": [90, 50, 1022, 513] } ]
+] }
