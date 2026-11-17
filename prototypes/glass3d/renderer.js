@@ -125,6 +125,100 @@ void main() {
 const FS_MASK = HEAD + `
 out vec4 o;
 void main() { o = vec4(1.); }`;
+// value noise and a little fbm (the ink's currents, the cover's dissolve)
+const NOISE_GLSL = `
+float hash12(vec2 p) { vec3 p3 = fract(vec3(p.xyx) * .1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
+float vnoise(vec2 p) {
+  vec2 i = floor(p), f = fract(p), u = f * f * (3. - 2. * f);
+  return mix(mix(hash12(i), hash12(i + vec2(1., 0.)), u.x), mix(hash12(i + vec2(0., 1.)), hash12(i + vec2(1., 1.)), u.x), u.y);
+}
+float fbm2(vec2 p) { float a = .5, s = 0.; for (int i = 0; i < 4; i++) { s += a * vnoise(p); p = p * 2.03 + 17.1; a *= .5; } return s; }
+`;
+// Pigment from a cover's colour (the 2D widget's rule): its hue at full strength, nothing from its darkness; a cover
+// with no colour to give (white, grey) gives the album's colour instead (white pigment is fog).
+const PIGMENT_GLSL = `
+uniform vec3 uPal;
+vec3 pigment(vec3 art) {
+  art = pow(art, vec3(2.2));
+  float hi = max(art.r, max(art.g, art.b)), lo = min(art.r, min(art.g, art.b));
+  float coloured = smoothstep(.12, .4, (hi - lo) / max(hi, 1e-3));
+  vec3 own = uPal / max(max(uPal.r, max(uPal.g, uPal.b)), .08);
+  return mix(own, art / max(hi, .08), coloured) * smoothstep(.015, .3, hi);
+}
+`;
+/**
+ * The ink: pigment carried through the glass by slow currents, on a grid at half the canvas's pixels, kept inside the
+ * silhouette. mode 2: the currents (the curl of a stream function: swirls, and a current running round the inside of
+ * the outline, so along the lower band toward the tail); mode 0: carry something along them (forward or back);
+ * mode 1: the corrected (MacCormack) step, then fading, the cover's lower edge weeping threads, a track change's old
+ * cover letting go, and colour flooding back round the cover on play.
+ */
+const FS_INK = HEAD + NOISE_GLSL + PIGMENT_GLSL + `
+in vec2 vUv;
+uniform sampler2D uSrc;
+uniform sampler2D uDye;
+uniform sampler2D uFwd;
+uniform sampler2D uBwd;
+uniform sampler2D uVel;
+uniform sampler2D uEdge;
+uniform sampler2D uArt;
+uniform sampler2D uArtOld;
+uniform int uMode;
+uniform float uDt;
+uniform float uTime;
+uniform vec4 uMap;           // canvas uv -> reference px: left, top, width, height
+uniform vec4 uCov;           // the cover's box in reference px: u0, v0, u1, v1
+uniform vec4 uK;             // fade (s), seep, burst (the old cover letting go), flood (colour back round the cover)
+out vec4 o;
+vec2 refAt(vec2 uv) { return vec2(uMap.x + uv.x * uMap.z, uMap.y + (1. - uv.y) * uMap.w); }
+float inside(vec2 uv) { return texture(uEdge, uv).r; }
+float psi(vec2 p, vec2 uv) {
+  float e = inside(uv);
+  float n = fbm2(p * .0055 + vec2(uTime * .025, -uTime * .017)) - .5;
+  float n2 = fbm2(p * .014 - vec2(uTime * .035, uTime * .02)) - .5;
+  // (px a second: swirls of some tens, and a current of about a hundred running round the inside of the outline,
+  // left to right along the lower band, so pigment weeping from the cover is drawn out toward the tail)
+  return 4200. * smoothstep(.55, .92, e) * (1.1 * n + .45 * n2) + 2600. * smoothstep(.5, .9, e);
+}
+void main() {
+  if (uMode == 2) {
+    vec2 p = refAt(vUv); float h = 3.;
+    vec2 du = vec2(h / uMap.z, 0.), dv = vec2(0., h / uMap.w);
+    vec2 v = vec2(psi(p + vec2(0., h), vUv - dv) - psi(p - vec2(0., h), vUv + dv),
+                  -(psi(p + vec2(h, 0.), vUv + du) - psi(p - vec2(h, 0.), vUv - du))) / (2. * h);
+    vec2 cc = .5 * (uCov.xy + uCov.zw), q = p - cc;
+    v += uK.z * normalize(q + 1e-3) * 420. * exp(-dot(q, q) / (240. * 240.));
+    v *= smoothstep(.45, .6, inside(vUv));
+    o = vec4(v.x / uMap.z, -v.y / uMap.w, 0., 1.);          // canvas uv a second
+    return;
+  }
+  vec2 vel = texture(uVel, vUv).xy;
+  if (uMode == 0) { o = vec4(texture(uSrc, vUv - uDt * vel).rgb, 1.); return; }
+  vec2 back = vUv - uDt * vel;
+  vec3 dye = texture(uFwd, vUv).rgb + .5 * (texture(uDye, vUv).rgb - texture(uBwd, vUv).rgb);
+  vec2 tx = 1. / vec2(textureSize(uDye, 0));
+  vec2 b0 = (floor(back / tx - .5) + .5) * tx;
+  vec3 c00 = texture(uDye, b0).rgb, c10 = texture(uDye, b0 + vec2(tx.x, 0.)).rgb;
+  vec3 c01 = texture(uDye, b0 + vec2(0., tx.y)).rgb, c11 = texture(uDye, b0 + tx).rgb;
+  dye = clamp(dye, min(min(c00, c10), min(c01, c11)), max(max(c00, c10), max(c01, c11)));
+  dye *= exp(-uDt / uK.x);
+  vec2 p = refAt(vUv);
+  vec2 cuv = clamp((p - uCov.xy) / (uCov.zw - uCov.xy), .03, .97); cuv.y = 1. - cuv.y;
+  vec3 art = pigment(textureLod(uArt, cuv, 2.).rgb);
+  // between beats the cover weeps from its lower edge, in threads, into the lower band
+  float inX = smoothstep(uCov.x + 4., uCov.x + 30., p.x) * smoothstep(uCov.z - 4., uCov.z - 30., p.x);
+  float lowerEdge = inX * smoothstep(16., 0., abs(p.y - (uCov.w + 8.)));
+  float thread = pow(smoothstep(.42, .8, fbm2(vec2(p.x * .05, uTime * .12))), 2.);
+  dye += art * lowerEdge * (.06 + 3.2 * thread) * uK.y * uDt;
+  // a track change: the old cover turns to pigment where it lay, and is pushed out (mode 2)
+  float inCov = step(uCov.x, p.x) * step(p.x, uCov.z) * step(uCov.y, p.y) * step(p.y, uCov.w);
+  dye = mix(dye, pigment(textureLod(uArtOld, cuv, 1.5).rgb) * 1.2, uK.z * inCov * .3);
+  // play: colour floods back out of the cover, round its edges
+  float rimD = abs(max(max(uCov.x - p.x, p.x - uCov.z), max(uCov.y - p.y, p.y - uCov.w)) - 6.);
+  dye += art * smoothstep(30., 0., rimD) * uK.w * 3. * uDt;
+  dye *= smoothstep(.45, .6, inside(vUv));
+  o = vec4(clamp(dye, 0., 4.), 1.);
+}`;
 const VS_COVER = HEAD + `
 layout(location = 0) in vec3 aPos;
 layout(location = 2) in vec2 aUv;
@@ -132,14 +226,23 @@ uniform mat4 uP;
 out vec3 vPos;
 out vec2 vUv;
 void main() { vPos = aPos; vUv = aUv; gl_Position = uP * vec4(aPos, 1.); }`;
-const FS_COVER = HEAD + COMMON + `
+const FS_COVER = HEAD + COMMON + NOISE_GLSL + `
 in vec3 vPos;
 in vec2 vUv;
 uniform sampler2D uArt;
+uniform sampler2D uArtOld;
+uniform vec2 uDissolve;      // how far the new cover has come in (0..1); 1: through noise (it dissolves), 0: a plain crossfade
 uniform float uCoat;
 out vec4 o;
 void main() {
   vec3 art = pow(texture(uArt, vUv).rgb, vec3(2.2));
+  if (uDissolve.x < 1.) {
+    // a track change: the old cover dissolves into liquid as the new one resolves, a bright seam where it turns
+    vec3 old = pow(texture(uArtOld, vUv).rgb, vec3(2.2));
+    float n = fbm2(vUv * 6.) * .75 + vnoise(vUv * 31.) * .25;
+    float m = uDissolve.y > .5 ? smoothstep(n - .05, n + .05, uDissolve.x * 1.3 - .15) : uDissolve.x;
+    art = mix(old, art, m) + (old + art) * .7 * (1. - abs(2. * m - 1.)) * uDissolve.y;
+  }
   vec3 N = normalize(cross(dFdx(vPos), dFdy(vPos)));
   if (N.y > 0.) N = -N;
   vec3 V = vec3(0., -1., 0.);
@@ -180,6 +283,8 @@ uniform vec4 uMusic;               // the music: bass, highs, time (s), on (0..1
 uniform float uBands[16];          // its spectrum, low to high
 uniform vec2 uFold[8];             // the fold under the sheet's lip (root x, z), left to right
 uniform vec4 uSpec;                // the spectrum in the fold: strength, strands' swing (units), their width, -
+uniform sampler2D uInk;            // the ink: pigment carried through the glass (canvas uv)
+uniform float uInkK;               // how strongly it glows
 uniform vec4 uWords[4];            // behind the words and times: boxes in canvas fractions (x0, y0, x1, y1; y up)
 uniform vec2 uWordsDim;            // how much of the desktop still comes through there, the feather (fractions of width)
 uniform int uDbg;
@@ -362,6 +467,8 @@ void main() {
   }
   wellLight *= uL2.y * .35;
   vec3 col = refl * F + (trans + deskT + lobe + spill + marble + ringArt) * (1. - F) + band + wellLight;
+  // the ink glowing in the glass, more where it is thick, little behind the words
+  if (uInkK > 0.) col += texture(uInk, gl_FragCoord.xy / uRes).rgb * uInkK * (.35 + .65 * (1. - exp(-thick * 3.))) * (1. - F) * (1. - .8 * wm);
   if (uMotionOn == 1 && uMusic.w > 0.) {
     // glints running along the hot highlights with the highs
     vec3 rF = refl * F;
@@ -399,6 +506,7 @@ void main() {
   else if (uDbg == 6) col = vec3(sin(normalize(uToWorld * R).z * 28.) > 0. ? .95 : .02) * 2.;   // as build.py's zebra
   else if (uDbg == 7) col = layerAt(uF2, gl_FragCoord.xy).w < 100. ? vec3(1., .3, .1) : vec3(.05);   // where glass lies below
   else if (uDbg == 10) col = Lc * .5;                                   // Cycles' light on the glass (the image on the model)
+  else if (uDbg == 11) col = texture(uInk, gl_FragCoord.xy / uRes).rgb * 3. + vec3(.03);   // the ink alone
   o = vec4(col, 1.);
 }`;
 const VS_QUAD = HEAD + `
@@ -548,6 +656,7 @@ export async function createGlass(canvas, { assets, ss = 2, studio = 'live', lig
   gl.texImage3D(gl.TEXTURE_3D, 0, gl.RGBA16F, tn, tn, tn, 0, gl.RGBA, gl.HALF_FLOAT, new Uint16Array(toneBuf));
   for (const [k, v] of [[gl.TEXTURE_MIN_FILTER, gl.LINEAR], [gl.TEXTURE_MAG_FILTER, gl.LINEAR], [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_R, gl.CLAMP_TO_EDGE]]) gl.texParameteri(gl.TEXTURE_3D, k, v);
   const artTex = gl.createTexture();
+  const artOldTex = gl.createTexture();
   const edgeTex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, edgeTex);
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([255, 255, 255, 255]));
   const deskTex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, deskTex);
@@ -556,7 +665,7 @@ export async function createGlass(canvas, { assets, ss = 2, studio = 'live', lig
 
   const prog = { layer: compile(VS_MESH, FS_LAYER), mask: compile(VS_MESH, FS_MASK), maskCover: compile(VS_COVER, FS_MASK),
     cover: compile(VS_COVER, FS_COVER), glass: compile(VS_MESH, FS_GLASS), down: compile(VS_QUAD, FS_DOWN),
-    bright: compile(VS_QUAD, FS_BRIGHT), blur: compile(VS_QUAD, FS_BLUR) };
+    bright: compile(VS_QUAD, FS_BRIGHT), blur: compile(VS_QUAD, FS_BLUR), ink: compile(VS_QUAD, FS_INK) };
   const t = meta.tilt * Math.PI / 180, ct = Math.cos(t), st = Math.sin(t);
   const toWorld = new Float32Array([1, 0, 0, 0, ct, -st, 0, st, ct]);        // columns: Rx(-tilt)
   const covInv = new Float32Array(16);
@@ -568,7 +677,7 @@ export async function createGlass(canvas, { assets, ss = 2, studio = 'live', lig
     .map(([u, v]) => [(u - meta.CX) * meta.S, (meta.CY - v) * meta.S]).flat());
   const R = {
     meta, gl, light, dbg, wells: WELLS, motion: null, fold: FOLD,
-    tint: meta.tint.slice(), artMean: [0.2, 0.1, 0.1],
+    tint: meta.tint.slice(), artMean: [0.2, 0.1, 0.1], colour: 1, dissolve: 1, dissolveNoise: true, inkOn: false, coverImg: null,
     desk: { on: 0, map: [0, 0, 1, 1], has: false, uploads: 0, w: 0, h: 0 },
     size: null, targets: null, P: null,
   };
@@ -581,7 +690,12 @@ export async function createGlass(canvas, { assets, ss = 2, studio = 'live', lig
     const QW = Math.max(1, Math.round(RW / 4)), QH = Math.max(1, Math.round(RH / 4));
     R.targets = { back: target(RW, RH, gl.NEAREST), f2: target(RW, RH, gl.NEAREST), b2: target(RW, RH, gl.NEAREST),
       hdr: target(RW, RH, gl.LINEAR), mask: target(CW, CH, gl.NEAREST, gl.RGBA8, gl.UNSIGNED_BYTE),
-      glowA: target(QW, QH, gl.LINEAR), glowB: target(QW, QH, gl.LINEAR) };
+      glowA: target(QW, QH, gl.LINEAR), glowB: target(QW, QH, gl.LINEAR),
+      inkA: target(Math.round(CW / 2), Math.round(CH / 2), gl.LINEAR), inkB: target(Math.round(CW / 2), Math.round(CH / 2), gl.LINEAR),
+      inkF: target(Math.round(CW / 2), Math.round(CH / 2), gl.LINEAR), inkK: target(Math.round(CW / 2), Math.round(CH / 2), gl.LINEAR),
+      inkV: target(Math.round(CW / 2), Math.round(CH / 2), gl.LINEAR) };
+    R.inkCur = R.targets.inkA; R.inkNext = R.targets.inkB;
+    R.clearInk();
     // (the glow's mipmaps: sampled wider and softer when the picture goes down to the canvas)
     gl.bindTexture(gl.TEXTURE_2D, R.targets.glowA.tex);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
@@ -594,14 +708,21 @@ export async function createGlass(canvas, { assets, ss = 2, studio = 'live', lig
   };
 
   /** The cover: an image (or canvas, or bitmap). Its mean colour feeds the glow in the ring. */
-  R.setCover = (img) => {
-    gl.bindTexture(gl.TEXTURE_2D, artTex);
+  const upload = (t, img) => {
+    gl.bindTexture(gl.TEXTURE_2D, t);
     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
     gl.generateMipmap(gl.TEXTURE_2D);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+  };
+  /** The cover. dissolve: the one before stays as the old art, for the page to dissolve it into the new (R.dissolve). */
+  R.setCover = (img, dissolve = false) => {
+    upload(dissolve && R.coverImg ? artOldTex : artOldTex, dissolve && R.coverImg ? R.coverImg : img);
+    upload(artTex, img);
+    R.coverImg = img;
+    R.dissolve = dissolve ? 0 : 1;
     const c = document.createElement('canvas'); c.width = c.height = 16;
     const x = c.getContext('2d'); x.drawImage(img, 0, 0, 16, 16);
     const px = x.getImageData(0, 0, 16, 16).data; const m = [0, 0, 0];
@@ -609,7 +730,39 @@ export async function createGlass(canvas, { assets, ss = 2, studio = 'live', lig
     R.artMean = m;
   };
   /** The album's colour (0..1; grey covers give silver): the glass's tint and its warmth. */
-  R.setTint = (rgb) => { R.tint = rgb.slice(0, 3); };
+  R.setTint = (rgb, from = null) => { R.tint = rgb.slice(0, 3); R.tintPrev = (from || rgb).slice(0, 3); };
+  /** The album's colour as shown: blending from the last album's while a new cover resolves (R.dissolve), and drained
+   *  toward silver as R.colour goes to 0 (paused). */
+  const SILVER = [0.86, 0.87, 0.92];
+  R.tintBase = () => R.tint.map((c, i) => (R.tintPrev ? R.tintPrev[i] + (c - R.tintPrev[i]) * R.dissolve : c));
+  R.tintNow = () => R.tintBase().map((c, i) => SILVER[i] + (c - SILVER[i]) * R.colour);
+  /** The ink: one step of dt seconds. k: { fade, seep, burst, flood, time }. */
+  R.stepInk = (dt, k) => {
+    const T = R.targets, w = T.inkA.w, h = T.inkA.h, [rx, ry, rw, rh] = R.size.ref;
+    gl.disable(gl.DEPTH_TEST); gl.disable(gl.CULL_FACE); gl.bindVertexArray(null);
+    gl.viewport(0, 0, w, h);
+    const pass = (mode, out, set) => {
+      gl.bindFramebuffer(gl.FRAMEBUFFER, out.fbo);
+      const u = use(prog.ink);
+      gl.uniform1i(u.uMode, mode); gl.uniform1f(u.uDt, dt); gl.uniform1f(u.uTime, k.time);
+      gl.uniform4f(u.uMap, rx, ry, rw, rh); gl.uniform4f(u.uCov, 144, 270, 446, 572);
+      gl.uniform4f(u.uK, k.fade, k.seep, k.burst, k.flood); gl.uniform3fv(u.uPal, R.tint);
+      // (the currents' own pass must not read the texture it writes: WebGL drops a draw with such a loop)
+      tex(u.uEdge, edgeTex); tex(u.uArt, artTex); tex(u.uArtOld, artOldTex); tex(u.uVel, out === T.inkV ? T.inkF.tex : T.inkV.tex);
+      set(u);
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    };
+    pass(2, T.inkV, () => {});
+    pass(0, T.inkF, (u) => tex(u.uSrc, R.inkCur.tex));
+    pass(0, T.inkK, (u) => { tex(u.uSrc, T.inkF.tex); gl.uniform1f(u.uDt, -dt); });
+    pass(1, R.inkNext, (u) => { tex(u.uDye, R.inkCur.tex); tex(u.uFwd, T.inkF.tex); tex(u.uBwd, T.inkK.tex); });
+    [R.inkCur, R.inkNext] = [R.inkNext, R.inkCur];
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  };
+  R.clearInk = () => {
+    for (const t of [R.targets.inkA, R.targets.inkB]) { gl.bindFramebuffer(gl.FRAMEBUFFER, t.fbo); gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT); }
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  };
   /** A frame of the screen behind the window (a VideoFrame, image or canvas), or null. */
   R.setDesk = (frame) => {
     if (!frame) { R.desk.has = false; return; }
@@ -647,6 +800,8 @@ export async function createGlass(canvas, { assets, ss = 2, studio = 'live', lig
     gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     gl.disable(gl.CULL_FACE);
     let u = use(prog.cover); common(u); gl.uniformMatrix4fv(u.uP, false, R.P); tex(u.uArt, artTex); gl.uniform1f(u.uCoat, L.coat);
+    tex(u.uArtOld, artOldTex); gl.uniform2f(u.uDissolve, R.dissolve, R.dissolveNoise ? 1 : 0);
+    const TINT = R.tintNow();
     gl.bindVertexArray(cvao); gl.drawArrays(gl.TRIANGLES, 0, meta.cover.count);
     // 4: the glass
     gl.enable(gl.CULL_FACE); gl.cullFace(gl.BACK);
@@ -658,14 +813,15 @@ export async function createGlass(canvas, { assets, ss = 2, studio = 'live', lig
     gl.uniform4f(u.uDesk2, R.desk.has ? R.desk.on : 0, L.desk, L.deskGap, L.deskKeep);
     gl.uniformMatrix4fv(u.uCovInv, false, covInv);
     gl.uniform3f(u.uCov, meta.cover.half, meta.cover.corner, meta.cover.side);
-    gl.uniform3fv(u.uAbsorb, R.tint.map((c) => (1 - c) * 0.55 * 0.55 * L.path));
+    gl.uniform3fv(u.uAbsorb, TINT.map((c) => (1 - c) * 0.55 * 0.55 * L.path));
     gl.uniform1f(u.uLightRef, meta.lightRef || 1);
     gl.uniform4f(u.uL1, L.soft, L.band, L.lobe, L.middle);
-    gl.uniform4f(u.uL2, L.spill, L.well, L.warmth, L.through);
+    gl.uniform4f(u.uL2, L.spill, L.well, L.warmth * (0.2 + 0.8 * R.colour), L.through);
     gl.uniform4f(u.uL3, L.mirror, L.hot, L.hotk, L.below);
     gl.uniform2f(u.uL4, L.marble, L.marbleReach);
     gl.uniform4f(u.uL5, L.keepRoll, L.sheen, L.edgeCore, L.ringMirror);
-    gl.uniform3fv(u.uTint, R.tint); gl.uniform3fv(u.uArtMean, R.artMean);
+    gl.uniform3fv(u.uTint, TINT); gl.uniform3fv(u.uArtMean, R.artMean.map((c, i) => c * (0.25 + 0.75 * R.colour)));
+    tex(u.uInk, R.inkCur.tex); gl.uniform1f(u.uInkK, R.inkOn ? L.ink : 0);
     gl.uniform4fv(u.uWells, new Float32Array(WELLS.flat())); gl.uniform1i(u.uDbg, R.dbg);
     // phase 3: the cursor and the presses (R.motion, set by the page each frame while anything moves)
     const M = R.motion;
@@ -706,8 +862,8 @@ export async function createGlass(canvas, { assets, ss = 2, studio = 'live', lig
     u = use(prog.down); tex(u.uHdr, T.hdr.tex); tex(u.uTone, toneTex, gl.TEXTURE_3D);
     tex(u.uBloom, T.glowA.tex); { const b = R.dbg ? 0 : L.bloom; gl.uniform3f(u.uBloomK, b * 0.5, b * 0.35, b * 0.25); }   // (no glow on the debug views)
     {   // the glow's colour: white toward the album's warm (peach with a little of the album, as the light pass's warm)
-      const w = [1, 0.8, 0.72].map((c, i) => c * 0.65 + R.tint[i] * 0.35), m = Math.max(...w);
-      gl.uniform3fv(u.uBloomTint, w.map((c) => 1 + (c / m - 1) * L.bloomWarm));
+      const w = [1, 0.8, 0.72].map((c, i) => c * 0.65 + TINT[i] * 0.35), m = Math.max(...w);
+      gl.uniform3fv(u.uBloomTint, w.map((c) => 1 + (c / m - 1) * L.bloomWarm * (0.2 + 0.8 * R.colour)));
     }
     gl.uniform2f(u.uSrc, RW, RH); gl.uniform1f(u.uExposure, L.exposure); gl.uniform1f(u.uSS, ss);
     gl.uniform3f(u.uToneDom, tn, meta.tone.lo, meta.tone.hi);

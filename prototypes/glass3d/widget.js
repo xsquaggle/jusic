@@ -27,7 +27,8 @@
  *   ?deskimg=<url> (pictures only): a still image as the desktop behind the window, filling the canvas, bent through
  *   the glass as refraction would (for checking the look over a desktop at any size without the window)
  *   ?still (reduced motion)  ?m_tilt= m_lean= m_dimple= m_press= m_rip= m_sink= (each interaction's strength; 0: off)
- *   window.__glass.drive(kind, seconds): a pretend pointer playing cursor | dimple | ripple | press | buttons | seek | pause (the
+ *   window.__glass.drive(kind, seconds): a pretend pointer playing cursor | dimple | ripple | press | buttons | seek | pause |
+ *   track (the
  *   shell's recordings and measures use it; the real mouse is never touched)
  */
 import { createGlass } from './renderer.js';
@@ -58,8 +59,8 @@ const LIGHT = MODE === 0
 // the desktop is what the glass shows); sheen: a broad, soft reflection; edgeCore: the edge's light toward a narrower
 // core hugging the outline (a lit edge, not a painted rim); ringMirror: the art mirrored round the ring (the marble)
 Object.assign(LIGHT, MODE === 0
-  ? { bloom: 0, bloomThr: 1, bloomR: 1, bloomWarm: 0, keepRoll: LIGHT.deskKeep, sheen: 0, edgeCore: 0, ringMirror: 0 }
-  : { bloom: 1.5, bloomThr: 0.5, bloomR: 1.5, bloomWarm: 1, keepRoll: 0.6, sheen: 0.1, edgeCore: 0.8, ringMirror: 0.3 });
+  ? { bloom: 0, bloomThr: 1, bloomR: 1, bloomWarm: 0, keepRoll: LIGHT.deskKeep, sheen: 0, edgeCore: 0, ringMirror: 0, ink: 0 }
+  : { bloom: 1.5, bloomThr: 0.5, bloomR: 1.5, bloomWarm: 1, keepRoll: 0.6, sheen: 0.1, edgeCore: 0.8, ringMirror: 0.3, ink: 3.5 });
 for (const k of Object.keys(LIGHT)) if (Q.has(k)) LIGHT[k] = Number(Q.get(k));
 
 const $ = (id) => document.getElementById(id);
@@ -95,17 +96,21 @@ function plainCover() {
   f.addColorStop(0, '#3a3d46'); f.addColorStop(1, '#15161b'); g.fillStyle = f; g.fillRect(0, 0, 256, 256);
   return c;
 }
-function useCover(img) {
+function useCover(img, change = false) {
   const pal = paletteFromImage(img);
   const a = pal.a.map((v) => v / 255), m = Math.max(...a, 1e-3);
   tint = a.map((v) => v / m);
-  G.setCover(img); G.setTint(tint);
+  // a track change: the old art dissolves into liquid pigment that flows off as the new cover resolves
+  // (reduced motion: a plain crossfade)
+  const from = change ? G.tintBase() : null;
+  G.setCover(img, change); G.setTint(tint, from);
+  if (change) { inkState.dissolve.snap(0); inkState.dissolve.target = 1; G.dissolveNoise = !motion.reduced; inkState.burst = motion.reduced ? 0 : 1; }
   paintWords(); paintPools(); redraw();
 }
-async function setTrack(i) {
+async function setTrack(i, change = true) {
   player.index = (i + TRACKS.length) % TRACKS.length;
   player.track = TRACKS[player.index];
-  useCover(await loadImage(player.track.cover));
+  useCover(await loadImage(player.track.cover), change);
 }
 function setPlaying(on) { player.playing = on; paintWords(); redraw(); }
 
@@ -127,7 +132,8 @@ async function applyMedia(st) {
   if (art !== media.art || !G.coverSet) {
     media.art = art; G.coverSet = true;
     let img; try { img = art ? await loadImage(art) : plainCover(); } catch { img = plainCover(); }
-    if (media.art === art) useCover(img);
+    if (media.art === art) useCover(img, media.seen === true);
+    media.seen = true;
   }
   paintWords();
 }
@@ -218,7 +224,7 @@ function paintWords() {
   c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, ink.width, ink.height);
   if (Q.get('words') === '0' || !LINES) return;
   c.setTransform(k, 0, 0, k, -o[0] * k, -o[1] * k);
-  const T = tint;
+  const T = tintNow();
   const coral = (a) => `rgba(${Math.round(255 * T[0])},${Math.round(255 * (0.35 + 0.65 * T[1]))},${Math.round(255 * (0.3 + 0.7 * T[2]))},${a})`;
   // Words fit the reference's line lengths at the reference's size; longer titles keep that size and are cut.
   const shade = Q.has('shade') ? Number(Q.get('shade')) : 0.85;
@@ -325,7 +331,7 @@ function paintPools() {
     c.fillStyle = g; c.fillRect(-4, -4, 8, 8); c.restore();
   }
   if (Q.get('pools') === '0') return;
-  const col = tint.map((v, i) => Math.round(255 * (0.55 * v + 0.45 * [1, 0.62, 0.52][i])));
+  const col = tintNow().map((v, i) => Math.round(255 * (0.55 * v + 0.45 * [1, 0.62, 0.52][i])));
   for (const [u, v, rx, ry, a] of [[330, 790, 300, 46, 0.28], [1280, 712, 260, 40, 0.24], [820, 712, 200, 26, 0.10]]) {
     c.save(); c.translate(u, v); c.scale(1, ry / rx);
     const g = c.createRadialGradient(0, 0, 0, 0, 0, rx);
@@ -565,6 +571,42 @@ function musicUniforms() {
   };
 }
 
+/* ------------------------------------------------------ ink and colour --- */
+// Pigment slowly bleeds out of the cover (its lower edge weeps threads) and flows through the glass on slow currents
+// (renderer.js FS_INK). A track change: the old art dissolves into liquid pigment that flows off across the ribbon
+// while the next cover resolves. Pause: the colour drains to silver and the ink fades (the glass goes still); play:
+// colour floods back out of the cover. Reduced motion: no ink; the cover and the colour crossfade. ?ink=0 turns it off.
+const inkState = {
+  colour: new Spring({ k: 10, c: 6.3 }), dissolve: new Spring({ k: 9, c: 6 }),
+  burst: 0, flood: 0, t0: performance.now(), pausedAt: -1e9, wasPlaying: null,
+};
+inkState.colour.snap(1); inkState.dissolve.snap(1);
+function tintNow() { return G ? G.tintNow() : tint; }
+/** Step the ink and the colour; true while either is still moving. */
+function inkStep(dt) {
+  const st = inkState, playing = player.playing, now = performance.now();
+  if (playing !== st.wasPlaying) {
+    if (st.wasPlaying !== null) { if (playing) st.flood = motion.reduced ? 0 : 1; else st.pausedAt = now; }
+    else if (playing) st.flood = motion.reduced ? 0 : 0.6;      // (on load, playing: a first wash of colour)
+    st.wasPlaying = playing;
+  }
+  st.colour.target = playing ? 1 : 0;
+  st.colour.set(playing ? { k: 30, c: 11 } : { k: 10, c: 6.3 });       // back quickly, draining slowly
+  const was = st.colour.resting && st.dissolve.resting;
+  st.colour.step(dt); st.dissolve.step(dt);
+  G.colour = Math.max(0, Math.min(1, st.colour.x)); G.dissolve = Math.max(0, Math.min(1, st.dissolve.x));
+  st.burst *= Math.exp(-dt / 0.6); st.flood *= Math.exp(-dt / 0.9);
+  if (st.burst < 0.01) st.burst = 0; if (st.flood < 0.01) st.flood = 0;
+  const flowing = !motion.reduced && LIGHT.ink > 0 && !document.hidden && (playing || now - st.pausedAt < 4500 || st.burst > 0);
+  if (flowing) {
+    G.inkOn = true;
+    G.stepInk(dt, { fade: playing ? 10 : 1.1, seep: playing ? 1 : 0, burst: st.burst, flood: st.flood, time: (now - st.t0) / 1000 });
+  } else if (G.inkOn) { G.inkOn = false; G.clearInk(); dirty = true; }
+  const colouring = !st.colour.resting || !st.dissolve.resting;
+  if (colouring || !was) { paintWords(); paintPools(); }
+  return flowing || colouring;
+}
+
 /* ---------------------------------------------------------------- motion --- */
 // Phase 3, the cursor and the presses: everything on springs (springs.js), so it carries momentum and settles on its
 // own. The glass turns a little toward the cursor (the highlights slide; the upper sheet leans more, the glass round
@@ -682,7 +724,9 @@ function motionStep(now) {
   const sinking = m.sink.some((s) => !s.resting) || m.sink.some((s, i) => !was[5 + i]);
   if (sinking) paintWords();
   const playingMusic = musicStep(dt);
-  const moving = springs.some((s) => !s.resting) || m.rips.length > 0 || Boolean(m.jig) || playingMusic;
+  const inking = inkStep(dt);
+  if (inking) dirty = true;
+  const moving = springs.some((s) => !s.resting) || m.rips.length > 0 || Boolean(m.jig) || playingMusic || inking;
   const any = moving || Math.abs(m.tilt.x) + Math.abs(m.tilt.y) + Math.abs(m.lean.x) + Math.abs(m.lean.y) + Math.abs(m.dimple.x)
     + Math.abs(m.press.x) + m.sink.reduce((a, s) => a + Math.abs(s.x), 0) > 1e-5;
   G.motion = any || playingMusic ? {
@@ -738,6 +782,12 @@ function drive(kind = 'cursor', seconds = 8) {
     at = glide(at + 0.15, 0.5, Vv(0.25), Vv(0.85));
     plan.push([at + 0.2, 'up', ...Vv(0.85)]);
     for (let i = 0; i < 4; i++) plan.push([at + 0.6 + i * 0.12, 'wheel', ...Vv(0.85)]);
+  }
+  if (kind === 'track') {       // let the ink build, then the next track, and the one after
+    let at = glide(2.0, 0.6, [470, 330], W[2]);
+    plan.push([at + 0.1, 'down', ...W[2]], [at + 0.25, 'up', ...W[2]]);
+    at = glide(at + 0.4, 0.5, W[2], [520, 340]);
+    if (seconds > 6.5) { at = glide(at + 1.6, 0.5, [520, 340], W[2]); plan.push([at + 0.1, 'down', ...W[2]], [at + 0.25, 'up', ...W[2]]); at = glide(at + 0.4, 0.5, W[2], [520, 340]); }
   }
   if (kind === 'pause') {       // let the music play, then pause it (the glass goes still), then play again
     let at = glide(2.4, 0.6, [470, 330], W[1]);
@@ -840,7 +890,7 @@ async function main() {
     useCover(plainCover()); G.coverSet = false;
     host.onMedia(applyMedia);
   } else {
-    await setTrack(Number(Q.get('track')) || 0);
+    await setTrack(Number(Q.get('track')) || 0, false);
     if (Q.has('play')) setPlaying(true);
   }
   // (the beads start where they belong: no glide in)
