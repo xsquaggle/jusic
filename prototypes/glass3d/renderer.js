@@ -90,6 +90,7 @@ uniform highp sampler2D uB2;       // and its back faces
 uniform sampler2D uArt;
 uniform sampler2D uLightMap;       // Cycles' light on the glass (an image on the model's UVs)
 uniform sampler2D uDesk;           // what is on the screen behind the window (refraction)
+uniform sampler2D uEdge;           // the silhouette, blurred: about .5 at the outline, 1 well inside (canvas pixels)
 uniform vec4 uDeskMap;             // canvas fraction (y up) -> the capture's coordinates: offset, scale
 uniform vec4 uDesk2;               // on (0..1), how much of it comes through, how far behind the glass, how much studio stays
 uniform mat4 uP;
@@ -151,6 +152,7 @@ void main() {
   float aT = aR * .6 + .01;
   float path = tx;
   vec3 trans;
+  vec3 deskT = vec3(0.);                                       // the desktop seen through the glass
   bool hitArt = false;
   // the art, where the ray inside meets the cover's face before it leaves (the ring of glass round the cover)
   vec3 q0 = (uCovInv * vec4(vPos, 1.)).xyz, dq = mat3(uCovInv) * T1;
@@ -184,32 +186,40 @@ void main() {
         P = P2 + T3 * tx2;
         path += tx2 * uL3.w;
       }
-      // what lies behind: the desktop, bent (refraction), or the studio as seen through glass
+      // what lies behind: the desktop, bent (refraction), and the studio as seen through glass (less of it as the
+      // desktop comes in). The desktop is kept apart: the light pass darkens the studio's light, never the desktop.
       vec3 behind = envSoft(D, aT);
       if (uDesk2.x > 0.) {
         vec3 Pd = P + D * (uDesk2.z / max(D.y, .2));
         vec2 duv = uDeskMap.xy + toFrag(Pd) / uRes * uDeskMap.zw;
         vec3 desk = pow(textureLod(uDesk, duv, 0.).rgb, vec3(2.2));
-        behind = mix(behind, desk * uDesk2.y + behind * uDesk2.w, uDesk2.x);
+        deskT = desk * uDesk2.y * uDesk2.x * pass;
+        behind *= mix(1., uDesk2.w, uDesk2.x);
       }
       trans = behind * pass + below;
     }
   }
   trans *= exp(-uAbsorb * path);
+  deskT *= exp(-uAbsorb * path * .5);                          // (a white page through the glass stays near white)
 
   // ---- the light pass (all zero with light=0)
   vec3 Lc = texture(uLightMap, vUv).rgb / uLightRef;          // Cycles' light on this point of the glass
   float L = dot(Lc, vec3(.2126, .7152, .0722));
   if (!hitArt) trans *= uL2.w * mix(1., uL1.w, (1. - flank));  // the straight-through middles darker
   if (!hitArt) trans *= mix(vec3(1.), warm * 1.15, low * uL2.z * 1.6);   // coral through the low faces
-  float edge = pow(rim, 2.2) * (1. - exp(-thick * 3.));
-  vec3 band = warm * uL1.y * edge * (.3 + .7 * low) * (.5 + .5 * min(L, 1.5)) * .45;   // light gathered in the edges
+  // light gathered in the thick edges: a band some tens of pixels wide just inside the outline (measured on the
+  // silhouette itself, so never a halo outside it), coral low down (the bottom, the tail), peach higher up
+  float edge = pow(smoothstep(.995, .5, texture(uEdge, gl_FragCoord.xy / uRes).r), 1.3);
+  // (never an even outline: strongest where the edge faces down, the bottom and the tail; faint along the top)
+  float lowE = smoothstep(.3, -.6, N.z);
+  vec3 coral = mix(warm, uTint * vec3(1., .62, .58), .7);
+  vec3 band = mix(warm, coral, lowE) * uL1.y * edge * mix(.1, 1., lowE) * (.6 + .4 * min(L, 1.5)) * .45;
   vec3 lobe = warm * uL1.z * low * (1. - exp(-thick * 1.5)) * (1. - rim) * .06;          // and in the thick lobes, low
   // the cover's colours glowing in the ring round it, like a marble: the colour of the art's nearest edge,
   // carried into the glass and fading over some tens of pixels, more where the glass is thick
   vec3 qc = (uCovInv * vec4(vPos, 1.)).xyz;
   float dCov = rrect(qc.xz, uCov.x, uCov.y);
-  vec3 edgeArt = pow(textureLod(uArt, (clamp(qc.xz, -uCov.x * .92, uCov.x * .92) + uCov.x) / uCov.z, 5.).rgb, vec3(2.2));
+  vec3 edgeArt = pow(textureLod(uArt, (clamp(qc.xz, -uCov.x * .8, uCov.x * .8) + uCov.x) / uCov.z, 7.).rgb, vec3(2.2));
   vec3 marble = mix(edgeArt, uArtMean, .3) * uL4.x * exp(-max(dCov, 0.) / uL4.y) * (1. - exp(-thick * 3.));
   vec3 spill = uArtMean * uL2.x * exp(-max(dCov, 0.) / .35) * (1. - exp(-thick * 3.)) * .5;
   // the wells: their middles darker, their rims lit warm, most on the lower rim
@@ -219,11 +229,16 @@ void main() {
     float ringW = exp(-pow((r - .94) / .09, 2.));
     float lowW = .3 + .7 * smoothstep(.2, -.8, (vPos.z - uWells[i].y) / uWells[i].z);
     wellLight += warm * ringW * lowW;
-    if (r < .8) trans *= mix(1., .55, uL2.y);
+    if (r < .8) { trans *= mix(1., .55, uL2.y); deskT *= mix(1., .55, uL2.y); }
   }
   wellLight *= uL2.y * .35;
-  vec3 col = refl * F + (trans + lobe + spill + marble) * (1. - F) + band + wellLight;
-  if (uDbg == 1) col = refl * F; else if (uDbg == 2) col = trans * (1. - F); else if (uDbg == 3) col = bands(R) * 4.;
+  vec3 col = refl * F + (trans + deskT + lobe + spill + marble) * (1. - F) + band + wellLight;
+  if (uDbg == 1) col = refl * F; else if (uDbg == 2) col = (trans + deskT) * (1. - F); else if (uDbg == 3) col = bands(R) * 4.;
+  else if (uDbg == 8) col = deskT * (1. - F);
+  else if (uDbg == 9) {          // the live studio's parts: red the hot strip, orange the low warm strip, white overhead, blue the floor
+    float el = degrees(asin(clamp(normalize(uToWorld * R).z, -1., 1.)));
+    col = el > 21.5 && el < 26.5 ? vec3(4., .2, .1) : el > -10. && el < -4. ? vec3(3., 1., .1) : el > 58. ? vec3(3.) : el < -2. ? vec3(.05, .1, .6) : vec3(0.);
+  }
   else if (uDbg == 4) col = band + wellLight + (lobe + spill + marble) * (1. - F); else if (uDbg == 5) col = vec3(rim);
   else if (uDbg == 6) col = vec3(sin(normalize(uToWorld * R).z * 28.) > 0. ? .95 : .02) * 2.;   // as build.py's zebra
   else if (uDbg == 7) col = layerAt(uF2, gl_FragCoord.xy).w < 100. ? vec3(1., .3, .1) : vec3(.05);   // where glass lies below
@@ -338,6 +353,8 @@ export async function createGlass(canvas, { assets, ss = 2, studio = 'live', lig
   gl.texImage3D(gl.TEXTURE_3D, 0, gl.RGBA16F, tn, tn, tn, 0, gl.RGBA, gl.HALF_FLOAT, new Uint16Array(toneBuf));
   for (const [k, v] of [[gl.TEXTURE_MIN_FILTER, gl.LINEAR], [gl.TEXTURE_MAG_FILTER, gl.LINEAR], [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_R, gl.CLAMP_TO_EDGE]]) gl.texParameteri(gl.TEXTURE_3D, k, v);
   const artTex = gl.createTexture();
+  const edgeTex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, edgeTex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([255, 255, 255, 255]));
   const deskTex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, deskTex);
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 0, 255]));
   for (const [k, v] of [[gl.TEXTURE_MIN_FILTER, gl.LINEAR], [gl.TEXTURE_MAG_FILTER, gl.LINEAR], [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE]]) gl.texParameteri(gl.TEXTURE_2D, k, v);
@@ -432,6 +449,7 @@ export async function createGlass(canvas, { assets, ss = 2, studio = 'live', lig
     u = use(prog.glass); common(u);
     gl.uniformMatrix4fv(u.uP, false, R.P); gl.uniform2f(u.uRes, RW, RH);
     tex(u.uBack, T.back.tex); tex(u.uF2, T.f2.tex); tex(u.uB2, T.b2.tex); tex(u.uArt, artTex); tex(u.uLightMap, lightTex); tex(u.uDesk, deskTex);
+    tex(u.uEdge, edgeTex);
     gl.uniform4fv(u.uDeskMap, R.desk.map);
     gl.uniform4f(u.uDesk2, R.desk.has ? R.desk.on : 0, L.desk, L.deskGap, L.deskKeep);
     gl.uniformMatrix4fv(u.uCovInv, false, covInv);
@@ -470,6 +488,26 @@ export async function createGlass(canvas, { assets, ss = 2, studio = 'live', lig
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     const m = new Uint8Array(CW * CH);
     for (let y = 0; y < CH; y++) for (let x = 0; x < CW; x++) m[y * CW + x] = px[((CH - 1 - y) * CW + x) * 4] > 127 ? 1 : 0;
+    // the edge map: the silhouette blurred over about edgeReach reference px (three box passes each way), rows from the bottom
+    const rad = Math.max(2, Math.round(R.light.edgeReach * CW / R.size.ref[2] / 1.7));
+    let a = new Float32Array(CW * CH), b = new Float32Array(CW * CH);
+    for (let i = 0; i < a.length; i++) a[i] = px[i * 4] > 127 ? 1 : 0;
+    const box = (src, dst, w, h, stepX) => {
+      for (let line = 0; line < (stepX ? h : w); line++) {
+        let acc = 0; const n = stepX ? w : h, at = (k) => (stepX ? line * w + k : k * w + line);
+        for (let k = -rad; k <= rad; k++) acc += src[at(Math.min(n - 1, Math.max(0, k)))];
+        for (let k = 0; k < n; k++) {
+          dst[at(k)] = acc / (2 * rad + 1);
+          acc += src[at(Math.min(n - 1, k + rad + 1))] - src[at(Math.max(0, k - rad))];
+        }
+      }
+    };
+    for (let pass = 0; pass < 3; pass++) { box(a, b, CW, CH, true); box(b, a, CW, CH, false); }
+    const e = new Uint8Array(CW * CH * 4);
+    for (let i = 0; i < a.length; i++) { const v = Math.round(a[i] * 255); e[i * 4] = e[i * 4 + 1] = e[i * 4 + 2] = v; e[i * 4 + 3] = 255; }
+    gl.bindTexture(gl.TEXTURE_2D, edgeTex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, CW, CH, 0, gl.RGBA, gl.UNSIGNED_BYTE, e);
+    for (const [k, v] of [[gl.TEXTURE_MIN_FILTER, gl.LINEAR], [gl.TEXTURE_MAG_FILTER, gl.LINEAR], [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE]]) gl.texParameteri(gl.TEXTURE_2D, k, v);
     return { data: m, w: CW, h: CH };
   };
   return R;

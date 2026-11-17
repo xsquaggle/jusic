@@ -37,9 +37,9 @@ const toRef = (x, y) => [REF0[0] + x * K, REF0[1] + y * K];
 const MODE = Q.has('light') ? Number(Q.get('light')) : 1;
 const LIGHT = MODE === 0
   ? { exposure: 1, soft: 0, band: 0, lobe: 0, middle: 1, spill: 0, well: 0, warmth: 0, path: 1, through: 1, mirror: 1, hot: 0, hotk: 0,
-      below: 1, marble: 0, marbleReach: 0.4, desk: 0.14, deskGap: 0.4, deskKeep: 0.15, coat: 0.006 }
-  : { exposure: 1, soft: 0.25, band: 1.3, lobe: 0.5, middle: 0.6, spill: 0.15, well: 0.6, warmth: 0.35, path: 2.2, through: 0.6, mirror: 0.8,
-      hot: 0, hotk: 0, below: 1, marble: 0.6, marbleReach: 0.45, desk: 0.22, deskGap: 0.4, deskKeep: 0.12, coat: 0.006 };
+      below: 1, marble: 0, marbleReach: 0.4, desk: 0.14, deskGap: 0.4, deskKeep: 0.15, coat: 0.006, edgeReach: 45 }
+  : { exposure: 1, soft: 0, band: 2.5, lobe: 1, middle: 0.6, spill: 0.15, well: 0.6, warmth: 0.35, path: 2.2, through: 0.6, mirror: 1,
+      hot: 0, hotk: 0, below: 1, marble: 0.35, marbleReach: 0.35, desk: 0.22, deskGap: 0.4, deskKeep: 0.05, coat: 0.006, edgeReach: 45 };
 for (const k of Object.keys(LIGHT)) if (Q.has(k)) LIGHT[k] = Number(Q.get(k));
 
 const $ = (id) => document.getElementById(id);
@@ -192,6 +192,7 @@ function paintWords() {
   const T = tint;
   const coral = (a) => `rgba(${Math.round(255 * T[0])},${Math.round(255 * (0.35 + 0.65 * T[1]))},${Math.round(255 * (0.3 + 0.7 * T[2]))},${a})`;
   // Words fit the reference's line lengths at the reference's size; longer titles keep that size and are cut.
+  const shade = Q.has('shade') ? Number(Q.get('shade')) : 0.55;
   function words(txt, weight, x, baseline, refWidth, refText, colour, spacing = 0, maxW = refWidth) {
     let size = 40;
     for (let i = 0; i < 4; i++) {
@@ -201,6 +202,13 @@ function paintWords() {
     c.font = `${weight} ${size}px Montserrat`; c.letterSpacing = spacing * size + 'px';
     let s = txt;
     while (s.length > 1 && c.measureText(s).width > maxW) s = s.slice(0, -2) + '…';
+    // a faint, wide dark shade behind the letters: the glass a little darker behind the words (and readable
+    // where a light desktop shows through it); then the letters, crisp
+    if (shade > 0) {
+      c.save(); c.shadowColor = `rgba(12,5,7,${shade})`; c.shadowBlur = 16 * k; c.fillStyle = 'rgba(12,5,7,0.01)';
+      for (let i = 0; i < 2; i++) c.fillText(s, x, baseline);
+      c.restore();
+    }
     c.fillStyle = colour; c.fillText(s, x, baseline); c.letterSpacing = '0px';
   }
   const tr = player.track, d = tr.duration, t = SYSTEM ? mediaTime() : player.time;

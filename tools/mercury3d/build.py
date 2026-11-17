@@ -103,14 +103,16 @@ RIM_STATIONS = [
     ((125, 622),         44,   6,  .95,  0),
     # The lower band: one fat roll whose broad crest carries the timeline and the times (its centre line inset
     # from the bottom edge to just under the timeline), shallower than wide, set back so the ridge stays proud.
-    ((200, 684),         66,  18,  .80,  0),   # the bulb's fat bottom
-    ((350, 734),        103,  27,  .56,  0),
-    ((450, 744),        108,  28,  .54,  0),
-    ((650, 721),        100,  24,  .58,  0),
-    ((850, 662),         76,  16,  .70,  0),   # the lower band under the waist
+    # (Its crest a little below the times and the timeline: the live studio lays one hot line just above every
+    # roll's crest, and the words sit on the calm upper flank above it.)
+    ((200, 684),         60,  18,  .80,  0),   # the bulb's fat bottom
+    ((350, 734),         84,  24,  .62,  0),
+    ((450, 744),         92,  26,  .58,  0),
+    ((650, 721),         82,  22,  .62,  0),
+    ((850, 662),         60,  14,  .74,  0),   # the lower band under the waist
     ((1050, 622),        40,   8,  .90,  0),
-    ((1300, 664),        76,  16,  .74,  0),   # under the buttons (its crest under the time)
-    ((1398, 626),        46,   8,  .85,  0),
+    ((1300, 664),        52,  12,  .82,  0),   # under the buttons (the time on its upper flank)
+    ((1398, 626),        28,   6,  .88,  0),   # (thinner: its crest stays below the time until past it)
     ((1475, 566),        20, -14,  .95,  0),   # the band's end, under the tail
     (TIP,                 5, -38,  .95,  0),   # the tail tip, curled forward
     ((1547, 528),        16, -22,  .95,  0),
@@ -183,7 +185,7 @@ WELL_LIP['raise'] = 4.0
 # Each region: its box, how far below the silhouette's top edge and above the ridge it keeps, the feather.
 # depth: how far in front of the front's own mean depth the plane sits (negative: toward the camera; a shallow hollow
 # whose edges rise gently to the rolls round it instead of a deep tray with walls).
-CALM = [dict(name='words', u=(470.0, 846.0), v=(416.0, 560.0), top=8.0, bottom=0.0, feather=16.0, depth=0.0, round=6.0),
+CALM = [dict(name='words', u=(436.0, float(ARGS.get('calm_u1', 900.0))), v=(416.0, 560.0), top=float(ARGS.get('calm_top', 3.0)), bottom=0.0, feather=16.0, depth=0.0, round=6.0),
         dict(name='volume', u=(1176.0, 1466.0), v=(280.0, 352.0), top=40.0, bottom=10.0, feather=14.0, depth=0.0, round=2.0)]
 CALM_TILT = float(ARGS.get('calm_tilt', 1.0))          # degrees up (negative: down); the dark band is -8.5..+3
 CALM_AMOUNT = float(ARGS.get('calm', 1.0))
@@ -573,7 +575,16 @@ def build_field():
     mem = np.maximum(mem, SD[:, None, :])
     log('membrane field', mem.shape)
 
-    # ---- wells: smooth subtraction of flat-floored dishes from the membrane's front (before the rolls go on): a
+
+    # ---- rolls
+    Pr, Qr = tube_mesh(rim, closed=True)
+    # a wider blend behind (the back leaves the rim in a long smooth curve), a tighter one in front
+    kr = (MEM['k_rim'] + 34.0 * np.clip((ds - 30.0) / 80.0, 0, 1)).astype(np.float32)[None, :, None]
+    F = smin(mem, level_set(Pr, Qr, half_width=26.0), kr)
+    del mem
+    log('rim joined')
+    # ---- wells: smooth subtraction of flat-floored dishes from the membrane's front (after the outer roll is on, so the fat lower band
+    # cannot fill their lower rims back in: that left small bumps between the wells; before the ridge): a
     # rounded cylinder along the view, its floor w behind the surface, its floor-to-wall edge a fillet
     for (wu, wv, rho, w) in WELLS:
         fl = float(bilinear(f, cell, U0, V0, np.array([wu]), np.array([wv]))[0])
@@ -593,24 +604,23 @@ def build_field():
         qx = np.sqrt((uu - wu) ** 2 + (vv - wv) ** 2) - (rho - re)
         qy = np.abs(dd - cd) - (h - re)
         sph = np.sqrt(np.maximum(qx, 0) ** 2 + np.maximum(qy, 0) ** 2) + np.minimum(np.maximum(qx, qy), 0) - re
-        blk = smax(mem[i0:i1, j0:j1, k0:k1], -sph, MEM['k_well'])
+        blk = smax(F[i0:i1, j0:j1, k0:k1], -sph, MEM['k_well'])
         # the well's own lip: a rounded ring standing a little proud of the floor round the dish
         lip = WELL_LIP
         qr = np.sqrt((uu - wu) ** 2 + (vv - wv) ** 2) - (rho + lip['out'])
         qd = dd - (fl - lip['raise'])
         tor = np.sqrt(qr ** 2 + qd ** 2) - lip['r']
-        mem[i0:i1, j0:j1, k0:k1] = smin(blk, tor, lip['k'])
+        F[i0:i1, j0:j1, k0:k1] = smin(blk, tor, lip['k'])
     log('wells cut')
-
-    # ---- rolls
-    Pr, Qr = tube_mesh(rim, closed=True)
-    # a wider blend behind (the back leaves the rim in a long smooth curve), a tighter one in front
-    kr = (MEM['k_rim'] + 34.0 * np.clip((ds - 30.0) / 80.0, 0, 1)).astype(np.float32)[None, :, None]
-    F = smin(mem, level_set(Pr, Qr, half_width=26.0), kr)
-    del mem
-    log('rim joined')
+    smooth_region(F, (1000.0, 1470.0), (500.0, 610.0), passes=int(ARGS.get('channel_smooth', 24)))
+    log('channel under the wells smoothed')
     Pg, Qg = tube_mesh(ridge, closed=False)
-    F = smin(F, level_set(Pg, Qg), MEM['k_ridge'])
+    # (a tighter join just past the title, where the ridge sweeps up through the twist: the soft join began some
+    # 40 px above its crest there and laid the studio's hot line across the end of the title)
+    us_ = U0 + np.arange(NX) * VOX
+    k_tw = float(ARGS.get('k_twist', 6.0))
+    kg = (MEM['k_ridge'] + (k_tw - MEM['k_ridge']) * np.exp(-((us_ - 805.0) / 75.0) ** 2)).astype(np.float32)[:, None, None]
+    F = smin(F, level_set(Pg, Qg), kg)
     log('ridge joined')
     # the fold under the sheet's lip
     tan = np.gradient(ridge[:, :2], axis=0); tan /= np.linalg.norm(tan, axis=1, keepdims=True)
@@ -656,6 +666,24 @@ def build_field():
         F = smin(F, level_set(Ps, Qs), MEM['k_sheet'])
         log('sheet joined')
     return F, dict(rim=rim, ridge=ridge, sheet=G, f=f, b=b)
+
+def smooth_region(F, ur, vr, passes=24, feather=24.0):
+    """Blur the field inside a box of the picture (u, v ranges, all depths), blended in over a feather: irons out
+    small bumps where several rolls meet without moving the forms round them."""
+    if passes <= 0:
+        return
+    pad = feather + 8
+    i0, i1 = max(int((ur[0] - pad - U0) / VOX), 0), min(int((ur[1] + pad - U0) / VOX) + 1, NX)
+    k0, k1 = max(int((V1 - (vr[1] + pad)) / VOX), 0), min(int((V1 - (vr[0] - pad)) / VOX) + 1, NZ)
+    blk = F[i0:i1, :, k0:k1].copy()
+    sm = blur3(blk, passes)
+    uu = (U0 + np.arange(i0, i1) * VOX)[:, None, None]
+    vv = (V1 - np.arange(k0, k1) * VOX)[None, None, :]
+    def ramp(x0, x1, x):
+        t = np.clip(np.minimum(x - x0, x1 - x) / feather, 0, 1)
+        return t * t * (3 - 2 * t)
+    w = (ramp(ur[0], ur[1], uu) * ramp(vr[0], vr[1], vv)).astype(np.float32)
+    F[i0:i1, :, k0:k1] = blk + w * (sm - blk)
 
 def calm_mask(c, GU, GV, inside):
     """The weight (0..1) of a CALM region on the membrane's grid: its box, kept below the silhouette's top edge and
@@ -1175,8 +1203,9 @@ def make_env(path, tint, w=2048, h=1024):
 # strips than Cycles' (which stays as it is): one hot strip in front for the narrow highlight along each roll, a soft
 # light overhead, a warm floor and a low warm strip for the coral along the bottoms, soft panels for the ends, a dark
 # card behind. Neutral: the live page warms it with the album. Radiances as Cycles' (the page applies the same gain).
-LIVE_STUDIO = dict(room=0.01, floor=1.4, over=2.2, back=1.2, side=0.7, key=70.0, key_el=24.0, key_half=1.4,
-                   low=5.0, low_el=-7.0, low_half=3.0,
+# (Clear glass, not satin: broad sources only dim; what the glass mirrors is mostly dark, the few lights bright.)
+LIVE_STUDIO = dict(room=0.008, floor=0.45, over=1.8, over_deg=26.0, back=0.3, side=0.22, key=70.0, key_el=24.0, key_half=1.4,
+                   low=8.0, low_el=-7.0, low_half=3.0,
                    t_room=1.0, t_floor=0.45, t_over=0.5, t_back=0.2, t_side=0.4, strip_soft=0.03)
 
 def make_env_live(w=2048, h=1024):
@@ -1203,7 +1232,7 @@ def make_env_live(w=2048, h=1024):
     comp['floor'] = (ss(-2, -16, eld) * ss(-85, -40, eld) * (0.4 + 0.6 * ss(120, 20, np.abs(dac))))[..., None] * warm
     ov = np.array([0.0, -0.15, 1.0]); ov /= np.linalg.norm(ov)
     ang = np.degrees(np.arccos(np.clip(dx * ov[0] + dy * ov[1] + dz * ov[2], -1, 1)))
-    comp['over'] = ss(40, 16, ang)[..., None] * white
+    comp['over'] = ss(st['over_deg'], st['over_deg'] * 0.45, ang)[..., None] * white
     comp['back'] = (ss(80, 55, dab) * ss(0, 10, eld) * ss(55, 40, eld))[..., None] * white
     sp = 0
     for a0 in (cam - 75, cam + 75):
