@@ -1,0 +1,55 @@
+{
+ "out": "design/captures/mercury-ridge-round65-full.png",
+ "width": 2292,
+ "title": "Round 65, the ridge, at full size: the reference (left) and ours (right) at the same framing",
+ "rows": [
+  [
+   {
+    "label": "reference, from the cover to the buttons",
+    "src": "design/references/widget-mercury.png",
+    "crop": [
+     65,
+     197,
+     1134,
+     577
+    ],
+    "w": 1134
+   },
+   {
+    "label": "round 65 (?mat=2, generated cover), from the cover to the buttons",
+    "src": "design/captures/raw/round65-B/dark.png",
+    "crop": [
+     150,
+     125,
+     690,
+     351
+    ],
+    "w": 1134
+   }
+  ],
+  [
+   {
+    "label": "reference, from the title to the tail tip",
+    "src": "design/references/widget-mercury.png",
+    "crop": [
+     498,
+     217,
+     1113,
+     515
+    ],
+    "w": 1113
+   },
+   {
+    "label": "round 65 (?mat=2, generated cover), from the title to the tail tip",
+    "src": "design/captures/raw/round65-B/dark.png",
+    "crop": [
+     414,
+     138,
+     677,
+     314
+    ],
+    "w": 1113
+   }
+  ]
+ ]
+}

@@ -1,0 +1,19 @@
+{
+ "out": "design/captures/mercury-ridge-trace.png",
+ "width": 1784,
+ "title": "The ridge (round 65): traced on the main reference (left), and the line material B is now built round (right, generated test cover); stage grid every 40 units",
+ "rows": [
+  [
+   {
+    "label": "reference: the ridge as traced",
+    "src": "design/captures/raw/trace-ref.png",
+    "w": 880
+   },
+   {
+    "label": "ours, round 65 (?mat=2): the ridge placed for our layout",
+    "src": "design/captures/raw/trace-ours.png",
+    "w": 880
+   }
+  ]
+ ]
+}
