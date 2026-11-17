@@ -27,7 +27,7 @@
  *   ?deskimg=<url> (pictures only): a still image as the desktop behind the window, filling the canvas, bent through
  *   the glass as refraction would (for checking the look over a desktop at any size without the window)
  *   ?still (reduced motion)  ?m_tilt= m_lean= m_dimple= m_press= m_rip= m_sink= (each interaction's strength; 0: off)
- *   window.__glass.drive(kind, seconds): a pretend pointer playing cursor | dimple | ripple | press | buttons (the
+ *   window.__glass.drive(kind, seconds): a pretend pointer playing cursor | dimple | ripple | press | buttons | seek (the
  *   shell's recordings and measures use it; the real mouse is never touched)
  */
 import { createGlass } from './renderer.js';
@@ -259,15 +259,39 @@ function paintWords() {
     stroke(pts, 0, p, 9.0, coral(1), 18, coral(1));
     stroke(pts, 0, p, 4.0, 'rgba(255,250,246,1)');
   }
-  function bead(p, r) {
-    const g = c.createRadialGradient(p[0], p[1], r * 0.6, p[0], p[1], r * 3.2);
+  // a liquid bead: stretched along its line by its speed (a drop being pulled), a little thinner across; a ghost is
+  // the same bead, faint, where a click would land
+  function bead(pts, q, r, sp = 0, alpha = 1) {
+    const p = along(pts, q), a = along(pts, Math.max(0, q - 0.01)), b = along(pts, Math.min(1, q + 0.01));
+    const ang = Math.atan2(b[1] - a[1], b[0] - a[0]);
+    const s = Math.max(-0.7, Math.min(0.7, sp));
+    c.save(); c.globalAlpha = alpha; c.translate(p[0], p[1]); c.rotate(ang); c.translate(-r * s * 0.5, 0);
+    c.scale(1 + Math.abs(s), 1 - 0.32 * Math.abs(s));
+    const g = c.createRadialGradient(0, 0, r * 0.6, 0, 0, r * 3.2);
     g.addColorStop(0, coral(0.55)); g.addColorStop(1, coral(0));
-    c.fillStyle = g; c.beginPath(); c.arc(p[0], p[1], r * 3.2, 0, 7); c.fill();
-    c.fillStyle = 'rgba(255,250,246,1)'; c.beginPath(); c.arc(p[0], p[1], r, 0, 7); c.fill();
+    c.fillStyle = g; c.beginPath(); c.arc(0, 0, r * 3.2, 0, 7); c.fill();
+    c.fillStyle = 'rgba(255,250,246,1)'; c.beginPath(); c.arc(0, 0, r, 0, 7); c.fill();
+    c.restore();
   }
-  const prog = d > 0 ? Math.min(1, t / d) : 0;
-  track(LINES.timeline, prog); bead(along(LINES.timeline, prog), 9);
-  track(LINES.volume, player.volume); bead(along(LINES.volume, player.volume), 7.5);
+  // a small label riding above a dragged bead: the exact time it would seek to, or the volume
+  function label(pts, q, text) {
+    const p = along(pts, q);
+    c.save(); c.font = '500 27px Montserrat'; c.letterSpacing = '0px';
+    const w = c.measureText(text).width + 30, h = 42, x = p[0] - w / 2, y = p[1] - 34 - h;
+    c.fillStyle = 'rgba(20,9,11,0.74)'; c.beginPath(); c.roundRect(x, y, w, h, 21); c.fill();
+    c.strokeStyle = coral(0.6); c.lineWidth = 1.6; c.stroke();
+    c.fillStyle = 'rgba(255,250,248,0.97)'; c.textAlign = 'center'; c.fillText(text, p[0], y + 30); c.restore();
+  }
+  const BS = beads.seek, BV = beads.vol;
+  const prog = BS.at.x;
+  track(LINES.timeline, prog);
+  if (BS.ghostA.x > 0.01) bead(LINES.timeline, BS.ghostAt, 9, 0, BS.ghostA.x);
+  bead(LINES.timeline, prog, 9, motion.reduced ? 0 : BS.at.v * 0.0045);
+  if (BS.drag && d > 0) label(LINES.timeline, prog, fmt(prog * d));
+  track(LINES.volume, BV.at.x);
+  if (BV.ghostA.x > 0.01) bead(LINES.volume, BV.ghostAt, 7.5, 0, BV.ghostA.x);
+  bead(LINES.volume, BV.at.x, 7.5, motion.reduced ? 0 : BV.at.v * 0.004);
+  if (BV.drag) label(LINES.volume, BV.at.x, Math.round(player.volume * 100) + '%');
   const glyph = (i) => `rgba(255,255,255,${(player.dim.includes('ptn'[i]) ? 0.3 : 0.97) * (motion.downBtn === i ? 0.82 : 1)})`;
   // a button's glyph sinks with its well's floor: a few per cent smaller as it goes back (its centre never moves)
   const sunk = (i, draw) => {
@@ -341,6 +365,7 @@ function onMove(e) {
   if (dragging === 'body' && host) host.drag('move');
   document.body.style.cursor = !h.inside ? 'default' : ['button', 'seek', 'volume'].includes(h.target) ? 'pointer' : 'grab';
   motionMove(x, y, h);
+  beadsMove(x, y, h);
 }
 function onDown(e) {
   if (e.button !== undefined && e.button !== 0) return;
@@ -350,6 +375,12 @@ function onDown(e) {
   if (e.preventDefault) e.preventDefault();
   downAt = { h, sx: e.screenX || 0, sy: e.screenY || 0 };
   motionDown(x, y, h);
+  beadsDown(h);
+}
+function onWheel(e) {
+  const [x, y] = local(e); if (!hit(x, y).inside) return;
+  player.volume = Math.min(1, Math.max(0, player.volume + (e.deltaY < 0 ? 0.05 : -0.05)));
+  kickInk();
 }
 function onUp(e) {
   const [x, y] = local(e);
@@ -366,13 +397,95 @@ function onUp(e) {
         if (h.index === 2 && st.canNext) command('next');
       }
     }
-    if (h.target === 'seek' && player.track.duration > 0) command('seek', h.progress * player.track.duration);
-    if (h.target === 'volume') { player.volume = h.progress; paintWords(); }
+    // (the seek and the volume are the beads': dragged or clicked, they land on release, in beadsUp)
   }
   const wasDown = Boolean(downAt);
+  beadsUp();
   dragging = null; downAt = null;
   passThrough(!h.inside);
   if (wasDown) motionUp();
+}
+
+/* ------------------------------------------------------- seek and volume --- */
+// The beads on the timeline and the volume line are springy liquid beads (springs.js 'bead'): dragged, they chase the
+// pointer and stretch along their line with their speed, a precise time (or the volume) riding above; hovering a
+// line shows a faint ghost bead where a click would land; the wheel over the widget changes the volume, its bead
+// springing there. They live on the words layer: crisp, and the glass is not redrawn for them. Reduced motion: the
+// beads jump, no stretch, no ghost easing.
+const beads = {
+  seek: { at: new Spring('bead'), drag: false, ghostA: new Spring('glide'), ghostAt: 0 },
+  vol: { at: new Spring('bead'), drag: false, ghostA: new Spring('glide'), ghostAt: 0 },
+};
+/** Where along a line (0..1) the point nearest to (u, v), reference px, lies. */
+function nearestOn(pts, u, v) {
+  let best = 1e18, bt = 0;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const [ax, ay] = pts[i], [bx, by] = pts[i + 1], dx = bx - ax, dy = by - ay;
+    const f = Math.max(0, Math.min(1, ((u - ax) * dx + (v - ay) * dy) / (dx * dx + dy * dy || 1)));
+    const d = (ax + dx * f - u) ** 2 + (ay + dy * f - v) ** 2;
+    if (d < best) { best = d; bt = (i + f) / (pts.length - 1); }
+  }
+  return bt;
+}
+function refOf(x, y) {
+  const r = canvas.getBoundingClientRect();
+  return FRAME_REF ? [x, y] : toRef(x / (r.width / STAGE.w), y / (r.height / STAGE.h));
+}
+/** Where the beads should be when nobody is dragging them: the playback position, the volume. */
+function beadTargets() {
+  const d = player.track.duration, t = SYSTEM ? mediaTime() : player.time;
+  if (!beads.seek.drag) {
+    const q = d > 0 ? Math.min(1, t / d) : 0;
+    // (a jump, a seek or a new track, springs there; the second-by-second advance just follows)
+    if (Math.abs(q - beads.seek.at.target) > 0.02 && !motion.reduced) beads.seek.at.target = q; else beads.seek.at.snap(q);
+  }
+  if (!beads.vol.drag) { if (motion.reduced) beads.vol.at.snap(player.volume); else beads.vol.at.target = player.volume; }
+}
+function beadsMove(x, y, h) {
+  const [u, v] = refOf(x, y);
+  for (const [key, B, pts] of [['seek', beads.seek, LINES.timeline], ['volume', beads.vol, LINES.volume]]) {
+    if (B.drag) { const q = nearestOn(pts, u, v); B.at.target = q; if (motion.reduced) B.at.snap(q); if (key === 'volume') player.volume = q; }
+    const hov = !B.drag && h.inside && h.target === key;
+    if (hov) B.ghostAt = h.progress;
+    B.ghostA.target = hov && !motion.reduced ? 0.42 : 0;
+    if (motion.reduced) B.ghostA.snap(B.ghostA.target);
+  }
+  kickInk();
+}
+function beadsDown(h) {
+  const B = h.target === 'seek' ? beads.seek : h.target === 'volume' ? beads.vol : null;
+  if (!B) return;
+  if (h.target === 'seek' && !(player.track.duration > 0)) return;
+  B.drag = true; B.ghostA.target = 0;
+  B.at.target = h.progress; if (motion.reduced) B.at.snap(h.progress);
+  if (h.target === 'volume') player.volume = h.progress;
+  kickInk();
+}
+/** On release: the seek lands where its bead was let go; the volume is already set. True if a bead was being dragged. */
+function beadsUp() {
+  let was = false;
+  if (beads.seek.drag) {
+    beads.seek.drag = false; was = true;
+    if (player.track.duration > 0) command('seek', beads.seek.at.target * player.track.duration);
+  }
+  if (beads.vol.drag) { beads.vol.drag = false; was = true; }
+  kickInk();
+  return was;
+}
+let inkRaf = 0, inkLast = 0;
+/** The words layer alone, stepped while its beads move (the glass is not redrawn for them). */
+function kickInk() { if (!inkRaf && LINES) inkRaf = requestAnimationFrame(inkFrame); }
+function inkFrame(now) {
+  inkRaf = 0;
+  const dt = inkLast ? Math.min(0.05, (now - inkLast) / 1000) : 1 / 60;
+  inkLast = now;
+  beadTargets();
+  const springs = [beads.seek.at, beads.vol.at, beads.seek.ghostA, beads.vol.ghostA];
+  for (const sp of springs) sp.step(dt);
+  state.inkFrames = (state.inkFrames || 0) + 1;
+  paintWords();
+  if (springs.some((sp) => !sp.resting) || beads.seek.drag || beads.vol.drag) inkRaf = requestAnimationFrame(inkFrame);
+  else inkLast = 0;
 }
 
 /* ---------------------------------------------------------------- motion --- */
@@ -460,7 +573,7 @@ function motionDown(x, y, h) {
   if (!m.reduced) {
     const p = rootAt(x, y);
     if (MOT.rip > 0) { m.rips.push({ x: p[0], z: p[1], t0: performance.now() / 1000 }); if (m.rips.length > 4) m.rips.shift(); }
-    if (h.target !== 'button') { m.pressAt = p; m.press.set(JELLY.in); m.press.target = MOT.press; m.pressing = true; }
+    if (h.target === 'body' || h.target === 'cover') { m.pressAt = p; m.press.set(JELLY.in); m.press.target = MOT.press; m.pressing = true; }
     redraw();
   }
   paintWords();
@@ -530,6 +643,22 @@ function drive(kind = 'cursor', seconds = 8) {
     const pts = [[330, 190], [560, 290], [660, 108]];
     let at = 0.3, last = [430, 200];
     for (const p of pts) { at = glide(at, 0.5, last, p); plan.push([at + 0.1, 'down', ...p], [at + 1.1, 'up', ...p]); at += 2.2; last = p; }
+  }
+  if (kind === 'seek') {        // hover the timeline (the ghost), drag its bead along and let go; then the volume; the wheel
+    const st = ([u, v]) => (FRAME_REF ? [u, v] : [(u - REF0[0]) / K, (v - REF0[1]) / K]);
+    const T = (q) => st(along(LINES.timeline, q)), Vv = (q) => st(along(LINES.volume, q));
+    let at = glide(0.2, 0.6, [430, 330], T(0.62));
+    at = glide(at, 0.7, T(0.62), T(0.75));                   // hovering: the ghost follows
+    plan.push([at + 0.15, 'down', ...T(0.75)]);
+    at = glide(at + 0.2, 0.35, T(0.75), T(0.2));               // a quick pull back: the bead stretches
+    at = glide(at + 0.25, 0.9, T(0.2), T(0.55));               // and slowly forward, the time riding above
+    plan.push([at + 0.3, 'up', ...T(0.55)]);
+    at = glide(at + 0.5, 0.6, T(0.55), Vv(0.68));
+    plan.push([at + 0.1, 'down', ...Vv(0.68)]);
+    at = glide(at + 0.2, 0.4, Vv(0.68), Vv(0.25));
+    at = glide(at + 0.15, 0.5, Vv(0.25), Vv(0.85));
+    plan.push([at + 0.2, 'up', ...Vv(0.85)]);
+    for (let i = 0; i < 4; i++) plan.push([at + 0.6 + i * 0.12, 'wheel', ...Vv(0.85)]);
   }
   if (kind === 'buttons') {
     let at = 0.3, last = [470, 120];
@@ -629,6 +758,8 @@ async function main() {
     await setTrack(Number(Q.get('track')) || 0);
     if (Q.has('play')) setPlaying(true);
   }
+  // (the beads start where they belong: no glide in)
+  { const d = player.track.duration; beads.seek.at.snap(d > 0 ? Math.min(1, player.time / d) : 0); beads.vol.at.snap(player.volume); }
   paintWords(); paintPools();
   G.draw();
   mask = G.readMask();
@@ -636,14 +767,11 @@ async function main() {
   // the clock: the words layer once a second while playing; nothing is redrawn in the glass for it
   setInterval(() => {
     if (!SYSTEM && player.playing) { player.time += 1; if (player.time >= player.track.duration) command('next'); }
-    if (player.playing) paintWords();
+    if (player.playing) { beadTargets(); kickInk(); }
   }, 1000);
   for (const [type, fn] of [['pointermove', onMove], ['pointerdown', onDown], ['pointerup', onUp], ['pointercancel', onUp]]) document.addEventListener(type, fn);
   document.addEventListener('pointerleave', () => { if (!dragging) passThrough(true); motionLeave(); });
-  document.addEventListener('wheel', (e) => {
-    const [x, y] = local(e); if (!hit(x, y).inside) return;
-    player.volume = Math.min(1, Math.max(0, player.volume + (e.deltaY < 0 ? 0.05 : -0.05))); paintWords();
-  }, { passive: true });
+  document.addEventListener('wheel', onWheel, { passive: true });
   if (REFRACT) {
     host.onPlacement(placeBackdrop);
     document.addEventListener('visibilitychange', () => { if (document.hidden) stopBackdrop(); else if (backdrop.on) startBackdrop(); });
@@ -661,7 +789,8 @@ async function main() {
       const s = FRAME_REF ? 1 : r.width / STAGE.w;
       const e = { clientX: r.left + x * s, clientY: r.top + y * s, screenX: 0, screenY: 0, button: 0, preventDefault() {} };
       if (type === 'move') onMove(e); if (type === 'down') onDown(e); if (type === 'up') onUp(e);
-      if (type === 'leave') { if (!dragging) passThrough(true); motionLeave(); }
+      if (type === 'leave') { if (!dragging) passThrough(true); motionLeave(); beadsMove(-1e4, -1e4, { inside: false }); }
+      if (type === 'wheel') onWheel({ clientX: e.clientX, clientY: e.clientY, deltaY: -1 });
     },
     setLight(k, v) { LIGHT[k] = v; redraw(); },
     record, drive, motion, setReduced,
