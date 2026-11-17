@@ -1,0 +1,111 @@
+{
+ "out": "design/captures/mercury-glass3d-baked.png",
+ "width": 1830,
+ "title": "Live 3D with Cycles' light baked onto the model (generated cover): the reference, the model in Cycles, and live with the baked light",
+ "notes": [
+  "part: The cover sits on the ridge and looks heavy: the round ring wraps it and the ridge rolls under its edge; the ring is thinner than the reference's.",
+  "part: The ridge is one unbroken line from under the cover to the tail: one roll all the way, lit along its top; its highlight fades under the words.",
+  "ok: The twist and the sheet over the buttons read clearly.",
+  "part: The words are clean: no line crosses the title and the glass behind them is darker; a reflection still touches the title's end and runs behind the artist's.",
+  "part: The glass shines: the light now falls where the studio puts it (baked in Cycles): tops lit, the sheet's crest bright, deeper low down; clear, warm rims; still less brilliant than the reference.",
+  "measured: 60 fps on the RTX 3070, the GPU process's 3D engine 1.8% at 1586x992 and 1.4% at 1190x744."
+ ],
+ "rows": [
+  [
+   {
+    "label": "main reference",
+    "src": "design/references/widget-mercury.png",
+    "crop": [
+     0,
+     0,
+     1586,
+     992
+    ]
+   },
+   {
+    "label": "Cycles",
+    "src": "design/captures/raw/blender/pass1-full-words.png",
+    "crop": [
+     0,
+     0,
+     1586,
+     992
+    ]
+   },
+   {
+    "label": "live 3D, baked light, 60 fps",
+    "src": "design/captures/raw/glass3d/baked/live-1.png",
+    "crop": [
+     0,
+     0,
+     1586,
+     992
+    ]
+   }
+  ],
+  [
+   {
+    "label": "reference, cover to buttons",
+    "src": "design/references/widget-mercury.png",
+    "crop": [
+     65,
+     197,
+     1134,
+     577
+    ]
+   },
+   {
+    "label": "live, hand-set light (last round)",
+    "src": "design/captures/raw/glass3d/final/live-1.png",
+    "crop": [
+     65,
+     197,
+     1134,
+     577
+    ]
+   },
+   {
+    "label": "live, baked light",
+    "src": "design/captures/raw/glass3d/baked/live-1.png",
+    "crop": [
+     65,
+     197,
+     1134,
+     577
+    ]
+   }
+  ],
+  [
+   {
+    "label": "reference, title to tail tip",
+    "src": "design/references/widget-mercury.png",
+    "crop": [
+     498,
+     217,
+     1113,
+     515
+    ]
+   },
+   {
+    "label": "live, hand-set light",
+    "src": "design/captures/raw/glass3d/final/live-1.png",
+    "crop": [
+     498,
+     217,
+     1113,
+     515
+    ]
+   },
+   {
+    "label": "live, baked light",
+    "src": "design/captures/raw/glass3d/baked/live-1.png",
+    "crop": [
+     498,
+     217,
+     1113,
+     515
+    ]
+   }
+  ]
+ ]
+}

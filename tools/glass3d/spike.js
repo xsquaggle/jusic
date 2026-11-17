@@ -3,7 +3,8 @@
  * The phase 2 spike: Mercury as live 3D glass (prototypes/glass3d/) in a widget-style window, photographed and
  * measured on the real GPU.
  *
- *   npx electron tools/glass3d/spike.js out=design/captures/raw/glass3d [q=<extra query>] [seconds=8] [scales=1,0.75]
+ *   npx electron tools/glass3d/spike.js out=design/captures/raw/glass3d [q=<extra query>] [seconds=8] [scales=1]
+ *   (one size a run: given several, only the first reported; run 0.75, about the widget's size, separately)
  *
  * The window is the widget's kind (frameless, transparent, never focused), opened on the second monitor when there is
  * one; it is placed when it is created and never moved. The photo is the page's own pixels (capturePage), never the
@@ -21,7 +22,7 @@ const REPO = path.resolve(__dirname, '..', '..');
 const OUT = path.resolve(args.out || 'design/captures/raw/glass3d');
 const PORT = 5193;
 const SECONDS = Number(args.seconds) || 8;
-const SCALES = (args.scales || '1,0.75').split(',').map(Number);
+const SCALES = (args.scales || '1').split(',').map(Number);
 app.commandLine.appendSwitch('force-device-scale-factor', '1');
 app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
 app.commandLine.appendSwitch('disable-renderer-backgrounding');

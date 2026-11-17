@@ -14,7 +14,8 @@
  * then the words, glyphs, timeline and volume on top (a 2D layer), as the live widget draws them.
  *
  *   /prototypes/glass3d/?assets=/design/captures/raw/blender/live/   (defaults to that)
- *   &light=0|1   the light pass toward the reference (1, the default) or the plain studio (0)
+ *   &light=0|1|2 the plain studio (0), the light pass with hand-set terms (1), or with the studio's light baked onto the
+ *                model in Cycles (2, the default when the export has it): the glow inside and the rim bands follow it
  *   &fps=60      draw at most 60 frames a second (the display's rate), for measuring
  * window.__glass: { ready, frames, cpuMs, setLight(k, v) } for the spike tool.
  */
@@ -30,9 +31,10 @@ const LAYOUT = Q.get('layout') || '/design/captures/raw/blender/layout.json';
 // along each rim, where the glass turns away; lobe: warm light held inside the glass, more where it is thick and low
 // down; spill: the cover's colour carried into the glass round it; middle: how much of the studio the straight-through
 // middles show (darker below 1).
-const LIGHT = Q.get('light') === '0'
+const MODE = Q.has('light') ? Number(Q.get('light')) : 2;
+const LIGHT = MODE === 0
   ? { exposure: 1, soft: 0, band: 0, lobe: 0, spill: 0, middle: 1, absorb: 0.35 }
-  : { exposure: 1.2, soft: 0.6, band: 1.0, lobe: 0.2, spill: 0.25, middle: 0.55, absorb: 0.6 };
+  : { exposure: 1.2, soft: 0.6, band: 1.0, lobe: 0.2, spill: 0.25, middle: 0.55, absorb: 0.6, baked: MODE >= 2 ? 1 : 0 };
 for (const k of Object.keys(LIGHT)) if (Q.has(k)) LIGHT[k] = Number(Q.get(k));
 
 const canvas = document.getElementById('gl');
@@ -60,12 +62,14 @@ vec3 envSharp(vec3 d) { return textureLod(uEnv, envUV(d), 0.).rgb; }
 vec3 envSoft(vec3 d) { return textureLod(uEnvSoft, envUV(d), 0.).rgb; }
 `;
 const VS_MESH = HEAD + `
-in vec3 aPos;
-in vec3 aNor;
+layout(location = 0) in vec3 aPos;
+layout(location = 1) in vec3 aNor;
+layout(location = 2) in vec3 aLight;
 uniform mat4 uVP;
 out vec3 vPos;
 out vec3 vNor;
-void main() { vPos = aPos; vNor = aNor; gl_Position = uVP * vec4(aPos, 1.); }`;
+out vec3 vLight;
+void main() { vPos = aPos; vNor = aNor; vLight = aLight; gl_Position = uVP * vec4(aPos, 1.); }`;
 const FS_BACK = HEAD + `
 in vec3 vPos;
 in vec3 vNor;
@@ -82,8 +86,8 @@ uniform sampler2D uPlate;
 out vec4 o;
 void main() { o = vec4(texture(uPlate, vUv).rgb, 1.); }`;
 const VS_COVER = HEAD + `
-in vec3 aPos;
-in vec2 aUv;
+layout(location = 0) in vec3 aPos;
+layout(location = 1) in vec2 aUv;
 uniform mat4 uVP;
 out vec3 vPos;
 out vec2 vUv;
@@ -104,6 +108,8 @@ void main() {
 const FS_GLASS = HEAD + ENV + `
 in vec3 vPos;
 in vec3 vNor;
+in vec3 vLight;        // the studio's light reaching this point, baked in Cycles
+uniform vec2 uBaked;    // how much of the baked light to use (0 the hand-set terms), the level of its brighter tenth
 uniform sampler2D uBack;
 uniform sampler2D uArt;
 uniform vec2 uRes;
@@ -179,6 +185,12 @@ void main() {
   vec3 spill = mix(vec3(dot(uArtMean, vec3(.2126, .7152, .0722))), uArtMean, .6) * uLight.w * exp(-max(dCov, 0.) / 50.) * (1. - exp(-thick * 3.));
   // One broad warm band along each rim, where the glass turns away.
   vec3 band = mix(vec3(1., .9, .85), uWarm, .3) * uLight.y * pow(rim, 1.6) * (.6 + .4 * smoothstep(.0, .8, -N.z + .3));
+  // (Baked: the glow and the bands follow the light that really reaches each part of the glass in the studio, the
+  // floor's warmth low down and the lamps' white above, instead of a fixed peach weighted by height.)
+  vec3 Lb = vLight / uBaked.y;
+  // (A little peach in it, as the reference's glass carries: the lamps' light alone read grey.)
+  lobe = mix(lobe, Lb * mix(vec3(1.), peach, .35) * uLight.z * .7 * (1. - exp(-thick * 2.2)), uBaked.x);
+  band = mix(band, Lb * mix(vec3(1.), peach, .2) * uLight.y * .55 * pow(rim, 1.6), uBaked.x);
   o = vec4(refl * F + (trans + lobe + spill) * (1. - F) + band, 1.);
 }`;
 const FS_TONE = HEAD + `
@@ -295,6 +307,16 @@ async function main() {
   const nb = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, nb); gl.bufferData(gl.ARRAY_BUFFER, nor, gl.STATIC_DRAW);
   gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 0, 0);
   const ib = gl.createBuffer(); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ib); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, idx, gl.STATIC_DRAW);
+  // The baked light per vertex, and the level of its brighter tenth (so 1 means well lit).
+  let lightRef = 1;
+  const lb = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, lb);
+  if (meta.light) {
+    const lv = new Float32Array(await fetchBin(ASSETS + meta.light));
+    gl.bufferData(gl.ARRAY_BUFFER, lv, gl.STATIC_DRAW);
+    const lum = []; for (let i = 0; i < nv; i += 7) lum.push(0.2126 * lv[i * 3] + 0.7152 * lv[i * 3 + 1] + 0.0722 * lv[i * 3 + 2]);
+    lum.sort((a, b) => a - b); lightRef = lum[Math.floor(lum.length * 0.9)] || 1;
+  } else { gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(nv * 3), gl.STATIC_DRAW); LIGHT.baked = 0; }
+  gl.enableVertexAttribArray(2); gl.vertexAttribPointer(2, 3, gl.FLOAT, false, 0, 0);
 
   // The cover's face: a fan round its middle.
   const cp = meta.cover.pts, cu = meta.cover.uv;
@@ -357,7 +379,7 @@ async function main() {
     gl.uniform4f(u.uCov, cov.c[0], cov.c[1], cov.half, cov.r); gl.uniform3f(u.uCov2, cov.rot, cov.squash, artY);
     gl.uniform1f(u.uArtGain, ART_GAIN); gl.uniform3f(u.uTint, 1.0, 0.86, 0.82); gl.uniform1f(u.uAbsorb, LIGHT.absorb);
     gl.uniform4f(u.uLight, LIGHT.soft, LIGHT.band, LIGHT.lobe, LIGHT.spill); gl.uniform1f(u.uMiddle, LIGHT.middle);
-    gl.uniform3fv(u.uArtMean, artMean);
+    gl.uniform3fv(u.uArtMean, artMean); gl.uniform2f(u.uBaked, LIGHT.baked || 0, lightRef);
     gl.uniform3fv(u.uWarm, warm);
     tex(u.uBack, back.tex); tex(u.uArt, artTex); tex(u.uEnv, envTex); tex(u.uEnvSoft, softTex);
     gl.bindVertexArray(vao); gl.drawElements(gl.TRIANGLES, nt * 3, gl.UNSIGNED_INT, 0);

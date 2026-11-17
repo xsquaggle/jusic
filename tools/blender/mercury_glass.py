@@ -518,6 +518,28 @@ def zebra_scene():
     wn.links.new(mr.outputs['Result'], bg.inputs['Color']); wn.links.new(bg.outputs['Background'], o_.inputs['Surface'])
     scene.view_settings.view_transform = 'Standard'; scene.view_settings.look = 'None'
 
+def bake_light(g):
+    """The studio's light reaching each point of the glass, baked per vertex in Cycles (direct and bounced, the glass
+    standing in as white diffuse): the light that enters the glass there. The live glass uses it for the glow it holds
+    and the bands along its rims, in place of the light pass's hand-set terms."""
+    scene = bpy.context.scene
+    me = g.data
+    attr = me.color_attributes.get('MercuryLight') or me.color_attributes.new('MercuryLight', 'FLOAT_COLOR', 'POINT')
+    me.color_attributes.active_color = attr
+    keep = me.materials[0]
+    m, nt, out = node_mat('MercuryBakeWhite'); df = nt.nodes.new('ShaderNodeBsdfDiffuse'); df.inputs['Color'].default_value = (1, 1, 1, 1)
+    nt.links.new(df.outputs['BSDF'], out.inputs['Surface']); me.materials[0] = m
+    for o in scene.objects: o.select_set(False)
+    g.select_set(True); bpy.context.view_layer.objects.active = g
+    bk = scene.render.bake; bk.target = 'VERTEX_COLORS'; bk.use_pass_direct = True; bk.use_pass_indirect = True; bk.use_pass_color = False
+    bpy.ops.object.bake(type='DIFFUSE', pass_filter={'DIRECT', 'INDIRECT'}, target='VERTEX_COLORS')
+    me.materials[0] = keep
+    n = len(me.vertices); buf = np.empty(n * 4, np.float32); me.color_attributes['MercuryLight'].data.foreach_get('color', buf)
+    irr = buf.reshape(n, 4)[:, :3].copy()
+    lum = irr @ np.array([0.2126, 0.7152, 0.0722], np.float32)
+    print('baked light: mean %.3f, p50 %.3f, p90 %.3f, max %.3f' % (lum.mean(), np.percentile(lum, 50), np.percentile(lum, 90), lum.max()))
+    return irr
+
 def export_live(d):
     """For the live 3D spike (prototypes/glass3d/): the glass mesh with its smooth normals, the cover, the camera, the
     timeline's and volume's lines and beads, the studio as a 360-degree light map (the scene from the drop's middle with
@@ -535,6 +557,8 @@ def export_live(d):
     tri = np.empty(len(me.loop_triangles) * 3, np.int32); me.loop_triangles.foreach_get('vertices', tri)
     with open(os.path.join(d, 'glass.bin'), 'wb') as f:
         co.tofile(f); nr.tofile(f); tri.astype(np.uint32).tofile(f)
+    if 'nobake' not in FLAGS:
+        bake_light(g).astype(np.float32).tofile(os.path.join(d, 'light.bin')); meta['light'] = 'light.bin'
     meta['glass'] = {'verts': n, 'tris': len(me.loop_triangles)}
     # The cover's face: its outline (Blender coordinates) and the art's coordinates there.
     cv = bpy.data.objects['MercuryCover'].data
