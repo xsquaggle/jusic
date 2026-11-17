@@ -14,7 +14,9 @@ export const L = {
   lobeL: { c: [186, 197], r: 128 },          // the left lobe: a full round bulb
   // The body drawing out of the bulb toward the waist. Its lower edge is one long straight
   // rise, which the timeline rides; its upper edge is cut away by the pinch.
-  bridge: { a: [236, 226], b: [545, 200], ra: 96, rb: 72, k: 36 },
+  // (Round 67, lined up with the main reference before measuring: ra 81 where it was 96, so the lower edge
+  // from x 240 to 320 lies about 15 units higher, as the reference's does.)
+  bridge: { a: [236, 226], b: [545, 200], ra: 81, rb: 72, k: 36 },
   // The right lobe: a round shoulder and, beyond it, the end itself, a little smaller and lower.
   lobeR: { c: [645, 189], r: 101, k: 40 },
   crest: { c: [706, 198], r: 88, k: 50 },
@@ -88,7 +90,8 @@ export const L = {
   // back by 'yaw' (12 degrees), seen in perspective from 'persp' units away, so its right edge is
   // drawn about 5% shorter than its left, as the flow reference's cover is.)
   // (Round 57: square on again, as the main reference's cover is; yaw was 0.21 in rounds 49 to 56.)
-  cover: { c: [188, 175], half: 74, r: 19, rot: -0.07, lean: 0.0012, squash: 0.965, yaw: 0, persp: 600 },
+  // (Round 67: 8 units higher, c y 167 where it was 175, as the main reference's cover sits.)
+  cover: { c: [188, 167], half: 74, r: 19, rot: -0.07, lean: 0.0012, squash: 0.965, yaw: 0, persp: 600 },
   // The hollow it presses: how deep, how far out the liquid starts to sink toward it, and how
   // high what it pushes aside stands up beyond that.
   // (Round 49, the owner: the cover "a little bit heavy squishing into it". It presses deeper, 6 where it

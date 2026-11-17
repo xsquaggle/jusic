@@ -1,0 +1,77 @@
+{
+ "out": "design/captures/mercury-glass-round67-half.png",
+ "width": 1733,
+ "title": "Round 67, a smooth form and a soft room (half size; ?mat=2, generated cover): the reference, round 66 and round 67 at the same framing",
+ "rows": [
+  [
+   {
+    "label": "reference, cover to buttons",
+    "src": "design/references/widget-mercury.png",
+    "crop": [
+     65,
+     197,
+     1134,
+     577
+    ],
+    "w": 567
+   },
+   {
+    "label": "round 66, cover to buttons",
+    "src": "design/captures/raw/round66-B/dark.png",
+    "crop": [
+     150,
+     125,
+     690,
+     351
+    ],
+    "w": 567
+   },
+   {
+    "label": "round 67, cover to buttons",
+    "src": "design/captures/raw/round67-B/dark.png",
+    "crop": [
+     150,
+     125,
+     690,
+     351
+    ],
+    "w": 567
+   }
+  ],
+  [
+   {
+    "label": "reference, title to tail tip",
+    "src": "design/references/widget-mercury.png",
+    "crop": [
+     498,
+     217,
+     1113,
+     515
+    ],
+    "w": 557
+   },
+   {
+    "label": "round 66, title to tail tip",
+    "src": "design/captures/raw/round66-B/dark.png",
+    "crop": [
+     414,
+     138,
+     677,
+     314
+    ],
+    "w": 557
+   },
+   {
+    "label": "round 67, title to tail tip",
+    "src": "design/captures/raw/round67-B/dark.png",
+    "crop": [
+     414,
+     138,
+     677,
+     314
+    ],
+    "w": 557
+   }
+  ]
+ ]
+}

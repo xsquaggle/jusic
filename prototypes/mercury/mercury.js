@@ -24,7 +24,7 @@ const rand = (a, b) => a + Math.random() * (b - a);
 /** The most pixels the liquid is ever drawn at, however large the widget or dense the display. */
 export const MAX_RENDER = [1920, 1080];
 
-export function createMercury(canvas, { reducedMotion = false, family, maxRender = MAX_RENDER, material = 1 } = {}) {
+export function createMercury(canvas, { reducedMotion = false, family, maxRender = MAX_RENDER, material = 1, zebra = false } = {}) {
   const gl = canvas.getContext('webgl2', {
     alpha: true, premultipliedAlpha: true, antialias: false, depth: false, stencil: false,
     powerPreference: 'high-performance', preserveDrawingBuffer: false,
@@ -84,6 +84,12 @@ export function createMercury(canvas, { reducedMotion = false, family, maxRender
     down: program(S.BLOOM_DOWN),
     up: program(S.BLOOM_UP),
     composite: program(S.COMPOSITE),
+    // Material 2 (round 67): its form baked once into a texture whenever it changes, blurred, its slope stored.
+    ...(material > 1.5 ? {
+      bake2: program(S.SURFACE.replace('precision highp float;', 'precision highp float;\n#define BAKE2 1')),
+      bakeBlur: program(S.BAKE_BLUR),
+      bakeFinal: program(S.BAKE_FINAL),
+    } : {}),
   };
 
   const quad = gl.createVertexArray();
@@ -140,6 +146,17 @@ export function createMercury(canvas, { reducedMotion = false, family, maxRender
     fwd: target(DYE_W, DYE_H),
     bwd: target(DYE_W, DYE_H),
   };
+
+  // Material 2's bake (round 67): one texel per stage unit, full float. A raw (height, outline, ridge), B and C
+  // the blur's two passes, D the result (height, slope, curvature), read with linear filtering.
+  const F32 = { internal: gl.RGBA32F, format: gl.RGBA, type: gl.FLOAT };
+  function floatTarget(filter) {
+    const fbo = gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+    const t = texture(STAGE.w, STAGE.h, F32, filter);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, t, 0);
+    return { fbo, tex: [t], w: STAGE.w, h: STAGE.h, texel: [1 / STAGE.w, 1 / STAGE.h] };
+  }
+  const bake = material > 1.5 ? { a: floatTarget(gl.LINEAR), b: floatTarget(gl.NEAREST), c: floatTarget(gl.NEAREST), d: floatTarget(gl.LINEAR), key: '' } : null;
 
   let scene = null;        // body + aura, rendered larger than the canvas
   let bloom = [];          // half, quarter, eighth, ...
@@ -710,7 +727,34 @@ export function createMercury(canvas, { reducedMotion = false, family, maxRender
     gl.disable(gl.BLEND);
     uploadBackdrop();
 
-    let u = use(P.surface);
+    let u;
+    if (bake) {
+      // Bake material 2's form again only when what it rests on has changed: the cover's place, the forming.
+      const [bx, by] = tile();
+      const key = [bx.toFixed(2), by.toFixed(2), sp.form.x.toFixed(3)].join();
+      if (key !== bake.key) {
+        bake.key = key;
+        u = use(P.bake2);
+        bind(bake.a);
+        gl.uniform2f(u.uRes, STAGE.w, STAGE.h);
+        gl.uniform1f(u.uScale, 1);
+        gl.uniform1f(u.uMat, material);
+        gl.uniform1f(u.uForm, sp.form.x);
+        gl.uniform4f(u.uTile, bx, by, 0, 0);
+        L.buttons.forEach((b, i) => btnUniform.set([b.c[0], b.c[1], b.r, 0], i * 4));
+        gl.uniform4fv(u.uBtn, btnUniform);
+        gl.uniform1f(u.uSwell, 0);
+        gl.uniform3f(u.uUtil, 0, 0, 0);
+        draw();
+        u = use(P.bakeBlur);
+        bind(bake.b); sampler(u.uSrc, bake.a.tex[0]); gl.uniform2f(u.uDir, 1, 0); draw();
+        u = use(P.bakeBlur);
+        bind(bake.c); sampler(u.uSrc, bake.b.tex[0]); gl.uniform2f(u.uDir, 0, 1); draw();
+        u = use(P.bakeFinal);
+        bind(bake.d); sampler(u.uBlur, bake.c.tex[0]); sampler(u.uRaw, bake.a.tex[0]); draw();
+      }
+    }
+    u = use(P.surface);
     bind(scene);
     gl.uniform2f(u.uRes, scene.w, scene.h);
     gl.uniform1f(u.uScale, scale);
@@ -761,6 +805,8 @@ export function createMercury(canvas, { reducedMotion = false, family, maxRender
     gl.uniform2f(u.uBackPx, Math.max(1e-3, back.map[2] * back.w), Math.min(1, Math.max(0, sp.refract.x)));
     gl.uniform1f(u.uGlassFloor, back.floor);
     gl.uniform1f(u.uMat, material);
+    if (bake) { sampler(u.uH2, bake.d.tex[0]); sampler(u.uR2, bake.a.tex[0]); }
+    gl.uniform1f(u.uZebra, zebra ? 1 : 0);
     draw();
 
     // Bloom: keep what is brighter than white, blur it down a pyramid and back up.

@@ -1,0 +1,39 @@
+{
+ "out": "design/captures/mercury-zebra-round67.png",
+ "width": 1830,
+ "title": "Zebra view (?zebra=1): the room as even stripes of the sky; kinks and dents show as broken or wobbly stripes (?mat=2)",
+ "rows": [
+  [
+   {
+    "label": "round 66 (before)",
+    "src": "design/captures/raw/round66-z/dark.png",
+    "crop": [
+     90,
+     50,
+     1022,
+     513
+    ]
+   },
+   {
+    "label": "round 67 (after), playing",
+    "src": "design/captures/raw/round67-Z/dark.png",
+    "crop": [
+     90,
+     50,
+     1022,
+     513
+    ]
+   },
+   {
+    "label": "round 67, paused",
+    "src": "design/captures/raw/round67-Z/dark-paused.png",
+    "crop": [
+     90,
+     50,
+     1022,
+     513
+    ]
+   }
+  ]
+ ]
+}

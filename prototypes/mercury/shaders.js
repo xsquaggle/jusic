@@ -24,10 +24,10 @@ export const RIPPLES = 10;
  * 8 units lower than the reference's, past our longer title, between our buttons and the volume, into our
  * tail tip. Stage units; the curve runs smoothly through every point.
  */
-const RIDGE2_PTS = [[92, 264], [115, 261], [140, 259.5], [170, 257], [200, 255], [230, 253], [260, 251], [290, 249],
-  [330, 247], [370, 245.5], [410, 243], [440, 238], [465, 227], [490, 207], [512, 182], [532, 160], [552, 143],
+const RIDGE2_PTS = [[92, 256], [115, 253], [140, 251.5], [170, 249], [200, 247], [230, 245], [260, 243.5], [290, 243],
+  [330, 242], [370, 240], [405, 236], [430, 228], [455, 214], [480, 195], [502, 174], [524, 155], [546, 141],
   [578, 136], [610, 134], [642, 134], [675, 138], [706, 146], [735, 156], [757, 170], [771, 186], [778, 204],
-  [782, 217], [789, 227]];
+  [782, 217], [789, 227]];   // (round 67: under the cover 8 higher, as the cover now is; the sweep about 10 units left, past the smaller title)
 const RIDGE2_COVER_END = 6;    // the point just past the cover's lower right corner
 const RIDGE2_TWIST = 16;       // the twist
 function ridgeCurve(pts, per) {
@@ -45,7 +45,41 @@ function ridgeCurve(pts, per) {
   const along = [0]; for (let i = 1; i < out.length; i++) along.push(along[i - 1] + Math.hypot(out[i][0] - out[i - 1][0], out[i][1] - out[i - 1][1]));
   return { pts: out, along, marks };
 }
-const RIDGE2 = ridgeCurve(RIDGE2_PTS, 4);
+// (Round 67, at the owner's word: run exactly through all 28 hand-placed points, the curve carried the
+// tracing's small wobbles into the glass, and a mirror shows every one. It is now a cubic B-spline of 7 smooth
+// spans fitted to them by least squares, with a little stiffness, ending on the first and last points.)
+function ridgeFit(pts, spans, stiff) {
+  const n = spans + 3;                               // control points
+  const knots = [0, 0, 0, 0]; for (let i = 1; i < spans; i++) knots.push(i / spans); knots.push(1, 1, 1, 1);
+  const basis = (u) => {                             // Cox-de Boor, degree 3
+    const N = new Array(n).fill(0); if (u >= 1) { N[n - 1] = 1; return N; }
+    let N0 = knots.slice(0, -1).map((k, i) => (u >= k && u < knots[i + 1] ? 1 : 0));
+    for (let p = 1; p <= 3; p++) N0 = N0.slice(0, -1).map((_, i) => {
+      const a = knots[i + p] - knots[i], b = knots[i + p + 1] - knots[i + 1];
+      return (a ? (u - knots[i]) / a * N0[i] : 0) + (b ? (knots[i + p + 1] - u) / b * N0[i + 1] : 0);
+    });
+    return N0.slice(0, n);
+  };
+  const along = [0]; for (let i = 1; i < pts.length; i++) along.push(along[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+  const us = along.map((a) => a / along[along.length - 1]);
+  // normal equations for the interior control points (the ends are fixed on the first and last points)
+  const m = n - 2, A = Array.from({ length: m }, () => new Array(m).fill(0)), B = Array.from({ length: m }, () => [0, 0]);
+  const P0 = pts[0], Pn = pts[pts.length - 1];
+  us.forEach((u, k) => { const N = basis(u); const r = [pts[k][0] - N[0] * P0[0] - N[n - 1] * Pn[0], pts[k][1] - N[0] * P0[1] - N[n - 1] * Pn[1]];
+    for (let i = 0; i < m; i++) { for (let j = 0; j < m; j++) A[i][j] += N[i + 1] * N[j + 1]; B[i][0] += N[i + 1] * r[0]; B[i][1] += N[i + 1] * r[1]; } });
+  for (let i = 1; i < m - 1; i++) { A[i][i] += 2 * stiff; A[i][i - 1] -= stiff; A[i][i + 1] -= stiff; }   // a little stiffness: second differences
+  for (let c = 0; c < 2; c++) { const M = A.map((row, i) => [...row, B[i][c]]);
+    for (let i = 0; i < m; i++) { let pv = i; for (let r = i + 1; r < m; r++) if (Math.abs(M[r][i]) > Math.abs(M[pv][i])) pv = r; [M[i], M[pv]] = [M[pv], M[i]];
+      for (let r = 0; r < m; r++) if (r !== i) { const k = M[r][i] / M[i][i]; for (let j = i; j <= m; j++) M[r][j] -= k * M[i][j]; } }
+    for (let i = 0; i < m; i++) B[i][c] = M[i][m] / M[i][i]; }
+  const ctrl = [P0, ...B, Pn];
+  const out = []; for (let k = 0; k <= 140; k++) { const N = basis(k / 140); out.push([0, 1].map((c) => N.reduce((a, w, i) => a + w * ctrl[i][c], 0))); }
+  const al = [0]; for (let i = 1; i < out.length; i++) al.push(al[i - 1] + Math.hypot(out[i][0] - out[i - 1][0], out[i][1] - out[i - 1][1]));
+  const near = (q) => { let b = 0; out.forEach((p, i) => { if (Math.hypot(p[0] - q[0], p[1] - q[1]) < Math.hypot(out[b][0] - q[0], out[b][1] - q[1])) b = i; }); return b; };
+  const marks = []; marks[RIDGE2_COVER_END] = near(pts[RIDGE2_COVER_END]); marks[RIDGE2_TWIST] = near(pts[RIDGE2_TWIST]);
+  return { pts: out, along: al, marks, ctrl };
+}
+const RIDGE2 = ridgeFit(RIDGE2_PTS, 7, 0.0015);
 const g2 = (n) => (Math.round(n * 100) / 100).toFixed(2);
 const RIDGE2_GLSL = [
   `const int RIDGE2_N = ${RIDGE2.pts.length};`,
@@ -133,6 +167,9 @@ uniform sampler2D uBack;     // experiment: what is really behind the window, fr
 uniform vec4 uBackMap;       // stage position -> uv in uBack: xy offset, zw scale
 uniform vec2 uBackPx;        // x capture pixels per stage unit, y how much the refraction is in (0 = off)
 uniform float uMat;          // the material: 1 the painted light of rounds 11 to 62, 2 the material pass (round 63, ?mat=2)
+uniform sampler2D uH2;      // material 2, round 67: the form baked and smoothed: height, its slope (x, y), its curvature
+uniform sampler2D uR2;      // ...and the raw bake: height, distance to the outline, the ridge's field (across, along)
+uniform float uZebra;       // 1: the room is even horizontal stripes, to see the form's smoothness
 uniform float uGlassFloor;   // experiment: the least the body holds back away from its edges (0 = today's clear glass)
 
 ${SHAPE_GLSL}
@@ -462,7 +499,7 @@ const vec4 MAT2 = vec4(.05, .7, .3, .42);   // (round 66: the far face .7 where 
 // The light inside the glass (round 64): how bright where it is thickest; how much more toward the lower
 // edge, where the floor's light comes up through it; how far it takes the album's colour; how much less
 // of it lies under the words. (The reference's glass under the words is about 70,50,50, not black.)
-const vec4 GLOW2 = vec4(.08, .035, .3, .3);   // (round 66: .1 and .06 before the fat forms)
+const vec4 GLOW2 = vec4(.1, .04, .3, .3);   // (round 66: .1 and .06 before the fat forms)
 // The light trapped in the edge (round 64): a band just inside the outline, never outside it. How bright
 // its coloured sides, how bright its white-hot core, how far in it lies, how wide.
 const vec4 RIM2 = vec4(.22, .45, 5., 3.8);   // (round 66: .38 and .75 until the forms were fat; their rims now carry light of their own)
@@ -473,6 +510,8 @@ const vec3 SOFT2 = vec3(.2, .004, .03);
 // Refracting: the most of what is behind the window that passes into the body (it reached .48 at the rims
 // and about .39 elsewhere in round 63), and how much darker the thickest glass smokes it (round 64, the owner's answer to the audit's gap 8: 35 to 45%).
 const vec2 SEE2 = vec2(.4, .35);
+// Round 67: how much darker the glass behind the words, and round the cover.
+const vec2 WORDS2 = vec2(.28, .18);
 // How much of the room's soft fills the far face shows (round 64).
 const float BACK2 = .1;
 // How much less light inside the glass while it refracts what is behind the window (round 64).
@@ -536,10 +575,17 @@ void ridge2(vec2 p) {
   gRidgeAt = p;
 }
 // The ridge's field at a point near the pixel: x across, y along.
+// Where a stage point lies in the baked textures.
+vec2 uvH(vec2 q) { return vec2(q.x / STAGE.x, 1. - q.y / STAGE.y); }
+#ifdef BAKE2
 vec2 ridgeAt(vec2 p) {
   vec2 o = p - gRidgeAt;
   return vec2(gRidge.x + dot(o, gRidge.zw), gRidge.y + dot(o, vec2(-gRidge.w, gRidge.z)));
 }
+#else
+// (Round 67: read from the bake, where it was worked out once for every point of the stage.)
+vec2 ridgeAt(vec2 p) { return texture(uR2, uvH(p)).zw; }
+#endif
 // Right of the twist (the sheet and its channel) rather than left of it (the dent), and on the ridge at all.
 float sheetSide(float sA) { return smoothstep(RIDGE2_MARK.y - 25., RIDGE2_MARK.y + 25., sA); }
 float ridgeLive(float sA) { return smoothstep(-6., 26., sA) * smoothstep(RIDGE2_MARK.z + 4., RIDGE2_MARK.z - 4., sA); }
@@ -580,7 +626,9 @@ float form2(vec2 p, float d) {
   return h;
 }
 
+float dyn2(vec2 p0);
 float base(vec2 p0) {
+  if (uMat > 1.5) return texture(uH2, uvH(warp(p0))).r + dyn2(p0);   // (round 67: material 2's form is baked)
   vec2 p = warp(p0);
   float d = outlineB(p);
 
@@ -680,6 +728,35 @@ float base(vec2 p0) {
   return h;
 }
 
+// Material 2's form at rest, as baked (round 67): the form, the bulb's crown, the cover's pocket and the wells.
+float static2(vec2 q) {
+  float h = form2(q, outlineB(q));
+  vec2 a = q - vec2(186., 196.);
+  h += BULB_CROWN * pow(max(1. - dot(a, a) / (BULB.z * BULB.z), 0.), 1.5);
+  h -= POCKET2.x * smoothstep(POCKET2.y, 0., tileSdf(q, uTile.xy)) * smoothstep(.72, 1., uForm);
+  for (int i = 0; i < 3; i++) {
+    float r = uBtn[i].z, rho = length(q - uBtn[i].xy);
+    float well = smoothstep(r + WELL2.y, r - WELL2.z, rho);
+    h -= WELL2.x * well + 1.5 * well * max(1. - rho * rho / (r * r), 0.);
+  }
+  return h;
+}
+// What moves on it: the music's waves and the highs' shiver (small in material 2), and the beads.
+float dyn2(vec2 p0) {
+  vec2 p = warp(p0);
+  float hs = texture(uH2, uvH(p)).r, h = hs;
+  float lower = smoothstep(226., 300., p.y) * smoothstep(RIDGE2_H.y * .8, RIDGE2_H.y * 2.6, -ridgeAt(p).x);
+  h += 2.8 * uAudio.x * .15 * sin(p.x * .022 - uTime * 2.2 + .6 * sin(p.y * .03)) * lower;
+  h += 1.1 * uAudio.y * .15 * sin(p.x * .052 + p.y * .02 - uTime * 3.4) * lower;
+  h += .35 * uAudio.z * .33 * sin(p.x * .21 + uTime * 9.) * sin(p.y * .19 - uTime * 7.);
+  vec4 bd = beads(p);
+  if (bd.z > .5) {
+    float own = smoothstep(-1., 4., outline(p)) * smoothstep(3., -1., bd.x);
+    h = mix(h, bd.z * 1.1 * sqrt(max(1. - bd.w * bd.w / (bd.z * bd.z), 0.)) - max(bd.x, 0.) * 3., own);
+  }
+  return h - hs;
+}
+
 // Everything pressed into the form or standing on it. Sampled finely, so rims
 // and grooves stay sharp.
 float detail(vec2 p0) {
@@ -730,8 +807,7 @@ float detail(vec2 p0) {
     bank *= 1. - .75 * shelfAt(p, dTile).y;
     // (Round 65: the pocket's slope cuts into the ridge's upper flank under the cover, so the cover sinks into the
     // ridge it rests on. Shallower along the ridge, it left a small knob at each of the cover's lower corners.)
-    if (uMat > 1.5) h -= POCKET2.x * smoothstep(POCKET2.y, 0., dTile) * pressed;
-    else h += (POCKET.z * bank - (POCKET.x + POCKET.z) * (1. - sqrt(max(1. - tw * tw, 0.)))) * pressed;
+    if (uMat < 1.5) h += (POCKET.z * bank - (POCKET.x + POCKET.z) * (1. - sqrt(max(1. - tw * tw, 0.)))) * pressed;
   }
 
   // Buttons: each is one smooth bowl pressed into the surface, with one rounded shoulder and
@@ -745,7 +821,7 @@ float detail(vec2 p0) {
     float wall = smoothstep(r + 2., r - 8., rho);
     if (uMat > 1.5) {
       float well = smoothstep(r + WELL2.y, r - WELL2.z, rho);
-      h -= (WELL2.x + 7. * press) * well + (1.5 + 2. * press) * well * max(1. - rho * rho / (r * r), 0.);
+      h -= 7. * press * well + 2. * press * well * max(1. - rho * rho / (r * r), 0.);   // (round 67: the well at rest is baked)
     } else
     h -= (5. + 7. * press) * wall + (2.2 + 2. * press) * wall * (1. - rho * rho / (r * r));
   }
@@ -853,12 +929,42 @@ vec3 env(vec3 r) {
   return c;
 }
 
+// Round 67, at the owner's word: the room for fat forms. On round glass the large crisp lamps of round 63
+// painted big blobs; the reference is smooth shading with narrow crisp highlights. So: a soft room with no
+// edges (light above, darker toward the horizon, warm off the floor) for the shading that shows the volume,
+// and three long thin strips for the highlights, which on a round roll show as a narrow line along it. Both
+// tinted gently toward the album's colour (WARM2: the strips, the room), which round 62 already turns to
+// silver for covers with little colour. ROOM2: above, round the horizon, off the floor. STRIP2: the strips.
+const vec2 WARM2 = vec2(.2, .38);
+const vec3 ROOM2 = vec3(1.35, .24, .65);
+const vec3 STRIP2 = vec3(3.2, 2.4, 2.);
+vec3 envSoft2(vec3 r, float fills) {
+  vec3 hueA = uPalA / max(max(uPalA.r, uPalA.g), max(uPalA.b, 1e-3));
+  vec3 wL = mix(vec3(1.), hueA, WARM2.x), wR = mix(vec3(1.), hueA, WARM2.y);
+  vec3 hot = mix(vec3(dot(mix(uPalA, vec3(1.), .1), vec3(.2126, .7152, .0722))), mix(uPalA, vec3(1.), .1), .6);
+  float left = smoothstep(.9, -.9, r.x);
+  vec3 c = wR * (ROOM2.x * smoothstep(-.05, 1., r.y) * (.75 + .25 * left) + ROOM2.y * exp(-r.y * r.y / .06)) * fills;
+  c += hot * ROOM2.z * smoothstep(.05, -.65, r.y) * mix(1., fills, .5);
+  // The strips: one long one overhead and a little in front, running left to right; one down the upper left;
+  // one tall and narrow behind on the right.
+  c += wL * STRIP2.x * (.55 + .45 * left) * softbox(r, normalize(vec3(0., .82, .57)), vec3(1., 0., 0.), vec2(1.5, .03), .015);
+  c += wL * STRIP2.y * softbox(r, normalize(vec3(-.62, .48, .62)), normalize(vec3(.6, .64, .48)), vec2(.75, .025), .015);
+  c += wL * STRIP2.z * softbox(r, normalize(vec3(.88, .12, -.46)), normalize(vec3(.46, 0., .88)), vec2(.035, .7), .015);
+  return c + vec3(.004, .003, .003);
+}
+// What the zebra view shows instead of the room: even stripes by height in the sky.
+float zebra2(vec3 r) {
+  float sv = sin(asin(clamp(r.y, -1., 1.)) * 18.);
+  float w = fwidth(sv) * .8 + 1e-3;
+  return smoothstep(-w, w, sv);
+}
 // Material 2's room: near black, with a few large lamps whose edges are crisp. fills: how much of the
 // three soft fills (in front, round the horizon, behind) is in it. (Round 64: the far face, seen through
 // the glass and all of it past the critical angle, mirrored those even fills as an even silver ring
 // round the whole rim; through the glass only the lamps and the floor are seen, so the rims carry bright
 // streaks with dark between them and the floor's warmth low down.)
 vec3 env2(vec3 r, float fills) {
+  if (uMat > 1.5) return envSoft2(r, fills);   // (round 67: the soft room and its strips; what follows is round 63 to 66's room)
   vec3 c = vec3(.005, .005, .006);
   float left = smoothstep(.9, -.9, r.x);
   // A wide strip overhead, some 120 by 20 degrees, brightest on the left.
@@ -929,6 +1035,17 @@ float ink(vec2 q, float blur) {
 /* ------------------------------------------------------------------ main --- */
 
 void main() {
+#ifdef BAKE2
+  {
+    // (Round 67: material 2's form at rest, worked out once for every point of the stage.)
+    vec2 q = vec2(gl_FragCoord.x, uRes.y - gl_FragCoord.y) / uScale;
+    ridge2(q);
+    oBody = vec4(static2(q), outlineB(q), gRidge.x, gRidge.y);
+    oAura = vec4(0.);
+    oGlass = vec4(0.);
+    return;
+  }
+#endif
   vec2 p = vec2(gl_FragCoord.x, uRes.y - gl_FragCoord.y) / uScale;
   float px = 1. / uScale;
   vec2 pw = warp(p);
@@ -986,13 +1103,25 @@ void main() {
   if (covTop > 0.) {
     /* ---- normal from the height's slope, and how fast it turns ---- */
     float eb = max(2.6, 2. * px), ed = max(.8, .9 * px);
-    if (uMat > 1.5) ridge2(pw);
-    float b0 = base(p), bxp = base(p + vec2(eb, 0.)), bxm = base(p - vec2(eb, 0.)), byp = base(p + vec2(0., eb)), bym = base(p - vec2(0., eb));
+    vec2 slopeB; float curvB;                                // the form
+    if (uMat > 1.5) {
+      // (Round 67: the form is baked, smoothed inside the body and its slope stored, so its normal is smooth and
+      // read once; only what moves on it is worked out here.)
+      vec4 R2 = texture(uR2, uvH(pw));
+      gRidge = vec4(R2.z, R2.w, 0., 0.);
+      gRidgeAt = pw;
+      vec4 HB = texture(uH2, uvH(warp(p)));
+      float c0 = dyn2(p), cxp = dyn2(p + vec2(eb, 0.)), cxm = dyn2(p - vec2(eb, 0.)), cyp = dyn2(p + vec2(0., eb)), cym = dyn2(p - vec2(0., eb));
+      slopeB = HB.yz + vec2(cxp - cxm, cyp - cym) / (2. * eb);
+      curvB = HB.w + (abs(cxp + cxm - 2. * c0) + abs(cyp + cym - 2. * c0)) / (eb * eb);
+    } else {
+      float b0 = base(p), bxp = base(p + vec2(eb, 0.)), bxm = base(p - vec2(eb, 0.)), byp = base(p + vec2(0., eb)), bym = base(p - vec2(0., eb));
+      slopeB = vec2(bxp - bxm, byp - bym) / (2. * eb);
+      curvB = (abs(bxp + bxm - 2. * b0) + abs(byp + bym - 2. * b0)) / (eb * eb);
+    }
     float t0 = detail(p), txp = detail(p + vec2(ed, 0.)), txm = detail(p - vec2(ed, 0.)), typ = detail(p + vec2(0., ed)), tym = detail(p - vec2(0., ed));
-    vec2 slopeB = vec2(bxp - bxm, byp - bym) / (2. * eb);     // the form
     vec2 slopeD = vec2(txp - txm, typ - tym) / (2. * ed);     // what is pressed into it, and what ripples across it
-    float curv = (abs(bxp + bxm - 2. * b0) + abs(byp + bym - 2. * b0)) / (eb * eb)
-               + (abs(txp + txm - 2. * t0) + abs(typ + tym - 2. * t0)) / (ed * ed);
+    float curv = curvB + (abs(txp + txm - 2. * t0) + abs(typ + tym - 2. * t0)) / (ed * ed);
     gSoft = clamp(max(curv * px * 1.2, curv * .3), .004, .3);
     // Inside a button's bowl nothing is mirrored sharply: one soft light on its wall, not rings.
     float bowl = 0.;
@@ -1656,6 +1785,9 @@ void main() {
       inside *= 1. - .65 * bowl;
       col = frontR * F2 + backR + inside * (1. - F2) * (1. - Fb);
       col += lumen * MAT2.w * (1. - F2) * (1. - .9 * cm);
+      // (Round 67: the glass behind the title and the artist and round the cover calm and a little darker, so
+      // the words always read cleanly.)
+      col *= 1. - WORDS2.x * clamp(pl.x, 0., 1.) - WORDS2.y * smoothstep(28., 2., dT) * born;
       // Light trapped in the edge: a band just inside the outline, white-hot at its core and coloured at
       // its sides, strongest along the bottom and in the tail at the right end, faint where the edge
       // faces up.
@@ -1812,6 +1944,9 @@ void main() {
     emis += hotA * (.5 + 1.4 * uVol.y) * exp(-dvb * dvb / (2. * vr * vr)) * (1. - uVol.w);
 
     col += emis * (1. - .3 * F) * born * mix(.7, 1.12, uSeekPull.z);
+
+    // The zebra view (?zebra=1, round 67): the form's smoothness alone, as even stripes of the sky.
+    if (uZebra > .5) col = vec3(.04) + vec3(.82) * zebra2(R);
 
     /* ---- how much it holds back of what is behind the window ----
        Nearly everything. The drop is dark glass with a colour of its own, so it looks the
@@ -2206,6 +2341,45 @@ void main() {
  * of the four samples under a pixel is tone-mapped on its own and only then
  * averaged, which is what keeps a white-hot rim from stair-stepping.
  */
+/* ======================================================== material 2's bake === */
+// Round 67: the baked height blurred inside the body (sigma 6 units; 3 left the creases of the outline's distance
+// field along the middle of each part, along one axis per pass), taking only
+// points of the glass, so the outside's steep fall does not pull the edge down. G, B, A carried through.
+export const BAKE_BLUR = HEAD + /* glsl */`
+out vec4 o;
+uniform sampler2D uSrc;
+uniform vec2 uDir;
+void main() {
+  ivec2 c = ivec2(gl_FragCoord.xy), hi = textureSize(uSrc, 0) - 1;
+  vec4 s0 = texelFetch(uSrc, c, 0);
+  // (Its width tapers toward the outline, 6 units deep inside and almost none at the edge: leaving out the
+  // outside instead made it one-sided there, and it drew a comb of short stripes along the edge.)
+  float sg = mix(.4, 6., smoothstep(1., 24., -s0.g));
+  float acc = 0., ws = 0.;
+  for (int k = -18; k <= 18; k++) {
+    vec4 sk = texelFetch(uSrc, clamp(c + ivec2(uDir) * k, ivec2(0), hi), 0);
+    float w = exp(-float(k * k) / (2. * sg * sg));
+    acc += sk.r * w; ws += w;
+  }
+  o = vec4(ws > 0. ? acc / ws : s0.r, s0.gba);
+}`;
+// ...and its slope and curvature: within a few units of the outline the raw height is kept, so the edge stays
+// crisp. Slope in stage units, y down.
+export const BAKE_FINAL = HEAD + /* glsl */`
+out vec4 o;
+uniform sampler2D uBlur;
+uniform sampler2D uRaw;
+float hf(ivec2 c) {
+  c = clamp(c, ivec2(0), textureSize(uBlur, 0) - 1);
+  vec4 b = texelFetch(uBlur, c, 0);
+  return mix(b.r, texelFetch(uRaw, c, 0).r, smoothstep(-10., -3., b.g));
+}
+void main() {
+  ivec2 c = ivec2(gl_FragCoord.xy);
+  float h = hf(c), xp = hf(c + ivec2(1, 0)), xm = hf(c - ivec2(1, 0)), yp = hf(c - ivec2(0, 1)), ym = hf(c + ivec2(0, 1));
+  o = vec4(h, (xp - xm) * .5, (yp - ym) * .5, abs(xp + xm - 2. * h) + abs(yp + ym - 2. * h));
+}`;
+
 export const COMPOSITE = HEAD + /* glsl */`
 out vec4 o;
 uniform sampler2D uBody;
