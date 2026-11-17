@@ -24,7 +24,7 @@ const rand = (a, b) => a + Math.random() * (b - a);
 /** The most pixels the liquid is ever drawn at, however large the widget or dense the display. */
 export const MAX_RENDER = [1920, 1080];
 
-export function createMercury(canvas, { reducedMotion = false, family, maxRender = MAX_RENDER } = {}) {
+export function createMercury(canvas, { reducedMotion = false, family, maxRender = MAX_RENDER, material = 1 } = {}) {
   const gl = canvas.getContext('webgl2', {
     alpha: true, premultipliedAlpha: true, antialias: false, depth: false, stencil: false,
     powerPreference: 'high-performance', preserveDrawingBuffer: false,
@@ -760,6 +760,7 @@ export function createMercury(canvas, { reducedMotion = false, family, maxRender
     gl.uniform4fv(u.uBackMap, back.map);
     gl.uniform2f(u.uBackPx, Math.max(1e-3, back.map[2] * back.w), Math.min(1, Math.max(0, sp.refract.x)));
     gl.uniform1f(u.uGlassFloor, back.floor);
+    gl.uniform1f(u.uMat, material);
     draw();
 
     // Bloom: keep what is brighter than white, blur it down a pyramid and back up.
@@ -768,6 +769,8 @@ export function createMercury(canvas, { reducedMotion = false, family, maxRender
     sampler(u.uBody, scene.tex[0]);
     sampler(u.uAura, scene.tex[1]);
     gl.uniform2fv(u.uTexel, scene.texel);
+    // (Material 2, round 63: only light above 1.5 blooms, at about half the strength.)
+    gl.uniform1f(u.uBloomTh, material > 1.5 ? 1.5 : 1);
     draw();
     u = use(P.down);
     for (let i = 1; i < bloom.length; i++) {
@@ -795,7 +798,7 @@ export function createMercury(canvas, { reducedMotion = false, family, maxRender
     sampler(u.uAura, scene.tex[1]);
     sampler(u.uGlass, scene.tex[2]);
     sampler(u.uBloom, bloom[0].tex[0]);
-    gl.uniform1f(u.uBloomAmt, 0.42);
+    gl.uniform1f(u.uBloomAmt, material > 1.5 ? 0.22 : 0.42);
     gl.uniform2f(u.uCanvasTexel, 1 / canvas.width, 1 / canvas.height);
     draw();
   }

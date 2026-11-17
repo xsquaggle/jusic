@@ -1,0 +1,84 @@
+{
+ "out": "design/captures/mercury-ab-round63.png",
+ "width": 1830,
+ "title": "Mercury A/B at half size: A, the painted light of rounds 11 to 62 (top), against B, the material pass of round 63 (?mat=2) (generated test cover)",
+ "rows": [
+  [
+   {
+    "label": "reference: widget-mercury.png",
+    "src": "design/references/widget-mercury.png",
+    "crop": [
+     20,
+     200,
+     1566,
+     590
+    ],
+    "w": 900
+   }
+  ],
+  [
+   {
+    "label": "A, dark desktop",
+    "src": "design/captures/raw/round63-A/dark.png",
+    "crop": [
+     90,
+     50,
+     1022,
+     513
+    ]
+   },
+   {
+    "label": "A, light wallpaper",
+    "src": "design/captures/raw/round63-A/light.png",
+    "crop": [
+     90,
+     50,
+     1022,
+     513
+    ]
+   },
+   {
+    "label": "A, white window",
+    "src": "design/captures/raw/round63-A/window.png",
+    "crop": [
+     90,
+     50,
+     1022,
+     513
+    ]
+   }
+  ],
+  [
+   {
+    "label": "B, dark desktop",
+    "src": "design/captures/raw/round63-B/dark.png",
+    "crop": [
+     90,
+     50,
+     1022,
+     513
+    ]
+   },
+   {
+    "label": "B, light wallpaper",
+    "src": "design/captures/raw/round63-B/light.png",
+    "crop": [
+     90,
+     50,
+     1022,
+     513
+    ]
+   },
+   {
+    "label": "B, white window",
+    "src": "design/captures/raw/round63-B/window.png",
+    "crop": [
+     90,
+     50,
+     1022,
+     513
+    ]
+   }
+  ]
+ ]
+}
