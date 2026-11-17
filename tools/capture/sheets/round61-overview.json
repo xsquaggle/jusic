@@ -1,0 +1,14 @@
+{ "out": "design/captures/mercury-still-round61.png", "width": 1616,
+  "title": "Mercury still, round 61: the bowls' rims lit above as raised rings; a dark gap inside the top edge's hot line (generated test cover)",
+  "rows": [
+  [ { "label": "reference: widget-mercury.png", "src": "design/references/widget-mercury.png", "crop": [20, 200, 1566, 590] } ],
+  [ { "label": "round 61", "src": "design/captures/raw/round61/dark.png", "crop": [110, 65, 990, 373] } ],
+  [ { "label": "main reference: the waist's top edge", "src": "design/references/widget-mercury.png", "crop": [376, 279, 421, 200] },
+    { "label": "round 60", "src": "design/captures/raw/round60/dark.png", "crop": [340, 175, 256, 122] },
+    { "label": "round 61: a dark gap inside the line", "src": "design/captures/raw/round61/dark.png", "crop": [340, 175, 256, 122] } ],
+  [ { "label": "main reference: the bowls", "src": "design/references/widget-mercury.png", "crop": [990, 370, 480, 190] },
+    { "label": "round 60", "src": "design/captures/raw/round60/dark.png", "crop": [720, 230, 300, 119] },
+    { "label": "round 61: lit above, outside the rims", "src": "design/captures/raw/round61/dark.png", "crop": [720, 230, 300, 119] } ],
+  [ { "label": "round 61, refracting: dark window behind", "src": "design/captures/raw/round61-refract/window-dark.png", "crop": [12, 12, 936, 456] },
+    { "label": "round 61, refracting: light window behind", "src": "design/captures/raw/round61-refract/window-light.png", "crop": [12, 12, 936, 456] } ]
+] }

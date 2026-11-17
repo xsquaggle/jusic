@@ -279,6 +279,10 @@ const vec3 BTN_THIN = vec3(6.5, .7, .3);   // (round 60, the main still again: 3
 // ours was 34,22,23; its middle 55,34,32, ours 29,19,20. How bright; how much of the light through the
 // glass is let into the bowls (it was .4).
 const vec2 BTN_GLOW = vec2(.2, .7);
+// The bowl's rim standing up as a ring, lit on its upper outside face (round 61): in the main reference the
+// glass just above each bowl, outside its edge, is bright warm silver (151 to 163) where ours was 97 to 134.
+// How bright; how far out it reaches (units, for a bowl of radius 37); how far toward the album's colour.
+const vec3 BTN_HALO = vec3(.3, 6., .45);
 const float BTN_KEY = .7;
 // The pod round the bowls: how bright the floor's light rising toward its lower rim; how bright it
 // gathers at the pod's right end; a little light in the gaps at the bowls' middle height.
@@ -313,7 +317,7 @@ const float RIM_TOP = .6;
 // top edge (7s over about 3 units across the waist's edge at x 320, warmth 1) with dark glass just inside
 // it, where ours had only a faint copper line in a soft band. How bright; where (units in from the
 // silhouette); half its width where it swells; how dark the glass just inside it.
-const vec4 EDGE_HOT = vec4(1.05, 2.2, 1.1, .35);
+const vec4 EDGE_HOT = vec4(1.05, 2.2, 1.1, .8);   // (w .35 in round 59)
 // How deep the shade is on the pocket's wall and bank to the right of the cover.
 const float WALL_R = .66;
 // The soft light at the top of the ring.
@@ -1035,6 +1039,8 @@ void main() {
       col *= mix(vec3(1.), vec3(1., .64, .5), max(cres, glowIn * 2.) * smoothstep(-1., 1., t));
       col += mix(mix(hotA, vec3(1., .56, .38), BTN_THIN.y + .4 * (1. - u)), vec3(1., .9, .82), .5 * hot) * BTN_RIM.x * big * (cres * .85 + BTN_THIN.z * hot);
       col += hotA * BTN_RIM.x * big * glowIn * glowIn;
+      float halo = smoothstep(0., 1.2, -t) * exp(t / (BTN_HALO.y * sc)) * smoothstep(.25, -.55, nb.y);
+      col += mix(vec3(1., .93, .9), hotA, BTN_HALO.z) * BTN_HALO.x * big * halo;
       float lowIn = smoothstep(-.05, .75, nb.y * rho / r) * smoothstep(r - 1., r * .5, rho);
       col += mix(hotA, vec3(1., .6, .45), .35) * BTN_GLOW.x * big * lowIn;
       col += hotA * BTN_RIM.y * big * low * smoothstep(-6.5 * sc, -.5, t) * smoothstep(.6, -.6, t);
@@ -1119,7 +1125,7 @@ void main() {
       // never out, with dark glass just inside it; until round 58 a faint copper line, out between swells.)
       float sw2 = .3 + .7 * swell;
       float hotT = smoothstep(.6, -.6, abs(-d - EDGE_HOT.y) - EDGE_HOT.z * sw2);
-      col *= 1. - EDGE_HOT.w * smoothstep(.9, -.9, abs(-d - (EDGE_HOT.y + EDGE_HOT.z * sw2 + 3.2)) - 1.7) * up * sw2 * born * (1. - inBead);
+      col *= 1. - EDGE_HOT.w * smoothstep(.9, -.9, abs(-d - (EDGE_HOT.y + EDGE_HOT.z * sw2 + 4.)) - 2.5) * up * sw2 * born * (1. - inBead);
       col += mix(vec3(1., .94, .9), mix(hotA, vec3(1., .72, .5), .5), .3) * EDGE_HOT.x * hotT * up * sw2 * born * (1. - inBead);
     }
 
@@ -1328,7 +1334,9 @@ void main() {
       float eRg = mix(EDGE_R, EDGE_R_LOBE, lobeE);
       float bandE = exp(-pow((max(-d, 0.) / eRg - EDGE_GLOW.y) / EDGE_GLOW.z, 2.));
       vec3 edgeTone = mix(mix(vec3(1., .86, .78), hotA, .35), mix(hotA, vec3(1., .7, .55), .35), down);
-      col += edgeTone * EDGE_GLOW.x * bandE * (1. + EDGE_GLOW.w * down) * drift * (1. - .7 * clamp(calm, 0., 1.)) * (1. - inBead) * born;
+      // (Round 61: less of it where the edge faces up, .45: there the main reference has dark glass from 6 to
+      // 12 units in, inside the hot line at the silhouette, and the glow lay right on it.)
+      col += edgeTone * EDGE_GLOW.x * bandE * (1. + EDGE_GLOW.w * down) * mix(.45, 1., down) * drift * (1. - .7 * clamp(calm, 0., 1.)) * (1. - inBead) * born;
     }
 
     /* ---- the spectral surface glowing through the fold ---- */

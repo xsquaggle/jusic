@@ -4,7 +4,9 @@
 
 ## Current status
 
-Updated 16 November 2026, after round 60. Step 2 of the owner's order of work is complete; **step 3 (polish the still) is under way: rounds 11 to 60 are done (56 tried and not kept).** Nothing is half-finished.
+Updated 16 November 2026, after round 61. Step 2 of the owner's order of work is complete; **step 3 (polish the still) is under way: rounds 11 to 61 are done (56 tried and not kept).** Nothing is half-finished.
+
+**Round 61:** the bowls' rims lit above as raised rings (`BTN_HALO`), and dark glass just inside the top edge's hot line (round 58's edge glow less where the edge faces up; `EDGE_HOT.w` .8). **Still waiting on the owner's separate visual audit**; act on what it finds first. Left from the measurements, largest first: the pod's glass copper-warm round the bowls as the main still's (ours a dusky pink-grey; with the generated cover hotA is a red, so judge warmth on the real covers too); the bowls' crescents copper rather than cream (strong light turns white in the tone curve: less light, more colour); the right end as a rounded lobe (round 56: try again now that the glass is lit from within); the pocket wall round the cover as the still's thick silver-pink glass.
 
 **Rounds 59 and 60 (the owner: "Keep refining. I'm going to have a separate agent run the visual audit so there's no conflict of interest, and I'll come back with what it finds."):** a hot peach-white line along the upper silhouette with dark glass inside it (`EDGE_HOT`), a brighter lit roll along the lower edge (`LOW_EDGE.x`), darker glass between the timeline and the lower edge (the light through the glass and the timeline's wide glow kept close); and the bowls back to the main still's broad coral crescents with a warm glow low inside (`BTN_THIN`, `BTN_RIM.x`, `BTN_GLOW`), measured part by part against it. **Waiting on the owner's separate visual audit**; act on what it finds first.
 

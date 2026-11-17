@@ -724,6 +724,12 @@ round 58          3 18 17 16 15 12  7  5  5  2                                .0
 - **The crescent is broad and coral again** (`BTN_THIN` 6.5 units at 6 o'clock, more coral, its core a little hotter and whiter; `BTN_RIM.x` 1), and **each bowl has a soft warm glow low inside** (`BTN_GLOW`), with more of the light through the glass let into the bowls.
 - Measured after: lower rims 178 to 203, lower insides 95 to 112, middles 41 to 49. Still a little less warm than the reference's (the play bowl's lower rim 203,177,165 against 224,175,161): strong light turns white in the tone curve, so more warmth there needs less light and more colour.
 
+## What round 61 changed (items 1 and 8: the bowls' rims as raised rings; the dark inside the top edge's line)
+
+- **Measured first** with `bowlstat.js`, now with two more parts: a ring just outside each bowl, above and below. Below, ours was already the main reference's (130 to 139 against 131 to 152); above, the reference's glass just outside each bowl is bright warm silver (151 to 163), the bowl's rim standing up as a ring and lit on its upper outside face, where ours was 97 to 134. **A soft warm light lies there now** (`BTN_HALO`), fading over 6 units outward and toward the bowls' sides: 120 to 145.
+- **The dark glass inside the top edge's hot line:** across the waist's edge at x 320 the reference reads `274111 3344` (the line, then 1s for about 6 units, then the body); ours `26533343` after round 59. Round 58's glowing edge lay right on that gap, so it is less where the edge faces up (.45 of it; it stays full where the edge faces the floor), and the dark inside the line is deeper and wider (`EDGE_HOT.w` .8, over 5 units): now `26522333`.
+- Seen as the opaque base, refracting over dark and light windows (`mercury-still-round61.png`), and with real covers.
+
 ## What changed on 14 November 2026 at the owner's word (the cursor's light; item 12 in part)
 
 - The owner found the light round the cursor "far too bright ... essentially completely white" and the title hard to read under it. Its core is now .55 (was 3.2) and its soft light .12 (was .2), it lies under the words, and words turn dark where it is bright behind them (`CURSOR_LIGHT`, `WORD_FLIP`). `mercury-cursor-light.png` shows before and after.
