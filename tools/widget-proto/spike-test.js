@@ -52,7 +52,10 @@ async function runSpike({ app, screen, createWidget, getWidget, args, REPO }) {
   const other = screen.getAllDisplays().find((d) => d.id !== primary.id);
   if (!other) { console.log('spike: no second monitor; test windows stay off the main screen, so nothing was run'); app.quit(); return; }
   const area = other.workArea;
-  await createWidget({ query: 'spike', display: 'other', x: area.x + 20, y: area.y + 20 });
+  // (motion=<kind>: the page draws only when something moves, as in use; a pretend pointer plays that interaction
+  // while it is measured, then everything is left to settle and the idle reading is what the page really does then)
+  const MOTION = args.motion || null;
+  await createWidget({ query: MOTION ? 'play' : 'spike', display: 'other', x: area.x + 20, y: area.y + 20 });
   const win = getWidget();
   win.showInactive();
   const run = (js) => win.webContents.executeJavaScript(js, true);
@@ -68,22 +71,31 @@ async function runSpike({ app, screen, createWidget, getWidget, args, REPO }) {
   const gpu = app.getAppMetrics().find((m) => m.type === 'GPU');
   // drawing every frame
   let card = wholeCard();
+  if (MOTION) await run(`window.__glass.gaps.length = 0; window.__glass.drive(${JSON.stringify(MOTION)}, ${SECONDS + 2}); 0`);
   const f0 = await run('window.__glass.frames'); const t0 = Date.now();
   const busy = gpu ? await gpuEngine(gpu.pid, SECONDS) : [];
   const f1 = await run('window.__glass.frames'); const t1 = Date.now();
   const cpuMs = await run('window.__glass.cpuMs');
+  // while it moves: the frames drawn back to back (gaps under 100 ms), their rate and how many came late (> 20 ms)
+  const gaps = MOTION ? await run('JSON.stringify(window.__glass.gaps)').then(JSON.parse) : [];
   const cardBusy = card.stop();
   // idle: the page stops drawing
-  await run('window.__glass.paused = true; 0');
-  await sleep(1500);
+  if (MOTION) await sleep(4500);            // the drive ends, the springs settle by themselves
+  else { await run('window.__glass.paused = true; 0'); await sleep(1500); }
+  const fi0 = await run('window.__glass.frames'); const ti0 = Date.now();
   card = wholeCard();
   const idle = gpu ? await gpuEngine(gpu.pid, Math.max(4, Math.round(SECONDS / 2))) : [];
   const cardIdle = card.stop();
+  const fi1 = await run('window.__glass.frames'); const ti1 = Date.now();
+  const info = MOTION ? await run('JSON.stringify(window.__glass.motionInfo ? window.__glass.motionInfo() : null)') : null;
   const r = {
     tag, photo: args.refract === 'live' ? 'none (refraction on)' : path.relative(REPO, file), size,
     drawing: { fps: round((f1 - f0) / ((t1 - t0) / 1000)), pageCpuMsPerFrame: round(cpuMs, 2),
       gpuProcess3dPercent: busy.length ? { mean: round(mean(busy)), max: round(Math.max(...busy)) } : 'no reading', wholeCard: cardBusy || 'nvidia-smi not available' },
-    idle: { gpuProcess3dPercent: idle.length ? { mean: round(mean(idle)), max: round(Math.max(...idle)) } : 'no reading', wholeCard: cardIdle || 'nvidia-smi not available' },
+    motion: MOTION || 'none (drawing every frame)',
+    stillMoving: info ? JSON.parse(info) : undefined,
+    whileMoving: gaps.length ? { fps: round(1000 / mean(gaps)), framesTimed: gaps.length, late: gaps.filter((g) => g > 20).length } : null,
+    idle: { framesPerSecond: round((fi1 - fi0) / ((ti1 - ti0) / 1000)), gpuProcess3dPercent: idle.length ? { mean: round(mean(idle)), max: round(Math.max(...idle)) } : 'no reading', wholeCard: cardIdle || 'nvidia-smi not available' },
   };
   console.log(JSON.stringify(r));
   fs.writeFileSync(path.join(OUT, `measure-${tag}.json`), JSON.stringify(r, null, 1));

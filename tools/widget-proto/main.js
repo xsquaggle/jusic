@@ -55,6 +55,7 @@ const TEST = args.test || null;
 // glass (prototypes/glass3d/, phase 2 of the 3D brief; q=<query> is handed on to it, frame=ref gives the reference's
 // framing, 1586 x 992).
 const PAGE = args.page === 'glass3d' ? 'glass3d' : 'mercury';
+const GLASS_PAGE = PAGE === 'glass3d';
 // Refraction is the look (the owner's decision, 13 November 2026): on unless refract=off, or glass= is being tried.
 // (test=spike photographs the page's own pixels, so it runs without refraction unless refract=live is given: a picture
 // must never carry what is really on the owner's screen.)
@@ -812,7 +813,8 @@ async function runRefractTest() {
  * on. The window is out of screen captures while it refracts, so the page composes what is really on the screen there
  * itself (the desktop under the window, the glass bending it, the words) and records that. It shows whatever is on that
  * monitor: it is written only to design/captures/raw/ (never committed) and handed to the owner directly.
- *   test=record page=glass3d [seconds=6] [out=<file.webm>]
+ *   test=record page=glass3d [seconds=6] [out=<file.webm>] [drive=cursor|dimple|ripple|press|buttons]
+ * With drive=, a pretend pointer (never the real mouse) plays that interaction and its cursor is drawn into the film.
  */
 async function runRecord() {
   const display = pickDisplay('other');
@@ -836,7 +838,8 @@ async function runRecord() {
   if (!p.sourceId || p.sourceId !== screenSources.get(String(display.id))) { console.log('record: the capture is not of this monitor; nothing recorded'); app.quit(); return; }
   for (let i = 0; i < 100 && !(await run('window.__glass.backdrop.frames > 5')); i++) await sleep(100);
   await sleep(1500);
-  const b64 = await run(`window.__glass.record(${Number(args.seconds) || 6})`);
+  // (drive=cursor|dimple|ripple|press|buttons: a pretend pointer plays that interaction, its cursor drawn in the film)
+  const b64 = await run(`window.__glass.record(${Number(args.seconds) || 6}, 30, ${args.drive ? JSON.stringify(args.drive) : 'null'})`);
   const out = path.resolve(REPO, args.out || 'design/captures/raw/mercury3d/desktop.webm');
   fs.mkdirSync(path.dirname(out), { recursive: true });
   fs.writeFileSync(out, Buffer.from(b64, 'base64'));
@@ -875,6 +878,11 @@ app.whenReady().then(async () => {
     ...(REFRACT ? [{
       label: 'Refraction (off: the widget shows in screenshots)', type: 'checkbox', checked: true,
       click: (item) => setRefracting(item.checked),
+    }] : []),
+    ...(GLASS_PAGE ? [{
+      // (Windows' own setting, Settings > Accessibility > Visual effects > Animation effects, is followed as well)
+      label: 'Reduced motion', type: 'checkbox', checked: false,
+      click: (item) => { if (widget) widget.webContents.send('widget:reduced', item.checked); },
     }] : []),
     { label: 'Quit', click: () => app.quit() },
   ]));

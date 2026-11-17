@@ -27,4 +27,6 @@ contextBridge.exposeInMainWorld('widgetHost', {
   media: (command, value) => ipcRenderer.send('widget:media-command', String(command), Number(value) || 0),
   /** Called with false when refraction is switched off from the tray menu, true when it is switched back on. */
   onRefract: (fn) => { ipcRenderer.on('widget:refract', (event, on) => fn(Boolean(on))); },
+  /** Called with true when Reduced motion is switched on from the tray menu (as well as Windows' own setting), false off. */
+  onReduced: (fn) => { ipcRenderer.on('widget:reduced', (event, on) => fn(Boolean(on))); },
 });

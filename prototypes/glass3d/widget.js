@@ -13,7 +13,12 @@
  *   - the click-through: the window lets the mouse through wherever the pointer is not over the model's real
  *     silhouette (its own pixels, read back from the GPU), and takes it back the moment the pointer is over it;
  *   - the buttons (previous, play/pause, next), a click on the timeline or the volume line, and dragging the window by
- *     the glass; nothing else of the interactions yet (phase 3, after the owner's OK).
+ *     the glass;
+ *   - phase 3, the cursor and the presses (see "motion" below): the glass turning toward the cursor (the highlights
+ *     slide, the upper sheet leans more), the dimple under the cursor, a click's ripple, a press squashing in and
+ *     wobbling back, the buttons sinking into their wells; reduced motion (Windows' setting, the tray's switch, ?still)
+ *     turns all of it off. The rest of phase 3 (seek and volume, the music, colour, the beads, the drop) waits for the
+ *     owner's OK on how these feel.
  * Draws only when something changed (a new screen frame, a new track, a second of the clock); ?spike draws every frame,
  * for measuring. Hooks for the shell's tests: window.__glass.
  *
@@ -21,9 +26,13 @@
  *   ?track=n  ?play  ?cover=<url>&title=&artist=&dur=   and every light-pass number by name (see LIGHT)
  *   ?deskimg=<url> (pictures only): a still image as the desktop behind the window, filling the canvas, bent through
  *   the glass as refraction would (for checking the look over a desktop at any size without the window)
+ *   ?still (reduced motion)  ?m_tilt= m_lean= m_dimple= m_press= m_rip= m_sink= (each interaction's strength; 0: off)
+ *   window.__glass.drive(kind, seconds): a pretend pointer playing cursor | dimple | ripple | press | buttons (the
+ *   shell's recordings and measures use it; the real mouse is never touched)
  */
 import { createGlass } from './renderer.js';
 import { paletteFromImage } from '../mercury/palette.js';
+import { Spring, Spring2 } from '../mercury/springs.js';
 
 const Q = new URLSearchParams(location.search);
 const WIDGET = Q.has('widget');
@@ -55,7 +64,7 @@ for (const k of Object.keys(LIGHT)) if (Q.has(k)) LIGHT[k] = Number(Q.get(k));
 
 const $ = (id) => document.getElementById(id);
 const under = $('under'), canvas = $('gl'), ink = $('ink');
-const state = { ready: false, formed: false, frames: 0, cpuMs: 0, error: null, paused: false, light: LIGHT };
+const state = { ready: false, formed: false, frames: 0, cpuMs: 0, error: null, paused: false, light: LIGHT, gaps: [], lastDrawAt: 0 };
 window.__glass = state;
 
 /* ----------------------------------------------------------------- player --- */
@@ -259,13 +268,20 @@ function paintWords() {
   const prog = d > 0 ? Math.min(1, t / d) : 0;
   track(LINES.timeline, prog); bead(along(LINES.timeline, prog), 9);
   track(LINES.volume, player.volume); bead(along(LINES.volume, player.volume), 7.5);
-  const glyph = (i) => `rgba(255,255,255,${player.dim.includes('ptn'[i]) ? 0.3 : 0.97})`;
+  const glyph = (i) => `rgba(255,255,255,${(player.dim.includes('ptn'[i]) ? 0.3 : 0.97) * (motion.downBtn === i ? 0.82 : 1)})`;
+  // a button's glyph sinks with its well's floor: a few per cent smaller as it goes back (its centre never moves)
+  const sunk = (i, draw) => {
+    const f = 1 - 0.07 * Math.min(1, motion.sink[i].x / SINK.down);
+    c.save(); c.translate(WELLS[i][0], WELLS[i][1]); c.scale(f, f); c.translate(-WELLS[i][0], -WELLS[i][1]); draw(); c.restore();
+  };
   const rr = (x, y, w, h, r) => { c.beginPath(); c.roundRect(x, y, w, h, r); c.fill(); };
   const tri = (ax, ay, bx, by, cx, cy) => { c.beginPath(); c.moveTo(ax, ay); c.lineTo(bx, by); c.lineTo(cx, cy); c.closePath(); c.fill(); };
-  c.fillStyle = glyph(0); rr(1062, 452, 5, 32, 1.5); tri(1095, 452, 1095, 484, 1069, 468);
-  c.fillStyle = glyph(1);
-  if (player.playing) { rr(1215, 435, 13, 51, 2.5); rr(1241, 435, 13, 51, 2.5); } else tri(1222, 434, 1222, 488, 1262, 461);
-  c.fillStyle = glyph(2); rr(1403, 452, 5, 32, 1.5); tri(1375, 452, 1375, 484, 1401, 468);
+  sunk(0, () => { c.fillStyle = glyph(0); rr(1062, 452, 5, 32, 1.5); tri(1095, 452, 1095, 484, 1069, 468); });
+  sunk(1, () => {
+    c.fillStyle = glyph(1);
+    if (player.playing) { rr(1215, 435, 13, 51, 2.5); rr(1241, 435, 13, 51, 2.5); } else tri(1222, 434, 1222, 488, 1262, 461);
+  });
+  sunk(2, () => { c.fillStyle = glyph(2); rr(1403, 452, 5, 32, 1.5); tri(1375, 452, 1375, 484, 1401, 468); });
   c.fillStyle = 'rgba(255,255,255,0.97)';
   rr(1185, 312, 8, 14, 1); tri(1192, 312, 1204, 303, 1204, 335); tri(1192, 312, 1204, 335, 1192, 326);
   c.strokeStyle = 'rgba(255,255,255,0.95)'; c.lineWidth = 2.6; c.lineCap = 'round';
@@ -324,6 +340,7 @@ function onMove(e) {
   }
   if (dragging === 'body' && host) host.drag('move');
   document.body.style.cursor = !h.inside ? 'default' : ['button', 'seek', 'volume'].includes(h.target) ? 'pointer' : 'grab';
+  motionMove(x, y, h);
 }
 function onDown(e) {
   if (e.button !== undefined && e.button !== 0) return;
@@ -332,6 +349,7 @@ function onDown(e) {
   if (!h.inside) return;
   if (e.preventDefault) e.preventDefault();
   downAt = { h, sx: e.screenX || 0, sy: e.screenY || 0 };
+  motionDown(x, y, h);
 }
 function onUp(e) {
   const [x, y] = local(e);
@@ -351,15 +369,182 @@ function onUp(e) {
     if (h.target === 'seek' && player.track.duration > 0) command('seek', h.progress * player.track.duration);
     if (h.target === 'volume') { player.volume = h.progress; paintWords(); }
   }
+  const wasDown = Boolean(downAt);
   dragging = null; downAt = null;
   passThrough(!h.inside);
+  if (wasDown) motionUp();
+}
+
+/* ---------------------------------------------------------------- motion --- */
+// Phase 3, the cursor and the presses: everything on springs (springs.js), so it carries momentum and settles on its
+// own. The glass turns a little toward the cursor (the highlights slide; the upper sheet leans more, the glass round
+// the controls hardly at all); a small dimple follows under the cursor, its reflection travelling with it; a click
+// sends a shallow ripple out from where it landed; a press squashes the glass in under the pointer (bulging round it)
+// and wobbles back on release; a button's well sinks a little under the pointer and more while pressed, its glyph
+// with it. Words and controls never move (the glyphs only shrink a few per cent as they sink). Nothing is drawn once
+// everything has settled. Reduced motion (Windows' setting, or ?still): none of it, only the glyphs dimming while
+// pressed. Strengths: ?m_tilt= m_lean= m_dimple= m_press= m_rip= m_sink= (0 turns one off).
+const RM = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
+const MOT = { tilt: 0.05, lean: 0.045, dimple: 0.045, dimpleR: 0.17, press: 0.07, pressR: 1.1, rip: 0.011, ripSpeed: 9, ripWave: 0.36,
+  ripDecay: 0.55, sink: 1 };
+for (const k of Object.keys(MOT)) if (Q.has('m_' + k)) MOT[k] = Number(Q.get('m_' + k));
+const SINK = { hover: 0.022, down: 0.055 };                 // how far a well's floor goes back (root units: 1 = 100 ref px)
+const motion = {
+  reduced: Q.has('still') || Boolean(RM && RM.matches),
+  tilt: new Spring2('glide'), lean: new Spring2('lean'),
+  dimpleAt: new Spring2({ k: 520, c: 40 }), dimple: new Spring('glide'), dimpleSeen: false,
+  press: new Spring('press'), pressAt: [0, 0],
+  rips: [],                                    // { x, z, t0 }: a click's ripple, in root units, started at t0 (s)
+  sink: [0, 1, 2].map(() => new Spring('press')), hoverBtn: -1, downBtn: -1,
+  pointer: null, last: 0,
+};
+/** Where a point of the page (CSS px) lies in the model's frame (root units: x right, z up). */
+function rootAt(cx, cy) {
+  const r = canvas.getBoundingClientRect();
+  const [u, v] = FRAME_REF ? [cx, cy] : toRef(cx / (r.width / STAGE.w), cy / (r.height / STAGE.h));
+  return [(u - G.meta.CX) * G.meta.S, (G.meta.CY - v) * G.meta.S];
+}
+function setReduced(on) {
+  motion.reduced = on;
+  if (on) {
+    motion.tilt.snap(0, 0); motion.lean.snap(0, 0); motion.dimple.snap(0); motion.press.snap(0); motion.rips = [];
+    motion.sink.forEach((s) => s.snap(0));
+  }
+  paintWords(); redraw();
+}
+// Windows' setting (Animation effects off), ?still, or the tray's switch
+let trayReduced = false;
+if (RM && RM.addEventListener) RM.addEventListener('change', () => setReduced(Q.has('still') || RM.matches || trayReduced));
+if (host && host.onReduced) host.onReduced((on) => { trayReduced = on; setReduced(Q.has('still') || Boolean(RM && RM.matches) || on); });
+function sinkTargets() {
+  const m = motion;
+  m.sink.forEach((s, i) => {
+    const t = m.reduced ? 0 : MOT.sink * (m.downBtn === i ? SINK.down : m.hoverBtn === i ? SINK.hover : 0);
+    if (t < s.target) s.set('pop'); else s.set('press');
+    s.target = t;
+  });
+}
+function motionMove(x, y, h) {
+  const m = motion, r = canvas.getBoundingClientRect();
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+  m.pointer = [x, y];
+  m.hoverBtn = h.inside && h.target === 'button' ? h.index : -1;
+  sinkTargets();
+  if (!m.reduced) {
+    // toward the cursor: the widget's middle is level, its edges turn the glass up to MOT.tilt
+    const nx = Math.max(-1.2, Math.min(1.2, (x - r.width / 2) / (r.width / 2))), ny = Math.max(-1.2, Math.min(1.2, (y - r.height / 2) / (r.height / 2)));
+    m.tilt.to(MOT.tilt * nx, -MOT.tilt * ny); m.lean.to(MOT.lean * nx, -MOT.lean * ny);
+    const p = rootAt(x, y);
+    if (h.inside) {
+      if (!m.dimpleSeen || m.dimple.x < 1e-3) m.dimpleAt.snap(p[0], p[1]); else m.dimpleAt.to(p[0], p[1]);
+      m.dimpleSeen = true;
+      m.dimple.target = MOT.dimple;
+    } else m.dimple.target = 0;
+    redraw();
+  }
+}
+function motionLeave() {
+  const m = motion;
+  m.pointer = null; m.hoverBtn = -1; m.tilt.to(0, 0); m.lean.to(0, 0); m.dimple.target = 0;
+  sinkTargets(); if (!m.reduced) redraw();
+}
+function motionDown(x, y, h) {
+  const m = motion;
+  if (h.target === 'button') m.downBtn = h.index;
+  sinkTargets();
+  if (!m.reduced) {
+    const p = rootAt(x, y);
+    if (MOT.rip > 0) { m.rips.push({ x: p[0], z: p[1], t0: performance.now() / 1000 }); if (m.rips.length > 4) m.rips.shift(); }
+    if (h.target !== 'button') { m.pressAt = p; m.press.set('press'); m.press.target = MOT.press; }
+    redraw();
+  }
+  paintWords();
+}
+function motionUp() {
+  const m = motion;
+  m.downBtn = -1; sinkTargets();
+  m.press.set('jelly'); m.press.target = 0;           // back with a wobble or two
+  paintWords(); if (!m.reduced) redraw();
+}
+/** Step the springs; hand the renderer what it needs. True while anything is still moving. */
+function motionStep(now) {
+  const m = motion;
+  const dt = m.last ? Math.min(0.05, (now - m.last) / 1000) : 1 / 60;
+  m.last = now;
+  const springs = [m.tilt, m.lean, m.dimpleAt, m.dimple, m.press, ...m.sink];
+  const was = springs.map((s) => s.resting);
+  for (const s of springs) s.step(dt);
+  const t = performance.now() / 1000;
+  m.rips = m.rips.filter((r) => t - r.t0 < MOT.ripDecay * 5);
+  const sinking = m.sink.some((s) => !s.resting) || m.sink.some((s, i) => !was[5 + i]);
+  if (sinking) paintWords();
+  const moving = springs.some((s) => !s.resting) || m.rips.length > 0;
+  const any = moving || Math.abs(m.tilt.x) + Math.abs(m.tilt.y) + Math.abs(m.lean.x) + Math.abs(m.lean.y) + Math.abs(m.dimple.x)
+    + Math.abs(m.press.x) + m.sink.reduce((a, s) => a + Math.abs(s.x), 0) > 1e-5;
+  G.motion = any ? {
+    tilt: [m.tilt.x, m.tilt.y, m.lean.x, m.lean.y],
+    dimple: [m.dimpleAt.x, m.dimpleAt.y, m.dimple.x, MOT.dimpleR],
+    press: [m.pressAt[0], m.pressAt[1], m.press.x, MOT.pressR],
+    rips: [0, 1, 2, 3].map((i) => (m.rips[i] ? [m.rips[i].x, m.rips[i].z, t - m.rips[i].t0, MOT.rip] : [0, 0, -1, 0])),
+    ripK: [MOT.ripSpeed, MOT.ripWave, MOT.ripDecay],
+    sink: m.sink.map((s) => s.x),
+  } : null;
+  if (moving || springs.some((s, i) => s.resting !== was[i])) dirty = true;
+  return moving;
+}
+/** A pretend pointer along a path, for the recordings and the measures (stage units; the real mouse is never touched). */
+function drive(kind = 'cursor', seconds = 8) {
+  const P = (type, x, y) => state.pointer(type, x, y);
+  const W = [[569, 184], [647, 181], [722, 184]];        // the wells, in stage units
+  const t0 = performance.now();
+  const plan = [];                                      // [time (s), type, x, y]
+  const wander = (from, dur, ax, ay) => { for (let t = 0; t < dur; t += 1 / 60) plan.push([from + t, 'move', 430 + ax * Math.sin(2 * Math.PI * t / 3.1), 200 + ay * Math.sin(2 * Math.PI * t / 2.3 + 1)]); };
+  const glide = (at, dur, a, b) => { for (let t = 0; t <= dur; t += 1 / 60) { const f = 0.5 - 0.5 * Math.cos(Math.PI * t / dur); plan.push([at + t, 'move', a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f]); } return at + dur; };
+  if (kind === 'cursor') wander(0, seconds, 470, 230);
+  if (kind === 'dimple') {      // slowly over the glass: the cover's ring, the words' hollow, the sheet, the lower band
+    let at = glide(0, 1.2, [120, 120], [160, 230]);
+    at = glide(at, 1.6, [160, 230], [400, 175]); at = glide(at, 1.6, [400, 175], [690, 105]);
+    at = glide(at, 1.6, [690, 105], [520, 290]); at = glide(at, 1.6, [520, 290], [250, 300]);
+  }
+  if (kind === 'ripple') {
+    const pts = [[300, 175], [520, 285], [190, 290], [690, 112], [420, 230]];
+    let at = 0.3, last = [430, 200];
+    for (const p of pts) { at = glide(at, 0.5, last, p); plan.push([at + 0.1, 'down', ...p], [at + 0.2, 'up', ...p]); at += 1.0; last = p; }
+  }
+  if (kind === 'press') {
+    const pts = [[330, 190], [560, 290], [660, 108]];
+    let at = 0.3, last = [430, 200];
+    for (const p of pts) { at = glide(at, 0.5, last, p); plan.push([at + 0.1, 'down', ...p], [at + 1.1, 'up', ...p]); at += 2.2; last = p; }
+  }
+  if (kind === 'buttons') {
+    let at = 0.3, last = [470, 120];
+    for (const w of W) { at = glide(at, 0.6, last, w); at += 0.6; plan.push([at, 'down', ...w], [at + 0.3, 'up', ...w]); at += 0.9; last = w; }
+    glide(at, 0.8, last, [800, 330]);
+  }
+  plan.sort((a, b) => a[0] - b[0]);
+  return new Promise((done) => {
+    let i = 0;
+    const tick = () => {
+      const t = (performance.now() - t0) / 1000;
+      while (i < plan.length && plan[i][0] <= t) { const [, type, x, y] = plan[i++]; P(type, x, y); }
+      if (t < seconds && i < plan.length) requestAnimationFrame(tick); else { P('leave', 0, 0); done(); }
+    };
+    tick();
+  });
 }
 
 /* ------------------------------------------------------------- recording --- */
 // What is really on the screen there, composed by the page itself (the window is left out of screen captures while it
 // refracts): the desktop under the window, the pools, the glass bending that desktop, the words. A WebM, as base64.
-const rec = { on: false, under: null };
-async function record(seconds = 6, fps = 30) {
+const rec = { on: false, under: null, cursor: false };
+// (a scripted recording shows where its pretend pointer is: an arrow like Windows' own)
+function drawCursor(x, px, py, k) {
+  x.save(); x.translate(px, py); x.scale(k, k);
+  x.beginPath(); x.moveTo(0, 0); x.lineTo(0, 17); x.lineTo(4.2, 13.2); x.lineTo(7.2, 19.6); x.lineTo(9.6, 18.6); x.lineTo(6.7, 12.3);
+  x.lineTo(12, 12.3); x.closePath();
+  x.fillStyle = '#fff'; x.strokeStyle = '#000'; x.lineWidth = 1.1; x.fill(); x.stroke(); x.restore();
+}
+async function record(seconds = 6, fps = 30, script = null) {
   const [W, H] = G.size.canvas;
   const c = document.createElement('canvas'); c.width = W; c.height = H;
   const x = c.getContext('2d');
@@ -371,8 +556,11 @@ async function record(seconds = 6, fps = 30) {
   const t = setInterval(() => {
     if (rec.under) x.drawImage(rec.under, 0, 0, W, H); else { x.fillStyle = '#000'; x.fillRect(0, 0, W, H); }
     x.drawImage(under, 0, 0); x.drawImage(canvas, 0, 0); x.drawImage(ink, 0, 0);
+    if (rec.cursor && motion.pointer) drawCursor(x, motion.pointer[0] * G.size.dpr, motion.pointer[1] * G.size.dpr, G.size.dpr);
   }, 1000 / fps);
   mr.start(250);
+  rec.cursor = Boolean(script);
+  if (script) drive(script, seconds - 0.3);
   await new Promise((r) => setTimeout(r, seconds * 1000));
   mr.stop(); clearInterval(t); rec.on = false;
   await new Promise((r) => { mr.onstop = r; });
@@ -388,15 +576,20 @@ function redraw() { dirty = true; if (!raf && !state.paused) raf = requestAnimat
 function frame(now) {
   raf = 0;
   if (state.paused) return;
-  if (!dirty && !SPIKE) return;
   if (CAP && now - lastDraw < 1000 / CAP - 1.5) { raf = requestAnimationFrame(frame); return; }
+  const moving = motionStep(now);
+  if (!dirty && !SPIKE) { motion.last = 0; return; }
   lastDraw = now;
   const t0 = performance.now();
   G.draw();
   state.cpuMs = state.cpuMs * 0.95 + (performance.now() - t0) * 0.05;
   state.frames++;
+  // (the gaps between frames drawn back to back while something moves: the measure of 60 fps in motion)
+  if (state.lastDrawAt && now - state.lastDrawAt < 100) { state.gaps.push(now - state.lastDrawAt); if (state.gaps.length > 4000) state.gaps.shift(); }
+  state.lastDrawAt = now;
   dirty = false;
-  if (SPIKE) raf = requestAnimationFrame(frame);
+  if (SPIKE || moving) raf = requestAnimationFrame(frame);
+  else motion.last = 0;                // (settled: nothing more is drawn until something changes)
 }
 state.resume = () => { state.paused = false; redraw(); };
 
@@ -431,7 +624,7 @@ async function main() {
     if (player.playing) paintWords();
   }, 1000);
   for (const [type, fn] of [['pointermove', onMove], ['pointerdown', onDown], ['pointerup', onUp], ['pointercancel', onUp]]) document.addEventListener(type, fn);
-  document.addEventListener('pointerleave', () => { if (!dragging) passThrough(true); });
+  document.addEventListener('pointerleave', () => { if (!dragging) passThrough(true); motionLeave(); });
   document.addEventListener('wheel', (e) => {
     const [x, y] = local(e); if (!hit(x, y).inside) return;
     player.volume = Math.min(1, Math.max(0, player.volume + (e.deltaY < 0 ? 0.05 : -0.05))); paintWords();
@@ -453,9 +646,17 @@ async function main() {
       const s = FRAME_REF ? 1 : r.width / STAGE.w;
       const e = { clientX: r.left + x * s, clientY: r.top + y * s, screenX: 0, screenY: 0, button: 0, preventDefault() {} };
       if (type === 'move') onMove(e); if (type === 'down') onDown(e); if (type === 'up') onUp(e);
+      if (type === 'leave') { if (!dragging) passThrough(true); motionLeave(); }
     },
     setLight(k, v) { LIGHT[k] = v; redraw(); },
-    record,
+    record, drive, motion, setReduced,
+    /** What is still moving (for the measures: nothing, once everything has settled). */
+    motionInfo() {
+      const m = motion, n = (s) => !s.resting;
+      return { tilt: n(m.tilt), lean: n(m.lean), dimpleAt: n(m.dimpleAt), dimple: [m.dimple.x, m.dimple.target, m.dimple.v],
+        press: [m.press.x, m.press.target, m.press.v], sink: m.sink.map((s) => [s.x, s.target]), rips: m.rips.length, dirty, raf: Boolean(raf),
+        downBtn: m.downBtn, hoverBtn: m.hoverBtn, dragging };
+    },
     /** Where the controls are, in stage units, for the shell's tests. */
     layout: {
       buttons: WELLS.map(([u, v]) => [(u - REF0[0]) / K, (v - REF0[1]) / K]),
