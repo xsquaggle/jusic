@@ -31,6 +31,11 @@
  *   test=listen                                             proves that the liquid hears what the PC plays (sound-helper.ps1):
  *                                                           no window is shown; a quiet pulsed tone is played for a few seconds
  *   listen=off                                              with source=system: do not listen, move to a made-up beat
+ *   page=glass3d                                            the live 3D glass (prototypes/glass3d/) in this window; frame=ref
+ *                                                           the reference's framing; q=<query> handed on to the page
+ *   test=spike page=glass3d [frame=ref] [dsf=1|1.25] [out=<folder>] [seconds=8]   the phase 2 spike: the 3D glass still in
+ *                                                           this window on the other monitor, photographed (the page's own
+ *                                                           pixels) and measured: fps, the GPU process's share, idle
  *   display=primary|other                                   which monitor (shots and tests default to the other one, to
  *                                                           stay out of the way of whatever is on the main screen)
  */
@@ -45,16 +50,22 @@ const args = Object.fromEntries(process.argv.slice(2).filter((a) => a.includes('
 const SIZE = Number(args.size) || 1;
 const SHOTS = args.shots ? path.resolve(args.shots) : null;
 const TEST = args.test || null;
+// Which page the window shows: the 2D shader widget (prototypes/mercury/, the default and the fallback) or the live 3D
+// glass (prototypes/glass3d/, phase 2 of the 3D brief; q=<query> is handed on to it, frame=ref gives the reference's
+// framing, 1586 x 992).
+const PAGE = args.page === 'glass3d' ? 'glass3d' : 'mercury';
 // Refraction is the look (the owner's decision, 13 November 2026): on unless refract=off, or glass= is being tried.
-const REFRACT = args.refract === 'off' || (args.glass && !args.refract) ? null : (args.refract || 'live');
+// (The 3D page does not bend the desktop yet: off there.)
+const REFRACT = PAGE === 'glass3d' || args.refract === 'off' || (args.glass && !args.refract) ? null : (args.refract || 'live');
 // Options that are simply handed on to the page.
 const SYSTEM = args.source === 'system' || TEST === 'media' || TEST === 'listen';
 const PAGE_OPTIONS = (args.mat ? `&mat=${encodeURIComponent(args.mat)}` : '') + (REFRACT ? `&refract=${encodeURIComponent(REFRACT)}` : '') + (SYSTEM ? '&source=system' : '')
-  + ['rfps', 'rmax', 'glass'].filter((k) => args[k]).map((k) => `&${k}=${encodeURIComponent(args[k])}`).join('');
+  + ['rfps', 'rmax', 'glass', 'frame'].filter((k) => args[k]).map((k) => `&${k}=${encodeURIComponent(args[k])}`).join('')
+  + (args.q ? '&' + args.q : '');
 // Draw at a given display scale wherever the window is (the main monitor is 125%).
 if (args.dsf) app.commandLine.appendSwitch('force-device-scale-factor', args.dsf);
 const PORT = 5190;
-const STAGE = { w: 860, h: 400 };
+const STAGE = PAGE === 'glass3d' && args.frame === 'ref' ? { w: 1586, h: 992 } : { w: 860, h: 400 };
 
 // Keep this prototype's browser profile inside the repo's ignored data folder, not in %APPDATA%.
 app.setPath('userData', path.join(REPO, 'data', 'widget-proto'));
@@ -106,9 +117,9 @@ function savedPosition(w, h) {
 /** The window's size as designed, in DIPs. Every move sets it again: see dragStep(). */
 let widgetSize = null;
 
-function createWidget({ query = 'play', x, y } = {}) {
+function createWidget({ query = 'play', x, y, display = 'primary' } = {}) {
   const w = Math.round(STAGE.w * SIZE), h = Math.round(STAGE.h * SIZE);
-  const area = pickDisplay('primary').workArea;
+  const area = pickDisplay(display).workArea;
   if (x === undefined && y === undefined && !args.display) ({ x, y } = savedPosition(w, h) || {});
   x = x ?? area.x + area.width - w - 40;
   y = y ?? area.y + area.height - h - 40;
@@ -139,7 +150,7 @@ function createWidget({ query = 'play', x, y } = {}) {
   widget.webContents.on('console-message', (event) => {
     if (event.level === 'error') console.log('page error: ' + event.message);
   });
-  return widget.loadURL(`http://127.0.0.1:${PORT}/prototypes/mercury/?widget=1&scale=${SIZE}&${query}${PAGE_OPTIONS}`);
+  return widget.loadURL(`http://127.0.0.1:${PORT}/prototypes/${PAGE}/?widget=1&scale=${SIZE}&${query}${PAGE_OPTIONS}`);
 }
 
 /* -------------------------------------------------------------- refraction --- */
@@ -694,6 +705,10 @@ app.whenReady().then(async () => {
   if (TEST === 'media') { await runMediaTest(); return; }
   if (TEST === 'listen') { await runListenTest(); return; }
   if (TEST === 'drag') { await runDragTest(); return; }
+  if (TEST === 'spike') {
+    await require('./spike-test.js').runSpike({ app, screen, createWidget, getWidget: () => widget, args, REPO });
+    return;
+  }
   if (TEST === 'gpu') {
     await require('./gpu-test.js').runGpuTest({ app, screen, createWidget, getWidget: () => widget, pickDisplay, seconds: Number(args.seconds) || 12, refract: REFRACT });
     return;

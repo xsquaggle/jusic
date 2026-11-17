@@ -1,0 +1,36 @@
+{
+ "out": "design/captures/mercury3d-phase2-half.png",
+ "width": 1600,
+ "title": "Mercury in 3D, phase 2 spike: the reference, Cycles (after the model pass), and live in the widget window (light pass, and the plain studio), half size",
+ "notes": [
+  "part: 1. At half size it reads as thick polished glass: one hot narrow line per roll (live), warm rims, deep darks in the middles and wells. The rolls' bodies are still more opaque than the reference's (live: satin pink; Cycles: busier, several thin lines per roll), where the reference shows the dark backdrop through them.",
+  "part: 2. The cover sits on the ridge in a pocket now round on every side, its sheen faint (no band across the art). Its colours glow only faintly in the ring (live: a soft spill of the cover's colour; Cycles: light carried through the glass).",
+  "ok: 3. The ridge is one roll along your trace: under the cover, level under the words, up through the twist, the sheet's lip over the wells, into the tail tip.",
+  "part: 4. The twist, the sheet over the wells with its fold, three round wells with dark middles and lit rims. The right end's curl is still gentler than the reference's.",
+  "part: 5. Words and controls crisp on top; the title and artist sit on calm, darker glass (no line crosses them); the times sit on the lower band's crest. Left: the waist's edge grazes the top of the title's last letter, a short bright arc left of 'Artist', a thin line through '-2:18'. Light desktops not tested.",
+  "part: 6. Zebra smooth in Blender and in the live renderer (the live mesh's normals come from the distance field); small wobbles under the wells and round the twist.",
+  "part: 7. Live at the widget's real size (860 x 400 at 125%, drawn at 2150 x 1000 and filtered down): 60 fps locked, the GPU process's 3D engine 2.1 to 2.2%, 0% when nothing moves; 350 fps uncapped. Audio not part of this still."
+ ],
+ "rows": [
+  [
+   {
+    "label": "main reference",
+    "src": "design/references/widget-mercury.png"
+   },
+   {
+    "label": "Cycles, 256 samples: the model pass (words and pools laid on top)",
+    "src": "design/captures/raw/mercury3d/p2-cycles.png"
+   }
+  ],
+  [
+   {
+    "label": "live (WebGL2, the widget window): the light pass",
+    "src": "design/captures/raw/mercury3d/p2-live.png"
+   },
+   {
+    "label": "live: the plain studio, exactly Cycles' maps (one bounce inside the glass)",
+    "src": "design/captures/raw/mercury3d/p2-live-plain.png"
+   }
+  ]
+ ]
+}

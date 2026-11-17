@@ -1,0 +1,17 @@
+{
+ "out": "design/captures/mercury3d-phase2-zebra.png",
+ "width": 3196,
+ "title": "Mercury in 3D, phase 2: the zebra view of the model after the model pass, in Blender (left) and the exported mesh in the live renderer (right)",
+ "rows": [
+  [
+   {
+    "label": "Blender",
+    "src": "design/captures/raw/mercury3d/p2-zebra-blender.png"
+   },
+   {
+    "label": "live (the exported mesh, normals from the distance field)",
+    "src": "design/captures/raw/mercury3d/spike/live-zebra.png"
+   }
+  ]
+ ]
+}

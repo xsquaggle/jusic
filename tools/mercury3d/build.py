@@ -53,7 +53,7 @@ W, H = 1586, 992            # the reference's size; the render matches it
 CX, CY = 793.0, 496.0       # the image centre sits on the root's origin
 S = 0.01                    # Blender units per reference pixel
 TILT = math.radians(15.0)   # the camera looks this far down at the glass
-VOX = 2.0                   # voxel size in pixels
+VOX = float(ARGS.get('vox', 2.0))   # voxel size in pixels
 U0, U1 = 0.0, 1586.0        # the field's box in pixels: u, v, depth
 V0, V1 = 180.0, 780.0
 D0, D1 = -120.0, 230.0
@@ -780,6 +780,45 @@ def blur3(F, passes=1):
             F = (np.roll(F, 1, ax) + 2 * F + np.roll(F, -1, ax)) * 0.25
     return F
 
+LIVE = {}      # what the live export needs from the build (the field's normals at the mesh's points)
+
+def taubin(P, quads, it, lam=0.33, mu=-0.34):
+    """Taubin's smoothing (a shrink step, then an inflate step) over the quads' edges: removes the voxel ripple
+    without shrinking the form."""
+    if it <= 0:
+        return P
+    q = quads.astype(np.int64)
+    e = np.concatenate([q[:, [0, 1]], q[:, [1, 2]], q[:, [2, 3]], q[:, [3, 0]]])
+    a = np.concatenate([e[:, 0], e[:, 1]]); b = np.concatenate([e[:, 1], e[:, 0]])
+    deg = np.bincount(a, minlength=len(P)).astype(np.float64)[:, None]
+    P = P.astype(np.float64)
+    for _ in range(it):
+        for f in (lam, mu):
+            s = np.zeros_like(P)
+            np.add.at(s, a, P[b])
+            P = P + f * (s / np.maximum(deg, 1) - P)
+    return P.astype(np.float32)
+
+def trilinear(F, P):
+    """F (grid) at points P (n x 3, index coordinates)."""
+    P = np.clip(P, 0, np.array(F.shape) - 1.001)
+    i = np.floor(P).astype(np.int64); f = (P - i).astype(np.float32)
+    out = np.zeros(len(P), np.float32)
+    for dx in (0, 1):
+        wx = f[:, 0] if dx else 1 - f[:, 0]
+        for dy in (0, 1):
+            wy = f[:, 1] if dy else 1 - f[:, 1]
+            for dz in (0, 1):
+                wz = f[:, 2] if dz else 1 - f[:, 2]
+                out += F[i[:, 0] + dx, i[:, 1] + dy, i[:, 2] + dz] * wx * wy * wz
+    return out
+
+def field_normals(F, P, h=0.75):
+    """The outward normal at each point from the field's gradient (index axes i: u, j: depth, k: up, which are
+    Blender's X, Y, Z in the root's frame)."""
+    g = np.stack([trilinear(F, P + o) - trilinear(F, P - o) for o in np.eye(3, dtype=np.float32) * h], 1)
+    return (g / (np.linalg.norm(g, axis=1, keepdims=True) + 1e-12)).astype(np.float32)
+
 def field_to_mesh(F, name):
     import openvdb as vdb
     band = 3.0 * VOX
@@ -790,6 +829,10 @@ def field_to_mesh(F, name):
     g.signedFloodFill()
     pts, quads = g.convertToQuads(isovalue=0.0)
     log('meshed: %d points, %d quads' % (len(pts), len(quads)))
+    # (Phase 2's quality bar: a smooth mesh with smooth normals.) A light Taubin smoothing (it does not shrink the
+    # form), then each point's normal from the distance field's own gradient, not from the facets.
+    pts = taubin(pts, quads, int(ARGS.get('smooth_it', 4)))
+    LIVE['normals'] = field_normals(F, pts)
     u = U0 + pts[:, 0] * VOX
     d = D0 + pts[:, 1] * VOX
     v = V1 - pts[:, 2] * VOX
@@ -1115,6 +1158,7 @@ def make_env(path, tint, w=2048, h=1024):
     strip_h(-8, 2.5, cam, 85, st['low'], warm)         # a low warm line in front: coral along the bottoms
     strips = img
     write_exr(path, base + strips)
+    LIVE['env'] = (base + strips).astype(np.float32)
     # the same studio, softened: what light sees after it has passed through the glass (the strips only faintly:
     # they are small lamps, and inside the glass the big soft sources and the floor carry the light)
     # ... and the black card behind the glass, kept dark after the softening (a larger card: rays through the
@@ -1124,6 +1168,7 @@ def make_env(path, tint, w=2048, h=1024):
     card_t = ss(CARD['half_az'], CARD['half_az'] - 12, dab) * ss(c0 - 6, c0 + 6, eld) * ss(c1 + 6, c1 - 6, eld)
     soft = soft * (1.0 - CARD['depth'] * card_t)[..., None]
     write_exr(path.replace('.exr', '_soft.exr'), soft)
+    LIVE['env_soft'] = soft.astype(np.float32)
     return path
 
 def write_exr(path, img):
@@ -1280,6 +1325,7 @@ def build(cover_path=None, zebra=False):
         cover_path = real_cover(int(cover_path[5:]))
     cover_path = cover_path or TEST_COVER
     tint = album_colour(cover_path)
+    LIVE['tint'] = [float(x) for x in tint]; LIVE['cover_path'] = cover_path
     log('album colour', tuple(round(x, 3) for x in tint))
 
     F, parts = build_field()
@@ -1352,8 +1398,143 @@ def render(out):
     bpy.ops.render.render(write_still=True)
     log('rendered', out)
 
+def half_bin(path, img):
+    """An image (rows from the bottom, as Blender keeps them) as RGBA half floats, for the live page."""
+    h, w = img.shape[:2]
+    a = np.ones((h, w, 4), np.float16)
+    a[..., :3] = np.clip(img[..., :3], 0, 60000).astype(np.float16)
+    a.tofile(path)
+    return [w, h]
+
+def bleed(a, it=24):
+    """Spread an RGBA image's colour outward from where alpha is set, a pixel per step (alpha kept), so filtering
+    at the outline never reads black."""
+    rgb = a[..., :3] * (a[..., 3:4] > 0.5); w = (a[..., 3] > 0.5).astype(np.float32)
+    for _ in range(it):
+        s = np.zeros_like(rgb); c = np.zeros_like(w)
+        for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            s += np.roll(np.roll(rgb * w[..., None], dy, 0), dx, 1); c += np.roll(np.roll(w, dy, 0), dx, 1)
+        grow = (w == 0) & (c > 0)
+        rgb[grow] = s[grow] / c[grow][:, None]; w = np.maximum(w, grow.astype(np.float32))
+    out = a.copy(); out[..., :3] = rgb
+    return out
+
+def tone_lut(sc, d, n=33):
+    """Blender's own view transform (AgX with the scene's look and exposure) as a 3D table for the live page, so the
+    live glass is tone-mapped exactly as Cycles' still is: inputs on AgX's log scale (log2 of linear light from
+    -12.47 to 4.03, per channel), outputs the display's values. tone.bin: n^3 RGBA half floats, red fastest, then
+    green, then blue."""
+    lo, hi = -12.47393, 4.026069
+    vals = (2.0 ** (lo + np.linspace(0, 1, n) * (hi - lo))).astype(np.float32)
+    img = np.ones((n, n * n, 4), np.float32)                 # rows: green; columns: blue * n + red
+    for bi in range(n):
+        img[:, bi * n:(bi + 1) * n, 0] = vals[None, :]
+        img[:, bi * n:(bi + 1) * n, 1] = vals[:, None]
+        img[:, bi * n:(bi + 1) * n, 2] = vals[bi]
+    im = bpy.data.images.new('mercury3d_tone', n * n, n, alpha=True, float_buffer=True)
+    im.pixels.foreach_set(img.ravel())
+    keep = (sc.render.image_settings.file_format, sc.render.image_settings.color_depth, sc.render.image_settings.color_mode)
+    sc.render.image_settings.file_format = 'PNG'; sc.render.image_settings.color_depth = '16'
+    sc.render.image_settings.color_mode = 'RGBA'
+    path = os.path.join(d, 'tone.png')
+    im.save_render(filepath=path, scene=sc)
+    bpy.data.images.remove(im)
+    sc.render.image_settings.file_format, sc.render.image_settings.color_depth, sc.render.image_settings.color_mode = keep
+    back = bpy.data.images.load(path, check_existing=False)
+    back.colorspace_settings.name = 'Non-Color'
+    out = np.array(back.pixels[:], np.float32).reshape(n, n * n, 4)
+    bpy.data.images.remove(back)
+    out = out.reshape(n, n, n, 4).transpose(1, 0, 2, 3)     # (green, blue, red) -> (blue, green, red)
+    out[..., 3] = 1.0
+    out.astype(np.float16).tofile(os.path.join(d, 'tone.bin'))
+    log('tone table: view %s, look %s; mid grey .18 -> %.3f' % (sc.view_settings.view_transform, sc.view_settings.look,
+        float(np.interp(math.log2(0.18), lo + np.linspace(0, 1, n) * (hi - lo), out[n // 2 * 0 + int(round((math.log2(0.18) - lo) / (hi - lo) * (n - 1))), int(round((math.log2(0.18) - lo) / (hi - lo) * (n - 1))), :, 0]))))
+    return dict(n=n, lo=lo, hi=hi)
+
+def export_live(d, sc):
+    """Everything the live widget (prototypes/glass3d/) draws this model with, written to folder d (keep it in
+    design/captures/raw/: it is rebuilt, never committed):
+      glass.bin   the glass: positions, normals (from the distance field), UVs (the camera's projection: u / W,
+                  1 - v / H), then triangles; Blender coordinates in the root's frame (the camera looks along +Y)
+      light.bin   Cycles' light on the glass, an image wrapped on it by those UVs (W x H, RGBA half floats): the
+                  glass standing in as white diffuse, the cover a black card, the studio as rendered
+      cover.bin   the cover's slab as triangles: position, UV
+      env.bin, env-soft.bin   the studio pair (Blender's equirectangular mapping, rows from the bottom)
+      meta.json   sizes, the frame, the tilt, the cover's frame, the album's colour"""
+    os.makedirs(d, exist_ok=True)
+    bpy.context.view_layer.update()
+    meta = dict(W=W, H=H, CX=CX, CY=CY, S=S, tilt=math.degrees(TILT), vox=VOX, tint=LIVE['tint'],
+                map='u = 0.5 - atan2(y, x) / 2pi, v = 0.5 + asin(z) / pi (world: the root frame turned by the tilt '
+                    'about X); rows from the bottom')
+    g = bpy.data.objects['Mercury3D_Glass']; me = g.data
+    me.calc_loop_triangles()
+    n = len(me.vertices)
+    co = np.empty(n * 3, np.float32); me.vertices.foreach_get('co', co); co = co.reshape(-1, 3)
+    nr = LIVE['normals']
+    tri = np.empty(len(me.loop_triangles) * 3, np.int32); me.loop_triangles.foreach_get('vertices', tri)
+    uv = np.stack([(co[:, 0] / S + CX) / W, 1.0 - (CY - co[:, 2] / S) / H], 1).astype(np.float32)
+    with open(os.path.join(d, 'glass.bin'), 'wb') as f:
+        co.tofile(f); nr.astype(np.float32).tofile(f); uv.tofile(f); tri.astype(np.uint32).tofile(f)
+    meta['glass'] = dict(verts=n, tris=len(tri) // 3)
+    # the cover: its slab as triangles (position in the root's frame, UV), and its frame for the art seen through
+    # the glass (the inverse of its placement: root frame -> its own, where the face is y ~ 0, x across, z up)
+    cov = bpy.data.objects['Mercury3D_Cover']; cm = cov.data
+    cm.calc_loop_triangles()
+    M = cov.matrix_local.copy()
+    uvl = cm.uv_layers[0].data
+    out = []
+    for t in cm.loop_triangles:
+        for li in t.loops:
+            q = M @ cm.vertices[cm.loops[li].vertex_index].co
+            out.append([q.x, q.y, q.z, uvl[li].uv[0], uvl[li].uv[1]])
+    np.array(out, np.float32).tofile(os.path.join(d, 'cover.bin'))
+    meta['cover'] = dict(count=len(out), inv=[list(r) for r in M.inverted()], half=COVER['side'] / 2 * S,
+                         corner=COVER['corner'] * S, side=COVER['side'] * S)
+    meta['tone'] = tone_lut(sc, d)
+    # the studio pair
+    meta['env'] = half_bin(os.path.join(d, 'env.bin'), LIVE['env'])
+    soft = LIVE['env_soft']
+    hs, ws = soft.shape[0] // 2, soft.shape[1] // 2
+    soft = soft[:hs * 2, :ws * 2].reshape(hs, 2, ws, 2, 3).mean((1, 3))
+    meta['envSoft'] = half_bin(os.path.join(d, 'env-soft.bin'), soft)
+    # Cycles' light on the glass, rendered from the camera onto those UVs (the glass white diffuse, the cover black)
+    if 'nolight' not in FLAGS:
+        use_gpu(sc)
+        keep = (list(g.data.materials), list(cov.data.materials))
+        m, nt, o = node_mat('Mercury3D_BakeWhite')
+        df = nt.nodes.new('ShaderNodeBsdfDiffuse'); df.inputs['Color'].default_value = (1, 1, 1, 1)
+        nt.links.new(df.outputs['BSDF'], o.inputs['Surface'])
+        k, nt2, o2 = node_mat('Mercury3D_BakeBlack')
+        db = nt2.nodes.new('ShaderNodeBsdfDiffuse'); db.inputs['Color'].default_value = (0, 0, 0, 1)
+        nt2.links.new(db.outputs['BSDF'], o2.inputs['Surface'])
+        g.data.materials.clear(); g.data.materials.append(m)
+        cov.data.materials.clear(); cov.data.materials.append(k)
+        sc.render.film_transparent = True
+        sc.render.image_settings.file_format = 'OPEN_EXR'; sc.render.image_settings.color_depth = '32'
+        sc.render.image_settings.color_mode = 'RGBA'
+        sc.view_settings.view_transform = 'Standard'
+        sc.cycles.samples = int(ARGS.get('light_samples', 128))
+        path = os.path.join(d, 'light.exr')
+        sc.render.filepath = path
+        bpy.ops.render.render(write_still=True)
+        im = bpy.data.images.load(path, check_existing=False)
+        w_, h_ = im.size
+        a = np.array(im.pixels[:], np.float32).reshape(h_, w_, 4)
+        bpy.data.images.remove(im)
+        a = bleed(a)
+        meta['light'] = half_bin(os.path.join(d, 'light.bin'), a)
+        lum = a[..., :3] @ np.array([.2126, .7152, .0722])
+        inside = a[..., 3] > 0.5
+        meta['lightRef'] = float(np.percentile(lum[inside], 90)) if inside.any() else 1.0
+        g.data.materials.clear(); [g.data.materials.append(x) for x in keep[0]]
+        cov.data.materials.clear(); [cov.data.materials.append(x) for x in keep[1]]
+    json.dump(meta, open(os.path.join(d, 'meta.json'), 'w'), indent=1)
+    log('exported', d, meta['glass'])
+
 if __name__ == '__main__' or 'MERCURY_ARGS' in globals():
     sc = build(ARGS.get('cover'), zebra='zebra' in FLAGS)
+    if 'export' in ARGS and bpy.app.background:
+        export_live(os.path.abspath(ARGS['export']), sc)
     if 'save' in ARGS:
         bpy.ops.wm.save_as_mainfile(filepath=ARGS['save'])
     if 'render' in FLAGS and bpy.app.background:

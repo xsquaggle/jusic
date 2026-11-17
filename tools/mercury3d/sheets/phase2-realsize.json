@@ -1,0 +1,55 @@
+{
+ "out": "design/captures/mercury3d-phase2-realsize.png",
+ "width": 1948,
+ "title": "At the widget's real size on screen (125%): the reference and Cycles scaled to it; live as the widget window draws it (its own pixels)",
+ "rows": [
+  [
+   {
+    "label": "main reference",
+    "src": "design/references/widget-mercury.png",
+    "crop": [
+     0,
+     88,
+     1586,
+     825
+    ],
+    "w": 962
+   },
+   {
+    "label": "Cycles",
+    "src": "design/captures/raw/mercury3d/p2-cycles.png",
+    "crop": [
+     0,
+     88,
+     1586,
+     825
+    ],
+    "w": 962
+   }
+  ],
+  [
+   {
+    "label": "live: the light pass",
+    "src": "design/captures/raw/mercury3d/spike/live-widget-1.25-bg.png",
+    "crop": [
+     58,
+     0,
+     962,
+     500
+    ],
+    "w": 962
+   },
+   {
+    "label": "live: the plain studio",
+    "src": "design/captures/raw/mercury3d/spike/live-widget-1.25-bg-l0.png",
+    "crop": [
+     58,
+     0,
+     962,
+     500
+    ],
+    "w": 962
+   }
+  ]
+ ]
+}
