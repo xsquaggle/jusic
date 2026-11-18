@@ -59,7 +59,7 @@ async function runSpike({ app, screen, createWidget, getWidget, args, REPO }) {
   const win = getWidget();
   win.showInactive();
   const run = (js) => win.webContents.executeJavaScript(js, true);
-  for (let i = 0; i < 600 && !(await run('Boolean(window.__glass && (window.__glass.ready || window.__glass.error))')); i++) await sleep(50);
+  for (let i = 0; i < 600 && !(await run('Boolean(window.__glass && ((window.__glass.ready && window.__glass.formed) || window.__glass.error))')); i++) await sleep(50);
   const err = await run('window.__glass && window.__glass.error');
   if (err) { console.log('page error: ' + err); app.quit(); return; }
   await sleep(1500);
@@ -80,7 +80,10 @@ async function runSpike({ app, screen, createWidget, getWidget, args, REPO }) {
   const gaps = MOTION ? await run('JSON.stringify(window.__glass.gaps)').then(JSON.parse) : [];
   const cardBusy = card.stop();
   // idle: the page stops drawing
-  if (MOTION) await sleep(4500);            // the drive ends, the springs settle by themselves
+  // (idle=pause: the music is paused first, as the widget is when nothing plays: the colour drains, the ink runs on
+  // for a few seconds and stops, and then nothing at all should be drawn; without it the music keeps the glass moving)
+  if (MOTION && args.idle === 'pause') { await sleep(2500); await run('window.__glass.setPlaying(false); 0'); await sleep(7000); }
+  else if (MOTION) await sleep(4500);       // the drive ends, the springs settle by themselves
   else { await run('window.__glass.paused = true; 0'); await sleep(1500); }
   const fi0 = await run('window.__glass.frames'); const ti0 = Date.now();
   card = wholeCard();

@@ -8,11 +8,19 @@ contextBridge.exposeInMainWorld('widgetHost', {
   /** 'start' | 'move' | 'end': the window follows the cursor between start and end. */
   drag: (phase) => ipcRenderer.send('widget:drag', String(phase)),
   close: () => ipcRenderer.send('widget:close'),
+  /** The small beads by the end: open the full app; hide the widget (sent once the drop has melted away). */
+  openApp: () => ipcRenderer.send('widget:open-app'),
+  hide: () => ipcRenderer.send('widget:hide'),
+  /** The tray's Show / hide: the page forms the drop (shown) or melts it away and then calls hide() (hiding). */
+  onAppear: (fn) => { ipcRenderer.on('widget:appear', () => fn()); },
+  onVanish: (fn) => { ipcRenderer.on('widget:vanish', () => fn()); },
   /**
    * Refraction. Resolves with which screen capture shows what is behind the window and
    * where the window sits on that screen: { sourceId, window: {x, y, width, height}, display: {...} }.
    */
   backdropSource: () => ipcRenderer.invoke('widget:backdrop'),
+  /** Called with where the window now is ({ x, y }, screen DIPs) after each step of a drag: the glass sloshes with it. */
+  onMoved: (fn) => { ipcRenderer.on('widget:moved', (event, p) => fn(p)); },
   /** Called with the same thing again whenever the window moves. */
   onPlacement: (fn) => { ipcRenderer.on('widget:placement', (event, placement) => fn(placement)); },
   /**

@@ -319,7 +319,7 @@ async function runMediaTest() {
   const run = (js) => widget.webContents.executeJavaScript(js, true);
   const GLASS = PAGE === 'glass3d';
   const H = GLASS ? 'window.__glass' : 'window.__mercury';
-  for (let i = 0; i < 600 && !(await run(`Boolean(${H} && ${H}.ready)`)); i++) await sleep(50);
+  for (let i = 0; i < 600 && !(await run(`Boolean(${H} && ${H}.ready && ${H}.formed !== false)`)); i++) await sleep(50);
   startMediaHelper(ours);
 
   let failed = 0, count = 0;
@@ -436,11 +436,13 @@ async function runDragTest() {
   const area = display.workArea;
   await createWidget({ query: '', x: area.x + 201, y: area.y + 203 });
   const run = (js) => widget.webContents.executeJavaScript(js, false);
-  for (let i = 0; i < 200 && !(await run('Boolean(window.__mercury && window.__mercury.ready)')); i++) await sleep(50);
+  // (the 3D page: its canvas is the drop; it also sloshes with the moves, which this test does not judge)
+  const ready = GLASS_PAGE ? 'Boolean(window.__glass && ((window.__glass.ready && window.__glass.formed) || window.__glass.error))' : 'Boolean(window.__mercury && window.__mercury.ready)';
+  for (let i = 0; i < 600 && !(await run(ready)); i++) await sleep(50);
   console.log(`display ${display.size.width}x${display.size.height} at scale ${display.scaleFactor}`);
   const measure = async () => {
     await sleep(250);
-    const page = JSON.parse(await run(`(() => { const r = document.querySelector('.widget').getBoundingClientRect();
+    const page = JSON.parse(await run(`(() => { const r = document.querySelector(${JSON.stringify(GLASS_PAGE ? '#gl' : '.widget')}).getBoundingClientRect();
       return JSON.stringify({ inner: [innerWidth, innerHeight], drop: [Math.round(r.left * 100) / 100, Math.round(r.top * 100) / 100] }); })()`));
     return { size: widget.getSize(), position: widget.getPosition(), ...page };
   };
@@ -511,7 +513,10 @@ function dragStep(phase, cursor, { remember = true } = {}) {
     // made the window a pixel or two larger, some hundreds of pixels over one drag. The drop
     // sat in the window's middle and slid away to the right and down for as long as the
     // button was held. Stating the designed size each time leaves nothing to add up.
-    widget.setBounds({ x: drag.wx + cursor.x - drag.cx, y: drag.wy + cursor.y - drag.cy, ...widgetSize });
+    const to = { x: drag.wx + cursor.x - drag.cx, y: drag.wy + cursor.y - drag.cy };
+    widget.setBounds({ ...to, ...widgetSize });
+    // (the page sloshes the glass with the window's moves: it is told where the window now is)
+    widget.webContents.send('widget:moved', to);
   } else if (phase === 'end') {
     drag = null;
     const [px, py] = widget.getPosition();
@@ -520,6 +525,21 @@ function dragStep(phase, cursor, { remember = true } = {}) {
 }
 ipcMain.on('widget:drag', (event, phase) => dragStep(String(phase), screen.getCursorScreenPoint()));
 ipcMain.on('widget:close', () => app.quit());
+// The small beads by the end (3D page). Open the full app: this prototype shell has no app of its own to open (the real
+// shell opens Jusic's window), so it is only counted. Hide: the page has let the drop melt away; the window goes, and
+// the tray's Show / hide brings it back (the drop forms again).
+let openAppAsked = 0;
+ipcMain.on('widget:open-app', () => { openAppAsked++; console.log('the widget asked to open the full app'); });
+ipcMain.on('widget:hide', () => { if (widget && !widget.isDestroyed()) widget.hide(); });
+function toggleWidget() {
+  if (!widget || widget.isDestroyed()) return;
+  if (widget.isVisible()) {
+    if (GLASS_PAGE) widget.webContents.send('widget:vanish'); else widget.hide();
+  } else {
+    widget.showInactive(); onTop(widget);
+    if (GLASS_PAGE) widget.webContents.send('widget:appear');
+  }
+}
 
 /* ------------------------------------------------------------------- shots --- */
 
@@ -595,7 +615,7 @@ async function runShots() {
   const run = (js) => widget.webContents.executeJavaScript(js, true);
   if (GLASS) {
     // the 3D glass draws only when something changes: ready once it has drawn and read its silhouette
-    for (let i = 0; i < 600 && !(await run('Boolean(window.__glass && (window.__glass.ready || window.__glass.error))')); i++) await sleep(50);
+    for (let i = 0; i < 600 && !(await run('Boolean(window.__glass && ((window.__glass.ready && window.__glass.formed) || window.__glass.error))')); i++) await sleep(50);
     const err = await run('window.__glass.error');
     if (err) { console.log('page error: ' + err); app.quit(); return; }
   } else {
@@ -700,7 +720,7 @@ async function runPassThroughTest() {
   const GLASS = PAGE === 'glass3d';
   const H = GLASS ? 'window.__glass' : 'window.__mercury';
   const quit = (why) => { console.log('FAIL ' + why); console.log('stopped: nothing was checked'); app.quit(); };
-  if (await waitFor(`Boolean(${H} && ${H}.ready)`, 30000) < 0) return quit('the page was not ready after 30 s');
+  if (await waitFor(`Boolean(${H} && ${H}.ready && ${H}.formed !== false)`, 30000) < 0) return quit('the page was not ready after 30 s');
   const formed = GLASS ? `${H}.formed` : `${H}.mercury.springs.form.x > 0.97 && ${H}.mercury.springs.form.resting`;
   const formedIn = await waitFor(formed, 60000);
   if (formedIn < 0) return quit('the drop had not formed after 60 s');
@@ -708,23 +728,28 @@ async function runPassThroughTest() {
   // what the page decided last (true: let the mouse through), and when the window has done it
   const pageSays = `${H}.passing`;
   // nothing in the shape still moving (the beads bud out while the pointer is over the right end)
-  const still = GLASS ? 'true' : `${H}.mercury.springs.util.resting`;
+  const still = GLASS ? `${H}.utilResting()` : `${H}.mercury.springs.util.resting`;
 
   const names = new Map([[handleOf(widget), 'the widget'], [handleOf(backdrop), 'the window behind']]);
   // label, where the pretend pointer goes (stage units), where Windows is asked, what should be there
   const cases = GLASS ? [
     // The 3D glass: stage = (reference px + (96.6, -87.6)) / 2.0619, the points kept well inside or outside
-    // the model's real silhouette (it has no beads yet).
+    // the model's real silhouette.
     ['no pointer yet, asked at the play button', null, [647, 181], 'the window behind'],
     ['no pointer yet, asked on the cover', null, [190, 161], 'the window behind'],
+    ['no pointer yet, asked where the upper bead rests', null, [821, 172], 'the window behind'],
     ['pointer on the play button', [647, 181], [647, 181], 'the widget'],
     ['pointer on the body, by the title', [299, 210], [299, 210], 'the widget'],
     ['pointer on the cover', [190, 161], [190, 161], 'the widget'],
     ['pointer in the notch above the waist', [438, 142], [438, 142], 'the window behind'],
     ['pointer in the corner of the window', [20, 20], [20, 20], 'the window behind'],
     ['pointer just below the lower edge', [438, 293], [438, 293], 'the window behind'],
-    ['pointer on the right end', [784, 176], [784, 176], 'the widget'],
-    ['pointer beyond the right end', [823, 176], [823, 176], 'the window behind'],
+    // The two small beads bud off the right end while the pointer is over its right side.
+    ['pointer on the right end (the beads come out)', [784, 176], [784, 176], 'the widget'],
+    ['pointer in the gap between the end and its beads', [806, 186], [806, 186], 'the widget'],
+    ['pointer on the upper bead', [821, 172], [821, 172], 'the widget'],
+    ['pointer on the lower bead', [821, 200], [821, 200], 'the widget'],
+    ['pointer beyond the beads', [847, 186], [847, 186], 'the window behind'],
     ['pointer above the right lobe', [677, 66], [677, 66], 'the window behind'],
     ['pointer on the bulb\'s left ring', [81, 152], [81, 152], 'the widget'],
     ['pointer left of the bulb', [50, 152], [50, 152], 'the window behind'],
@@ -791,7 +816,7 @@ async function runRefractTest() {
     if (!ok) failed++;
     console.log(`${ok ? 'ok  ' : 'FAIL'} ${label}`);
   };
-  for (let i = 0; i < 600 && !(await run(`Boolean(${H} && ${H}.ready)`)); i++) await sleep(50);
+  for (let i = 0; i < 600 && !(await run(`Boolean(${H} && ${H}.ready && ${H}.formed !== false)`)); i++) await sleep(50);
   await check('on at start: the window is out of screen captures', () => refracting && widget.isContentProtected());
   await check('...the page captures the monitor it is on and bends it through the glass', () => run(`${H}.backdrop.frames > 3 && ${H}.G.desk.on > 0.99 && ${H}.G.desk.has`));
   await setRefracting(false);
@@ -833,7 +858,7 @@ async function runRecord() {
   widget.moveTop();
   widget.showInactive();
   const run = (js) => widget.webContents.executeJavaScript(js, true);
-  for (let i = 0; i < 600 && !(await run('Boolean(window.__glass && window.__glass.ready)')); i++) await sleep(50);
+  for (let i = 0; i < 600 && !(await run('Boolean(window.__glass && window.__glass.ready && window.__glass.formed)')); i++) await sleep(50);
   const p = await placement();
   if (!p.sourceId || p.sourceId !== screenSources.get(String(display.id))) { console.log('record: the capture is not of this monitor; nothing recorded'); app.quit(); return; }
   for (let i = 0; i < 100 && !(await run('window.__glass.backdrop.frames > 5')); i++) await sleep(100);
@@ -851,19 +876,22 @@ async function runRecord() {
  * A film of the 3D widget drawn off screen: no window on any monitor (for when the second monitor is not there), over
  * a still of one of our own backdrop windows (design/captures/raw/mercury3d/desks/<backdrop>.png, bent through the
  * glass as refraction does), a pretend pointer playing an interaction. Nothing of the owner's screen is in it.
- *   test=film page=glass3d drive=cursor|dimple|ripple|press|buttons [seconds=8] [backdrop=dark|busy|light] [out=<file.webm>]
+ *   test=film page=glass3d drive=cursor|dimple|ripple|press|buttons|seek|pause|track|drag|beads|drop [seconds=8] [zoom=2]
+ *       [backdrop=dark|busy|light] [out=<file.webm>]
  * After the film it waits for everything to settle and prints how many frames were drawn then (it should be none).
  */
 async function runFilm() {
-  const w = Math.round(STAGE.w * SIZE), h = Math.round(STAGE.h * SIZE);
+  // (zoom=2: drawn at twice the pixels, for a close look at something small, the beads by the end)
+  const zoom = Number(args.zoom) || 1;
+  const w = Math.round(STAGE.w * SIZE * zoom), h = Math.round(STAGE.h * SIZE * zoom);
   const win = new BrowserWindow({ show: false, width: w, height: h, useContentSize: true, frame: false, transparent: true,
-    webPreferences: { offscreen: true, backgroundThrottling: false, contextIsolation: true, sandbox: true } });
+    webPreferences: { offscreen: true, backgroundThrottling: false, contextIsolation: true, sandbox: true, zoomFactor: zoom } });
   win.webContents.setFrameRate(60);
   win.webContents.on('console-message', (event) => { if (event.level === 'error') console.log('page error: ' + event.message); });
   const desk = `/design/captures/raw/mercury3d/desks/${args.backdrop || 'dark'}.png`;
   await win.loadURL(`http://127.0.0.1:${PORT}/prototypes/glass3d/?play&deskimg=${encodeURIComponent(desk)}${args.q ? '&' + args.q : ''}`);
   const run = (js) => win.webContents.executeJavaScript(js, true);
-  for (let i = 0; i < 600 && !(await run('Boolean(window.__glass && (window.__glass.ready || window.__glass.error))')); i++) await sleep(50);
+  for (let i = 0; i < 600 && !(await run('Boolean(window.__glass && ((window.__glass.ready && window.__glass.formed) || window.__glass.error))')); i++) await sleep(50);
   const err = await run('window.__glass.error');
   if (err) { console.log('film: page error ' + err); app.quit(); return; }
   await sleep(800);
@@ -908,6 +936,7 @@ app.whenReady().then(async () => {
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: 'Mercury prototype', enabled: false },
     { type: 'separator' },
+    { label: 'Show / hide the widget', click: () => toggleWidget() },
     ...(REFRACT ? [{
       label: 'Refraction (off: the widget shows in screenshots)', type: 'checkbox', checked: true,
       click: (item) => setRefracting(item.checked),

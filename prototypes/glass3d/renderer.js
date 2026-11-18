@@ -51,6 +51,7 @@ uniform vec4 uJigB[6];     // the beats' rings of jelly rolling out from the cov
 uniform vec4 uBeat[6];     // beat waves: start x, age (s; < 0: none), strength, -
 uniform vec3 uBeatK;       // their speed, wavelength, decay
 uniform vec3 uJigK;        // its speed, wavelength, decay
+uniform vec4 uBud[2];      // the beads budding off the right end: where (x, z), how far the end swells out there, how wide
 // a ring of waves running out from r.xy (age r.z, strength r.w), its slope added to grad
 float ring(vec2 p, vec4 r, vec3 K, inout vec2 grad) {
   vec2 d = p - r.xy; float rr = max(length(d), 1e-4);
@@ -60,6 +61,14 @@ float ring(vec2 p, vec4 r, vec3 K, inout vec2 grad) {
   return amp * env * sin(k * q);
 }
 uniform vec4 uWellC[3];    // the wells: centre, radius, how far the floor has sunk
+// Dragging the window: the jelly lags behind where it is held, its far parts most (and swings past, and back, when
+// the window stops). xy: the lag (root units, x right, z up), zw: where it is held.
+uniform vec4 uSlosh;
+vec2 sloshAt(vec2 p) {
+  if (uSlosh.xy == vec2(0.)) return vec2(0.);
+  vec2 d = p - uSlosh.zw;
+  return uSlosh.xy * (1. - exp(-dot(d, d) / 13.));
+}
 // (the owner: the ripples must change the shape itself, not only ripple inside it: sh is how far the glass's surface
 // moves out along its own normal's sideways part, so the outline swells and ripples with the music and the presses;
 // the click-through keeps the resting outline, a few px off at most while it moves)
@@ -91,6 +100,11 @@ float motionField(vec2 p, out vec2 grad, out float sh) {
     grad.x += amp * env * (k * cos(k * q) - 2. * q / (w * w) * sin(k * q));
   }
   if (uJig.z >= 0.) { float r = ring(p, uJig, uJigK, grad); g += r; sh -= 2.2 * r; }
+  for (int i = 0; i < 2; i++) {   // the end swelling where a bead buds off it (and its stub springing back once it parts)
+    vec4 b = uBud[i];
+    if (b.z == 0.) continue;
+    vec2 d = p - b.xy; sh += b.z * exp(-dot(d, d) / (b.w * b.w));
+  }
   for (int i = 0; i < 3; i++) {
     vec4 wl = uWellC[i];
     if (wl.w == 0.) continue;
@@ -102,6 +116,46 @@ float motionField(vec2 p, out vec2 grad, out float sh) {
   return g;
 }
 float motionFront(vec3 n) { return smoothstep(.15, -.35, n.y); }     // the front of the glass (faces toward the camera)
+// The drop forming when the widget appears (and melting away on close, backwards): two beads swell where the lobes will
+// be, each the lobe itself scaled about its own middle, its side toward the other drawn to a short point; a neck
+// reaches out from each point and they meet, and the neck thickens into the waist. The waist's points not yet reached
+// sit at the front of the reach, pinched onto the waist's spine (the line through its middle, from the model).
+uniform vec4 uForm;        // the bulb's scale, the right lobe's, how far the necks have reached (0..1), the waist's thickness (0..1)
+uniform vec2 uMelt;        // melting: how much (0..1: the lobes slump as they shrink), -
+uniform int uFormOn;
+const float WA = -2.2, WB = 2.4;                       // the waist, along x (root units)
+const vec3 CL = vec3(-4.9, .55, .3), CR = vec3(4.6, .04, .4);   // the lobes' middles
+vec2 spineAt(float x) {                                // the waist's middle (y, z) at x, from the model (x -2.5 .. 2.5)
+  float f = clamp((x + 2.5) / .5, 0., 9.999); int i = int(floor(f)); float t = fract(f);
+  vec2 S[11] = vec2[11](vec2(.38, -.37), vec2(.33, -.50), vec2(.27, -.58), vec2(.22, -.59), vec2(.17, -.57), vec2(.11, -.52),
+    vec2(.06, -.43), vec2(.02, -.29), vec2(0., -.11), vec2(0., .08), vec2(.02, .23));
+  return mix(S[i], S[i + 1], t);
+}
+vec3 lobeT(vec3 p, vec3 c, float s, float melt) {
+  vec3 q = (p - c) * s;
+  float m = melt * (1. - s);                           // (melting: flatter and wider as it shrinks, sinking a little)
+  q *= vec3(1. + .15 * m, 1. + .1 * m, 1. - .35 * m);
+  return c + q + vec3(0., 0., -.5 * m);
+}
+vec3 formAt(vec3 p) {
+  float w = clamp((p.x - WA) / (WB - WA), 0., 1.);
+  const float NOSE = .2;
+  float fr = mix(NOSE, .5, uForm.z);                   // how far each neck has reached, from its own side
+  float th = 1.;
+  if (w > 0. && w < 1.) {
+    float side = w < .5 ? w : 1. - w;
+    float we = min(side, fr);                          // (not yet reached: at the front)
+    // the neck's thickness: full at the lobe, drawn to a point at the front (and at the middle until it has thickened)
+    float taper = side >= fr ? 0. : pow(1. - side / fr, .55);
+    th = mix(taper, 1., uForm.w);
+    float x = WA + (w < .5 ? we : 1. - we) * (WB - WA);
+    vec2 s0 = spineAt(p.x), s1 = spineAt(x);
+    p = vec3(x, s1.x + (p.y - s0.x) * th, s1.y + (p.z - s0.y) * th);
+    w = (x - WA) / (WB - WA);
+  }
+  vec3 pl = lobeT(p, CL, uForm.x, uMelt.x), pr = lobeT(p, CR, uForm.y, uMelt.x);
+  return mix(pl, pr, smoothstep(.3, .7, w));
+}
 `;
 const VS_MESH = HEAD + MOTION + `
 layout(location = 0) in vec3 aPos;
@@ -117,8 +171,53 @@ void main() {
     vec2 gr; float sh;
     p.y += motionField(aPos.xz, gr, sh) * motionFront(aNor);
     p.xz += aNor.xz * sh * uShapeK;            // the outline moves too: the jelly's shape itself
+    p.xz += sloshAt(aPos.xz);                  // and lags behind a drag of the window
   }
+  if (uFormOn == 1) p = formAt(p);
   vPos = p; vNor = aNor; vUv = aUv; gl_Position = uP * vec4(p, 1.);
+}`;
+// The two small beads beside the right end (open the full app; hide the widget): each a sphere of the same glass, drawn
+// through the same passes as the model. While it buds off the end the side of it that faces the end is drawn out into a
+// neck reaching back into the end (where the end swells to meet it: uBud), thinner as the bead moves away, until it
+// pinches off and the bead pulls round, wobbling (squashed and stretched along that axis, its volume kept).
+const VS_BEAD = HEAD + MOTION + `
+layout(location = 0) in vec3 aPos;     // a unit sphere
+uniform mat4 uP;
+uniform vec4 uBeadC[2];   // centre (root units), radius
+uniform vec4 uBeadA[2];   // where the neck reaches into the end (root units), how joined: 1 joined, 0 parted
+uniform vec4 uBeadW[2];   // stretch along the neck's axis (1 round), the neck's waist and its foot (fractions of the radius)
+uniform vec2 uBeadUv;     // where on the light map (the end's)
+out vec3 vPos;
+out vec3 vNor;
+out vec2 vUv;
+vec3 beadAt(vec3 d, vec4 C, vec4 A, vec4 W) {
+  vec3 ax = A.xyz - C.xyz; float L = length(ax); vec3 a = ax / max(L, 1e-5);
+  float r = C.w, sq = W.x, h = dot(d, a);
+  vec3 dp = d - a * h; float lp = length(dp); vec3 across = lp > 1e-5 ? dp / lp : vec3(0.);
+  float along = r * h * sq, rad = r * lp / sqrt(sq);
+  // the cap facing the end becomes the neck: stations from the bead's side (t 0) to the foot in the end (t 1)
+  const float H0 = .25;
+  if (A.w > 0. && h > H0) {
+    float t = (h - H0) / (1. - H0);
+    float a0 = r * H0 * sq;
+    float reach = mix(r * sq, L, A.w);                       // (parted: back to the sphere's own cap)
+    float neck = r * (mix(sqrt(1. - H0 * H0) / sqrt(sq), W.y, smoothstep(0., .5, t)) + (W.z - W.y) * smoothstep(.5, 1., t));
+    along = mix(along, mix(a0, reach, t), A.w);
+    rad = mix(rad, neck * sqrt(max(1. - pow(max(t * 1.02 - .02, 0.), 8.), 0.)), A.w);   // (closed at the very foot)
+  }
+  return C.xyz + a * along + across * rad;
+}
+void main() {
+  int i = gl_InstanceID;
+  vec4 C = uBeadC[i], A = uBeadA[i], W = uBeadW[i];
+  vec3 d = normalize(aPos);
+  vec3 p = beadAt(d, C, A, W);
+  // its normal from two nearby points (the neck is not a sphere)
+  vec3 e1 = normalize(cross(d, abs(d.y) < .9 ? vec3(0., 1., 0.) : vec3(1., 0., 0.))), e2 = cross(d, e1);
+  vec3 n = cross(beadAt(normalize(d + e1 * .01), C, A, W) - p, beadAt(normalize(d + e2 * .01), C, A, W) - p);
+  n = dot(n, n) > 1e-14 ? normalize(n) : d;          // (outward: the map keeps the sphere's orientation)
+  if (uMotionOn == 1) p.xz += sloshAt(p.xz);
+  vPos = p; vNor = n; vUv = uBeadUv; gl_Position = uP * vec4(p, 1.);
 }`;
 const FS_LAYER = HEAD + `
 in vec3 vPos;
@@ -330,13 +429,18 @@ void main() {
   vec3 dye = texture(uDye, vUv).rgb;
   o = vec4(dye + c * g * uAmount * (1. - .45 * clamp(max(dye.r, max(dye.g, dye.b)), 0., 1.)), 1.);
 }`;
-const VS_COVER = HEAD + `
+const VS_COVER = HEAD + MOTION + `
 layout(location = 0) in vec3 aPos;
 layout(location = 2) in vec2 aUv;
 uniform mat4 uP;
 out vec3 vPos;
 out vec2 vUv;
-void main() { vPos = aPos; vUv = aUv; gl_Position = uP * vec4(aPos, 1.); }`;
+void main() {
+  vec3 p = aPos;
+  if (uMotionOn == 1) p.xz += sloshAt(aPos.xz);    // (the cover goes with the glass round it)
+  if (uFormOn == 1) p = lobeT(p, CL, uForm.x, uMelt.x);
+  vPos = p; vUv = aUv; gl_Position = uP * vec4(p, 1.);
+}`;
 const FS_COVER = HEAD + COMMON + NOISE_GLSL + `
 in vec3 vPos;
 in vec2 vUv;
@@ -399,6 +503,7 @@ uniform vec2 uInkK;                // the ink: how strongly it dyes the glass, h
 uniform vec4 uWords[4];            // behind the words and times: boxes in canvas fractions (x0, y0, x1, y1; y up)
 uniform vec2 uWordsDim;            // how much of the desktop still comes through there, the feather (fractions of width)
 uniform int uDbg;
+uniform float uBeadMode;           // 1: drawing the beads beside the right end
 out vec4 o;
 
 float rrect(vec2 q, float b, float r) { vec2 d = abs(q) - b + r; return length(max(d, 0.)) + min(max(d.x, d.y), 0.) - r; }
@@ -541,6 +646,8 @@ void main() {
   // light gathered in the thick edges: a band some tens of pixels wide just inside the outline (measured on the
   // silhouette itself, so never a halo outside it), coral low down (the bottom, the tail), peach higher up
   float eM = texture(uEdge, gl_FragCoord.xy / uRes).r;
+  if (uBeadMode > .5) eM = .5 + .5 * ndv;                       // (a bead: its own outline, not the model's)
+  else if (uFormOn == 1) eM = mix(.5 + .5 * ndv, eM, smoothstep(.85, 1., min(uForm.x, uForm.y) * uForm.w));   // (forming: likewise)
   // the broad band, or toward a narrower core hugging the outline (edge core), so the bottom reads as a lit edge
   // of glass rather than a painted rim
   float edge = mix(pow(smoothstep(.995, .5, eM), 1.3), pow(smoothstep(.85, .5, eM), 1.6), uL5.z);
@@ -769,6 +876,31 @@ export async function createGlass(canvas, { assets, ss = 2, studio = 'live', lig
   gl.enableVertexAttribArray(2); gl.vertexAttribPointer(2, 2, gl.FLOAT, false, 20, 12);
   gl.bindVertexArray(null);
 
+  // the beads: a unit sphere (an icosahedron split three times: 642 points), drawn twice (instanced)
+  const sphere = (() => {
+    const t = (1 + Math.sqrt(5)) / 2;
+    let v = [[-1, t, 0], [1, t, 0], [-1, -t, 0], [1, -t, 0], [0, -1, t], [0, 1, t], [0, -1, -t], [0, 1, -t], [t, 0, -1], [t, 0, 1], [-t, 0, -1], [-t, 0, 1]]
+      .map((p) => { const l = Math.hypot(...p); return p.map((c) => c / l); });
+    let f = [[0, 11, 5], [0, 5, 1], [0, 1, 7], [0, 7, 10], [0, 10, 11], [1, 5, 9], [5, 11, 4], [11, 10, 2], [10, 7, 6], [7, 1, 8],
+      [3, 9, 4], [3, 4, 2], [3, 2, 6], [3, 6, 8], [3, 8, 9], [4, 9, 5], [2, 4, 11], [6, 2, 10], [8, 6, 7], [9, 8, 1]];
+    for (let s = 0; s < 3; s++) {
+      const mid = new Map(), nf = [];
+      const m = (a, b) => {
+        const k = a < b ? a + ',' + b : b + ',' + a;
+        if (!mid.has(k)) { const p = v[a].map((c, i) => (c + v[b][i]) / 2), l = Math.hypot(...p); v.push(p.map((c) => c / l)); mid.set(k, v.length - 1); }
+        return mid.get(k);
+      };
+      for (const [a, b, c] of f) { const ab = m(a, b), bc = m(b, c), ca = m(c, a); nf.push([a, ab, ca], [b, bc, ab], [c, ca, bc], [ab, bc, ca]); }
+      f = nf;
+    }
+    return { pos: new Float32Array(v.flat()), idx: new Uint16Array(f.flat()) };
+  })();
+  const bvao = gl.createVertexArray(); gl.bindVertexArray(bvao);
+  { const b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.bufferData(gl.ARRAY_BUFFER, sphere.pos, gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+    const bi = gl.createBuffer(); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, bi); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, sphere.idx, gl.STATIC_DRAW); }
+  gl.bindVertexArray(null);
+
   const envTex = halfTexture(envSize[0], envSize[1], new Uint16Array(envBuf), { mip: true, wrap: gl.REPEAT });
   const softTex = halfTexture(softSize[0], softSize[1], new Uint16Array(softBuf), { mip: true, wrap: gl.REPEAT });
   const lightTex = lightBuf ? halfTexture(meta.light[0], meta.light[1], new Uint16Array(lightBuf), { mip: true })
@@ -789,7 +921,8 @@ export async function createGlass(canvas, { assets, ss = 2, studio = 'live', lig
     bright: compile(VS_QUAD, FS_BRIGHT), blur: compile(VS_QUAD, FS_BLUR), ink: compile(VS_QUAD, FS_INK),
     flForce: compile(VS_QUAD, FS_FL_FORCE), flImpulse: compile(VS_QUAD, FS_FL_IMPULSE), flCurl: compile(VS_QUAD, FS_FL_CURL),
     flVort: compile(VS_QUAD, FS_FL_VORT), flDiv: compile(VS_QUAD, FS_FL_DIV), flPressure: compile(VS_QUAD, FS_FL_PRESSURE),
-    flProject: compile(VS_QUAD, FS_FL_PROJECT), flDrop: compile(VS_QUAD, FS_FL_DROP) };
+    flProject: compile(VS_QUAD, FS_FL_PROJECT), flDrop: compile(VS_QUAD, FS_FL_DROP),
+    layerBead: compile(VS_BEAD, FS_LAYER), glassBead: compile(VS_BEAD, FS_GLASS) };
   const t = meta.tilt * Math.PI / 180, ct = Math.cos(t), st = Math.sin(t);
   const toWorld = new Float32Array([1, 0, 0, 0, ct, -st, 0, st, ct]);        // columns: Rx(-tilt)
   const covInv = new Float32Array(16);
@@ -960,12 +1093,31 @@ export async function createGlass(canvas, { assets, ss = 2, studio = 'live', lig
     setMotion(u);
     if (prev) tex(u.uPrev, prev.tex);
     gl.bindVertexArray(vao); gl.drawElements(gl.TRIANGLES, nt * 3, gl.UNSIGNED_INT, 0);
+    if (beadsShown()) {
+      const ub = use(prog.layerBead); gl.uniformMatrix4fv(ub.uP, false, R.P); gl.uniform1i(ub.uFirst, first ? 1 : 0);
+      setMotion(ub); setBeads(ub);
+      if (prev) tex(ub.uPrev, prev.tex);
+      gl.bindVertexArray(bvao); gl.drawElementsInstanced(gl.TRIANGLES, sphere.idx.length, gl.UNSIGNED_SHORT, 0, 2);
+    }
+  };
+  /** The beads beside the right end (set by the page): R.beads = { c: [[x, y, z, r] x2], a: [[x, y, z, joined] x2],
+   *  w: [[stretch, waist, foot, -] x2] } in root units, or null. Drawn only while one has some size. */
+  const beadsShown = () => Boolean(R.beads && (R.beads.c[0][3] > 1e-3 || R.beads.c[1][3] > 1e-3));
+  const BEAD_UV = [(meta.CX + 7.3 / meta.S) / meta.W, 1 - (meta.CY - 0.25 / meta.S) / meta.H];   // (the end's light)
+  const setBeads = (u) => {
+    const B = R.beads;
+    gl.uniform4fv(u.uBeadC, new Float32Array(B.c.flat())); gl.uniform4fv(u.uBeadA, new Float32Array(B.a.flat()));
+    gl.uniform4fv(u.uBeadW, new Float32Array(B.w.flat())); gl.uniform2fv(u.uBeadUv, BEAD_UV);
   };
 
   const NONE6 = new Float32Array([0, 0, -1, 0, 0, 0, -1, 0, 0, 0, -1, 0, 0, 0, -1, 0, 0, 0, -1, 0, 0, 0, -1, 0]);
   const NOBEAT6 = new Float32Array([0, -1, 0, 0, 0, -1, 0, 0, 0, -1, 0, 0, 0, -1, 0, 0, 0, -1, 0, 0, 0, -1, 0, 0]);
   /** The motion's uniforms, for every program that draws the glass (the layers' vertex shader moves it the same way). */
   const setMotion = (u) => {
+    // the drop forming or melting (R.form, set by the page while it does: { s: [bulb, right lobe], reach, thick, melt })
+    const F = R.form;
+    gl.uniform1i(u.uFormOn, F ? 1 : 0);
+    if (F) { gl.uniform4f(u.uForm, F.s[0], F.s[1], F.reach, F.thick); gl.uniform2f(u.uMelt, F.melt || 0, 0); }
     const M = R.motion;
     gl.uniform1i(u.uMotionOn, M ? 1 : 0);
     if (!M) return;
@@ -980,6 +1132,8 @@ export async function createGlass(canvas, { assets, ss = 2, studio = 'live', lig
     gl.uniform4fv(u.uMusic, M.music || [0, 0, 0, 0]); gl.uniform1fv(u.uBands, M.bands || new Float32Array(16));
     gl.uniform2fv(u.uFold, R.fold); gl.uniform4fv(u.uSpec, M.spec || [0, 0, 0, 0]);
     gl.uniform4fv(u.uWellC, new Float32Array(WELLS.map((w, i) => [w[0], w[1], w[2], M.sink[i]]).flat()));
+    gl.uniform4fv(u.uSlosh, M.slosh || [0, 0, 0, 0]);
+    gl.uniform4fv(u.uBud, new Float32Array((M.bud || [[0, 0, 0, 1], [0, 0, 0, 1]]).flat()));
   };
   R.draw = () => {
     const T = R.targets, L = R.light, [RW, RH] = R.size.render, [CW, CH] = R.size.canvas;
@@ -991,12 +1145,26 @@ export async function createGlass(canvas, { assets, ss = 2, studio = 'live', lig
     gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     gl.disable(gl.CULL_FACE);
     let u = use(prog.cover); common(u); gl.uniformMatrix4fv(u.uP, false, R.P); tex(u.uArt, artTex); gl.uniform1f(u.uCoat, L.coat);
+    setMotion(u);
     tex(u.uArtOld, artOldTex); gl.uniform2f(u.uDissolve, R.dissolve, R.dissolveNoise ? 1 : 0);
     const TINT = R.tintNow();
     gl.bindVertexArray(cvao); gl.drawArrays(gl.TRIANGLES, 0, meta.cover.count);
-    // 4: the glass
+    // 4: the glass (then the beads, the same glass)
     gl.enable(gl.CULL_FACE); gl.cullFace(gl.BACK);
-    u = use(prog.glass); common(u);
+    u = use(prog.glass); glassUniforms(u, TINT);
+    gl.uniform1f(u.uBeadMode, 0);
+    gl.bindVertexArray(vao); gl.drawElements(gl.TRIANGLES, nt * 3, gl.UNSIGNED_INT, 0);
+    if (beadsShown()) {
+      u = use(prog.glassBead); glassUniforms(u, TINT); setBeads(u);
+      gl.uniform1f(u.uBeadMode, 1);
+      gl.bindVertexArray(bvao); gl.drawElementsInstanced(gl.TRIANGLES, sphere.idx.length, gl.UNSIGNED_SHORT, 0, 2);
+    }
+    drawGlow(TINT);
+  };
+  /** Everything the glass's own program needs (the model's and the beads'). */
+  function glassUniforms(u, TINT) {
+    const T = R.targets, L = R.light, [RW, RH] = R.size.render;
+    common(u);
     gl.uniformMatrix4fv(u.uP, false, R.P); gl.uniform2f(u.uRes, RW, RH);
     tex(u.uBack, T.back.tex); tex(u.uF2, T.f2.tex); tex(u.uB2, T.b2.tex); tex(u.uArt, artTex); tex(u.uLightMap, lightTex); tex(u.uDesk, deskTex);
     tex(u.uEdge, edgeTex);
@@ -1023,7 +1191,11 @@ export async function createGlass(canvas, { assets, ss = 2, studio = 'live', lig
     while (boxes.length < 4) boxes.push([2, 2, 2, 2]);
     gl.uniform4fv(u.uWords, new Float32Array(boxes.flat()));
     gl.uniform2f(u.uWordsDim, L.wordsDesk, 14 / rw);
-    gl.bindVertexArray(vao); gl.drawElements(gl.TRIANGLES, nt * 3, gl.UNSIGNED_INT, 0);
+  }
+  /** The glow, then down to the canvas. */
+  function drawGlow(TINT) {
+    const T = R.targets, L = R.light, [RW, RH] = R.size.render, [CW, CH] = R.size.canvas;
+    let u;
     // the glow: the bright part at a quarter size, blurred across then down, then its mipmaps
     gl.disable(gl.DEPTH_TEST); gl.disable(gl.CULL_FACE); gl.bindVertexArray(null);
     const QW = T.glowA.w, QH = T.glowA.h;
