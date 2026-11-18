@@ -193,7 +193,12 @@ async function startBackdrop() {
         G.setDesk(value); fadeDesk(1); redraw();
         if (rec.on) {        // (recording: the piece of screen under the window, as it was when this frame was drawn)
           const m = G.desk.map, fw = value.displayWidth, fh = value.displayHeight;
-          const sx = m[0] * fw, sy = (1 - m[1] - m[3]) * fh, sw = m[2] * fw, sh = m[3] * fh;
+          let sx = m[0] * fw, sy = (1 - m[1] - m[3]) * fh, sw = m[2] * fw, sh = m[3] * fh;
+          const D = rec.region && backdrop.placement && backdrop.placement.display;
+          if (D) {           // (a larger piece of the screen: the window moving over it)
+            sx = (rec.region.x - D.x) / D.width * fw; sy = (rec.region.y - D.y) / D.height * fh;
+            sw = rec.region.width / D.width * fw; sh = rec.region.height / D.height * fh;
+          }
           createImageBitmap(value, sx, sy, sw, sh).then((bm) => { if (rec.under) rec.under.close(); rec.under = bm; }).catch(() => {});
         }
       }
@@ -1161,6 +1166,10 @@ function drive(kind = 'cursor', seconds = 8) {
     at = glide(at + 1.0, 0.7, [821, 172], [430, 220]);
     at = glide(at + 1.3, 0.6, [430, 220], [770, 200]);
   }
+  if (kind === 'grab') {        // (on screen: the shell moves the real window meanwhile, as a drag does)
+    glide(0.1, 0.4, [470, 330], [299, 210]);
+    plan.push([0.6, 'down', 299, 210], [6.1, 'up', 299, 210]);
+  }
   if (kind === 'drop') {        // the drop melts away (as on close), then forms again (as when the widget appears)
     plan.push([0.6, 'vanish', 0, 0], [3.4, 'appear', 0, 0]);
   }
@@ -1213,11 +1222,15 @@ function drawCursor(x, px, py, k) {
   x.lineTo(12, 12.3); x.closePath();
   x.fillStyle = '#fff'; x.strokeStyle = '#000'; x.lineWidth = 1.1; x.fill(); x.stroke(); x.restore();
 }
-async function record(seconds = 6, fps = 30, script = null) {
+async function record(seconds = 6, fps = 30, script = null, opts = {}) {
   const [W, H] = G.size.canvas;
-  // (a drag of the window, over a still backdrop: a larger frame, the widget moving across it)
+  // (a drag of the window, over a still backdrop: a larger frame, the widget moving across it; or, on screen, a region
+  // of the screen larger than the window (opts.region, screen DIPs), the real window moving over it)
   const moving = script === 'drag' && deskImg;
-  const FW = moving ? Math.round(W * 1.5) : W, FH = moving ? Math.round(H * 1.75) : H;
+  const region = !moving && opts.region ? opts.region : null;
+  rec.region = region;
+  const FW = moving ? Math.round(W * 1.5) : region ? Math.round(region.width * G.size.dpr) : W;
+  const FH = moving ? Math.round(H * 1.75) : region ? Math.round(region.height * G.size.dpr) : H;
   const c = document.createElement('canvas'); c.width = FW; c.height = FH;
   const x = c.getContext('2d');
   rec.on = true;
@@ -1228,10 +1241,12 @@ async function record(seconds = 6, fps = 30, script = null) {
   const chunks = [];
   mr.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
   const t = setInterval(() => {
-    const d = G.size.dpr, ox = moving ? Math.round(rec.win[0] * d) : 0, oy = moving ? Math.round(rec.win[1] * d) : 0;
+    const d = G.size.dpr, pw = region && backdrop.placement ? backdrop.placement.window : null;
+    const ox = moving ? Math.round(rec.win[0] * d) : pw ? Math.round((pw.x - region.x) * d) : 0;
+    const oy = moving ? Math.round(rec.win[1] * d) : pw ? Math.round((pw.y - region.y) * d) : 0;
     if (moving) x.drawImage(deskImg, 0, 0, FW, FH);
     else if (deskImg) x.drawImage(deskImg, 0, 0, W, H);
-    else if (rec.under) x.drawImage(rec.under, 0, 0, W, H); else { x.fillStyle = '#000'; x.fillRect(0, 0, W, H); }
+    else if (rec.under) x.drawImage(rec.under, 0, 0, FW, FH); else { x.fillStyle = '#000'; x.fillRect(0, 0, FW, FH); }
     const fa = formAlpha();       // (the forming's fades are on the layers' style: drawn here by hand)
     x.globalAlpha = fa.pools; x.drawImage(under, ox, oy); x.globalAlpha = fa.glass; x.drawImage(canvas, ox, oy);
     x.globalAlpha = fa.words; x.drawImage(ink, ox, oy); x.globalAlpha = 1;
@@ -1241,7 +1256,7 @@ async function record(seconds = 6, fps = 30, script = null) {
   rec.cursor = Boolean(script);
   if (script) drive(script, seconds - 0.3);
   await new Promise((r) => setTimeout(r, seconds * 1000));
-  mr.stop(); clearInterval(t); rec.on = false;
+  mr.stop(); clearInterval(t); rec.on = false; rec.region = null;
   if (moving) { rec.stage = null; G.desk.map = [0, 0, 1, 1]; redraw(); }
   if (rec.deskSelf || moving) { rec.deskSelf = false; paintPools(); }
   await new Promise((r) => { mr.onstop = r; });

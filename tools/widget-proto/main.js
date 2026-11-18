@@ -846,12 +846,19 @@ async function runRecord() {
   if (display.id === screen.getPrimaryDisplay().id) { console.log('record: no second monitor; nothing recorded'); app.quit(); return; }
   const area = display.workArea;
   const w = Math.round(STAGE.w * SIZE), h = Math.round(STAGE.h * SIZE);
-  const at = { x: area.x + area.width - w - 60, y: area.y + area.height - h - 60 };
-  if (args.backdrop) {
+  // drive=drag: the real window is dragged (dragStep, made-up cursor points; the real mouse is not touched) over a
+  // piece of the screen larger than it, which is what is recorded; our own backdrop window covers that piece unless
+  // backdrop=desktop is given
+  const DRAG = args.drive === 'drag';
+  const region = DRAG ? { x: area.x + 40, y: area.y + 40, width: Math.round(w * 1.5), height: Math.round(h * 1.75) } : null;
+  const at = DRAG ? { x: region.x + 60, y: region.y + 70 } : { x: area.x + area.width - w - 60, y: area.y + area.height - h - 60 };
+  const bdMode = DRAG && !args.backdrop ? 'busy' : args.backdrop;
+  if (bdMode && bdMode !== 'desktop') {
     // (a check of the recording itself: one of our own backdrop windows behind the widget instead of the desktop)
-    const bd = new BrowserWindow({ x: at.x - 40, y: at.y - 40, width: w + 80, height: h + 80, frame: false, resizable: false, skipTaskbar: true,
+    const bb = region || { x: at.x - 40, y: at.y - 40, width: w + 80, height: h + 80 };
+    const bd = new BrowserWindow({ ...bb, frame: false, resizable: false, skipTaskbar: true,
       focusable: false, show: false, alwaysOnTop: true, backgroundColor: '#000000', webPreferences: { contextIsolation: true, sandbox: true } });
-    await bd.loadFile(path.join(__dirname, 'backdrop.html'), { query: { mode: args.backdrop } });
+    await bd.loadFile(path.join(__dirname, 'backdrop.html'), { query: { mode: bdMode } });
     onTop(bd); bd.showInactive(); bd.moveTop();
   }
   await createWidget({ query: 'play', display: 'other', ...at });
@@ -864,7 +871,31 @@ async function runRecord() {
   for (let i = 0; i < 100 && !(await run('window.__glass.backdrop.frames > 5')); i++) await sleep(100);
   await sleep(1500);
   // (drive=cursor|dimple|ripple|press|buttons: a pretend pointer plays that interaction, its cursor drawn in the film)
-  const b64 = await run(`window.__glass.record(${Number(args.seconds) || 6}, 30, ${args.drive ? JSON.stringify(args.drive) : 'null'})`);
+  const seconds = Number(args.seconds) || 6;
+  const recording = run(`window.__glass.record(${seconds}, 30, ${DRAG ? '"grab"' : args.drive ? JSON.stringify(args.drive) : 'null'}, ${JSON.stringify({ region })})`);
+  if (DRAG) {
+    // the same path as the off-screen film's: a quick pull, a flick down and to the left, a slow circle (DIPs from the start)
+    const t0 = Date.now(), home = { x: 1000, y: 500 };
+    const ease = (f) => 0.5 - 0.5 * Math.cos(Math.PI * Math.min(1, Math.max(0, f)));
+    const offset = (t) => {
+      if (t < 0.85) return [0, 0];
+      if (t < 1.27) { const f = ease((t - 0.85) / 0.42); return [310 * f, 0]; }
+      if (t < 2.52) return [310, 0];
+      if (t < 2.82) { const f = ease((t - 2.52) / 0.3); return [310 - 200 * f, 180 * f]; }
+      if (t < 4.02) return [110, 180];
+      if (t < 5.62) { const a = Math.PI / 2 + 2 * Math.PI * ease((t - 4.02) / 1.6); return [110 + 90 * Math.cos(a), 90 + 90 * Math.sin(a)]; }
+      return [110, 180];
+    };
+    await sleep(600);
+    dragStep('start', home);
+    while ((Date.now() - t0) / 1000 < 6.0) {
+      const [dx, dy] = offset((Date.now() - t0) / 1000);
+      dragStep('move', { x: home.x + Math.round(dx), y: home.y + Math.round(dy) });
+      await sleep(16);
+    }
+    dragStep('end', home, { remember: false });
+  }
+  const b64 = await recording;
   const out = path.resolve(REPO, args.out || 'design/captures/raw/mercury3d/desktop.webm');
   fs.mkdirSync(path.dirname(out), { recursive: true });
   fs.writeFileSync(out, Buffer.from(b64, 'base64'));
