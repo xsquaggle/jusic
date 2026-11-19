@@ -557,7 +557,10 @@ uniform vec4 uL5;                  // the studio's light kept in the rolls over 
 uniform vec3 uTint;                // the album's colour
 uniform vec3 uArtMean;             // the cover's mean colour (linear)
 uniform vec4 uWells[3];            // the wells: centre (Blender X, Z), radius, -
-uniform vec4 uTilt;                // the turn toward the cursor (x, z), and the upper sheet's extra lean (x, z)
+uniform vec4 uTilt;                // the glass turned (x, z), and the upper sheet's extra lean (x, z): now only the slosh
+uniform vec4 uCursor;              // the cursor's reflection: the pointer (CSS px of the page, y down), how strongly, its size
+uniform vec4 uCursorM;             // the nearest point of the outline to the pointer (CSS px), the way out of the glass there
+uniform vec2 uPage;                // the page's size in CSS px
 uniform vec4 uMusic;               // the music: bass, highs, time (s), on (0..1: fades out on pause)
 uniform float uBands[16];          // its spectrum, low to high
 uniform vec2 uFold[8];             // the fold under the sheet's lip (root x, z), left to right
@@ -570,6 +573,20 @@ uniform int uDbg;
 uniform float uBeadMode;           // 1: drawing the beads beside the right end
 out vec4 o;
 
+// the pointer's arrow (Windows' own, in CSS px from its tip, y down): its distance, negative inside
+float arrowSd(vec2 p) {
+  vec2 v[7] = vec2[7](vec2(0., 0.), vec2(0., 16.), vec2(4., 12.5), vec2(7., 19.), vec2(9.5, 18.), vec2(6.6, 11.6), vec2(11.5, 11.6));
+  float d = dot(p - v[0], p - v[0]), sg = 1.;
+  for (int i = 0; i < 7; i++) {
+    int j = (i + 6) % 7;
+    vec2 e = v[j] - v[i], w = p - v[i];
+    vec2 b = w - e * clamp(dot(w, e) / dot(e, e), 0., 1.);
+    d = min(d, dot(b, b));
+    bvec3 c = bvec3(p.y >= v[i].y, p.y < v[j].y, e.x * w.y > e.y * w.x);
+    if (all(c) || all(not(c))) sg = -sg;
+  }
+  return sg * sqrt(d);
+}
 float rrect(vec2 q, float b, float r) { vec2 d = abs(q) - b + r; return length(max(d, 0.)) + min(max(d.x, d.y), 0.) - r; }
 vec4 layerAt(highp sampler2D t, vec2 frag) { return texelFetch(t, ivec2(clamp(frag, vec2(0.), uRes - 1.)), 0); }
 vec2 toFrag(vec3 p) { vec4 c = uP * vec4(p, 1.); return (c.xy / c.w * .5 + .5) * uRes; }
@@ -766,6 +783,28 @@ void main() {
     inner += hue * dense * uInkK.y * (1. - F);
   }
   vec3 col = refl * F + inner + band + wellLight;
+  // the cursor's reflection (the owner, 19 November: nothing turns or changes its light for a pointer that is not on the
+  // glass; "I should just be able to see the reflection of my cursor appear as my mouse draws closer"). The glass's
+  // edge mirrors the pointer: as it nears the outline, its image comes toward it from inside the edge, as one's
+  // reflection meets one at a mirror (the image of the arrow mirrored across the outline's tangent at the nearest point,
+  // a little smaller, as a rounded mirror makes it), and meets it there; once the pointer is on the glass the image has
+  // passed out of it. Light only: white, its outline taking a little light away; brighter in the lit rim, fainter
+  // deeper in, never over the words. (Mirroring the pointer in the front faces themselves puts the image right behind
+  // the cursor, or, on the deep glass behind the words, far off over the title.)
+  if (uMotionOn == 1 && uCursor.z > .002) {
+    vec2 fcC = gl_FragCoord.xy / uRes, X = vec2(fcC.x, 1. - fcC.y) * uPage;
+    vec2 n = uCursorM.zw, xm = X - uCursorM.xy;
+    xm -= 2. * dot(xm, n) * n;
+    vec2 qc = uCursorM.xy + xm / uCursor.w - uCursor.xy;                    // CSS px from the arrow's tip, y down
+    if (qc.x > -4. && qc.y > -4. && qc.x < 16. && qc.y < 23.) {
+      float sd = arrowSd(qc), aa = clamp(fwidth(sd), .2, 3.);
+      float fill = 1. - smoothstep(-aa, aa, sd);
+      float rimC = (1. - smoothstep(-aa, aa, sd - 1.2)) - fill;
+      float edgeC = smoothstep(.97, .55, texture(uEdge, fcC).r);
+      float k = uCursor.z * mix(.6, 1., edgeC) * (1. - wm);
+      col = col * (1. - .6 * rimC * k) + vec3(1.) * fill * k * 2.2;
+    }
+  }
   if (uMotionOn == 1 && uMusic.w > 0.) {
     // glints running along the hot highlights with the highs
     vec3 rF = refl * F;
@@ -1197,6 +1236,7 @@ export async function createGlass(canvas, { assets, ss = 2, studio = 'live', lig
     if (!M) return;
     gl.uniform1f(u.uShapeK, M.shapeK ?? 1);
     gl.uniform4fv(u.uTilt, M.tilt); gl.uniform4fv(u.uDimple, M.dimple); gl.uniform4fv(u.uPress, M.press);
+    gl.uniform4fv(u.uCursor, M.cursor || [0, 0, 0, 1]); gl.uniform4fv(u.uCursorM, M.cursorM || [0, 0, 0, 1]); gl.uniform2fv(u.uPage, M.page || [1, 1]);
     gl.uniform4fv(u.uRip, new Float32Array(M.rips.flat())); gl.uniform3fv(u.uRipK, M.ripK);
     gl.uniform4fv(u.uJig, M.jig); gl.uniform3fv(u.uJigK, M.jigK);
     gl.uniform3fv(u.uFlex, M.flex || [0, 0, 0]);

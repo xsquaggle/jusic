@@ -758,10 +758,15 @@ function inkStep(dt) {
 // with it. Words and controls never move (the glyphs only shrink a few per cent as they sink). Nothing is drawn once
 // everything has settled. Reduced motion (Windows' setting, or ?still): none of it, only the glyphs dimming while
 // pressed. Strengths: ?m_tilt= m_lean= m_dimple= m_press= m_rip= m_sink= (0 turns one off).
+// (the owner, 19 November: "why does it interact when my mouse isn't touching it? If anything, I should just be able to
+// see the reflection of my cursor appear as my mouse draws closer." So the glass no longer turns or leans toward the
+// pointer at all (tilt and lean are left to the slosh); instead the cursor is reflected in the glass (renderer.js,
+// uCursor), more as it nears the glass: from nothing reflectNear CSS px off the outline to full some 35 px off it. Light only.
+// ?m_reflect= its strength (0: off), m_reflectNear= (CSS px), m_reflectSize= how big the image is beside the arrow.)
 const RM = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
 // (the owner, 17 November: "a little bit stronger", and the press to squish more like jelly)
 const MOT = { tilt: 0.065, lean: 0.06, dimple: 0.06, dimpleR: 0.2, press: 0.11, pressR: 1.3, rip: 0.015, ripSpeed: 9, ripWave: 0.38,
-  ripDecay: 0.6, jig: 0.022, jigSpeed: 3.4, jigWave: 1.1, jigDecay: 0.9, sink: 1, shape: 1, slosh: 1 };
+  ripDecay: 0.6, jig: 0.022, jigSpeed: 3.4, jigWave: 1.1, jigDecay: 0.9, sink: 1, shape: 1, slosh: 1, reflect: 1, reflectNear: 90, reflectSize: 0.8 };
 for (const k of Object.keys(MOT)) if (Q.has('m_' + k)) MOT[k] = Number(Q.get('m_' + k));
 const SINK = { hover: 0.03, down: 0.07 };                   // how far a well's floor goes back (root units: 1 = 100 ref px)
 // Jelly: a press goes in with a little overshoot and comes back bouncing three or four times; a button's floor the same,
@@ -776,7 +781,49 @@ const motion = {
   jig: null, pressing: false,                  // the wobble rolling out from a release
   sink: [0, 1, 2].map(() => new Spring('press')), hoverBtn: -1, downBtn: -1,
   pointer: null, last: 0,
+  near: new Spring({ k: 120, c: 22 }), cursorAt: [0, 0], cursorM: [0, 0, 0, 1],   // the cursor's reflection: how near, where
 };
+/**
+ * The nearest point of the glass's outline to a point of the page (CSS px), from the click-through's shape: for every
+ * pixel, the nearest pixel on the other side of the outline (two sweeps, each pixel taking the nearest of its
+ * neighbours' nearest). Outside the glass: how far it is, the outline's nearest point, the way out there.
+ */
+let nearOut = null, nearIn = null;
+function nearestField(m, seed) {
+  const { w, h, data } = m, nn = new Int32Array(w * h).fill(-1);
+  for (let i = 0; i < nn.length; i++) if (Boolean(data[i]) === seed) nn[i] = i;
+  const d2 = (i, j) => { const dx = (i % w) - (j % w), dy = ((i / w) | 0) - ((j / w) | 0); return dx * dx + dy * dy; };
+  const take = (i, k) => { const j = nn[k]; if (j >= 0 && (nn[i] < 0 || d2(i, j) < d2(i, nn[i]))) nn[i] = j; };
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const i = y * w + x; if (nn[i] === i) continue;
+    if (x > 0) take(i, i - 1);
+    if (y > 0) { take(i, i - w); if (x > 0) take(i, i - w - 1); if (x < w - 1) take(i, i - w + 1); }
+  }
+  for (let y = h - 1; y >= 0; y--) for (let x = w - 1; x >= 0; x--) {
+    const i = y * w + x; if (nn[i] === i) continue;
+    if (x < w - 1) take(i, i + 1);
+    if (y < h - 1) { take(i, i + w); if (x < w - 1) take(i, i + w + 1); if (x > 0) take(i, i + w - 1); }
+  }
+  return nn;
+}
+function setMask(m) {
+  mask = m;
+  nearOut = nearestField(m, true);        // (outside: the nearest pixel of the glass)
+  nearIn = nearestField(m, false);        // (on the glass: the nearest pixel off it)
+}
+/** The pointer and the outline: { d } CSS px off the glass (negative: on it), { m } the outline's nearest point, { n } the way out. */
+function glassNear(cx, cy) {
+  if (!mask || !nearOut) return null;
+  const dpr = G.size.dpr, w = mask.w, x = Math.floor(cx * dpr), y = Math.floor(cy * dpr);
+  if (x < 0 || y < 0 || x >= w || y >= mask.h) return null;
+  const i = y * w + x, inside = Boolean(mask.data[i]), j = (inside ? nearIn : nearOut)[i];
+  if (j < 0) return null;
+  const mx = ((j % w) + 0.5) / dpr, my = (((j / w) | 0) + 0.5) / dpr;
+  const dx = cx - mx, dy = cy - my, d = Math.hypot(dx, dy);
+  if (d < 0.75) return null;              // (right on the outline: no way out to be had; the last one stays)
+  const n = inside ? [-dx / d, -dy / d] : [dx / d, dy / d];
+  return { d: inside ? -d : d, m: [mx, my], n };
+}
 /** Where a point of the page (CSS px) lies in the model's frame (root units: x right, z up). */
 function rootAt(cx, cy) {
   const r = canvas.getBoundingClientRect();
@@ -786,7 +833,7 @@ function rootAt(cx, cy) {
 function setReduced(on) {
   motion.reduced = on;
   if (on) {
-    motion.tilt.snap(0, 0); motion.lean.snap(0, 0); motion.dimple.snap(0); motion.press.snap(0); motion.rips = []; motion.jig = null;
+    motion.tilt.snap(0, 0); motion.lean.snap(0, 0); motion.dimple.snap(0); motion.press.snap(0); motion.rips = []; motion.jig = null; motion.near.snap(0);
     motion.sink.forEach((s) => s.snap(0));
     slosh.o.snap(0, 0); slosh.v = [0, 0]; slosh.vPrev = [0, 0];
   }
@@ -811,10 +858,17 @@ function motionMove(x, y, h) {
   m.hoverBtn = h.inside && h.target === 'button' ? h.index : -1;
   sinkTargets();
   if (!m.reduced) {
-    // toward the cursor: the widget's middle is level, its edges turn the glass up to MOT.tilt
-    const nx = Math.max(-1.2, Math.min(1.2, (x - r.width / 2) / (r.width / 2))), ny = Math.max(-1.2, Math.min(1.2, (y - r.height / 2) / (r.height / 2)));
-    m.tilt.to(MOT.tilt * nx, -MOT.tilt * ny); m.lean.to(MOT.lean * nx, -MOT.lean * ny);
     const p = rootAt(x, y);
+    // the cursor's reflection: where the pointer is, the outline's nearest point, and how near (nothing turns or
+    // leans: light only). It shows from reflectNear px off the glass, fully as it reaches the outline, and has passed
+    // out of the glass a few px in (the shader mirrors it across the outline)
+    const gn = glassNear(x, y);
+    if (gn) {
+      const nr = Math.min(1, Math.max(0, (1 - gn.d / MOT.reflectNear) / 0.6)) * Math.min(1, Math.max(0, 1 + gn.d / 24));
+      m.cursorAt = [x, y]; m.cursorM = [gn.m[0], gn.m[1], gn.n[0], gn.n[1]];
+      m.near.target = formed() && !(h.inside && h.target === 'util') ? nr * nr * (3 - 2 * nr) : 0;
+    } else if (!h.inside) m.near.target = 0;
+    else m.cursorAt = [x, y];
     stir.at = h.inside ? refOf(x, y) : null;     // (the pointer stirs the ink while it is on the glass: stirStep)
     if (h.inside) {
       if (!m.dimpleSeen || m.dimple.x < 1e-3) m.dimpleAt.snap(p[0], p[1]); else m.dimpleAt.to(p[0], p[1]);
@@ -826,7 +880,7 @@ function motionMove(x, y, h) {
 }
 function motionLeave() {
   const m = motion;
-  m.pointer = null; m.hoverBtn = -1; m.tilt.to(0, 0); m.lean.to(0, 0); m.dimple.target = 0; stir.at = null;
+  m.pointer = null; m.hoverBtn = -1; m.tilt.to(0, 0); m.lean.to(0, 0); m.dimple.target = 0; m.near.target = 0; stir.at = null;
   sinkTargets(); if (!m.reduced) redraw();
 }
 function motionDown(x, y, h) {
@@ -1096,7 +1150,7 @@ function motionStep(now) {
   const m = motion;
   const dt = m.last ? Math.min(0.05, (now - m.last) / 1000) : 1 / 60;
   m.last = now;
-  const springs = [m.tilt, m.lean, m.dimpleAt, m.dimple, m.press, ...m.sink];
+  const springs = [m.tilt, m.lean, m.dimpleAt, m.dimple, m.press, m.near, ...m.sink];
   const was = springs.map((s) => s.resting);
   for (const s of springs) s.step(dt);
   const t = performance.now() / 1000;
@@ -1114,7 +1168,7 @@ function motionStep(now) {
   const budOn = util.bud && util.bud.some((b) => Math.abs(b[2]) > 1e-5);
   if (forming || budding) dirty = true;
   const moving = springs.some((s) => !s.resting) || m.rips.length > 0 || Boolean(m.jig) || playingMusic || inking || sloshing || forming || budding;
-  const any = moving || budOn || Math.abs(m.tilt.x) + Math.abs(m.tilt.y) + Math.abs(m.lean.x) + Math.abs(m.lean.y) + Math.abs(m.dimple.x)
+  const any = moving || budOn || Math.abs(m.tilt.x) + Math.abs(m.tilt.y) + Math.abs(m.lean.x) + Math.abs(m.lean.y) + Math.abs(m.dimple.x) + Math.abs(m.near.x)
     + Math.abs(m.press.x) + m.sink.reduce((a, s) => a + Math.abs(s.x), 0) > 1e-5;
   G.motion = any || playingMusic ? {
     bud: util.bud || null,
@@ -1122,6 +1176,8 @@ function motionStep(now) {
     tilt: [m.tilt.x + music.sway.x * 0.05 * music.on.x - sl[0] * SLOSH.tilt, m.tilt.y + music.sway.y * 0.05 * music.on.x - sl[1] * SLOSH.tilt, m.lean.x, m.lean.y],
     slosh: [sl[0], sl[1], slosh.grab[0], slosh.grab[1]],
     dimple: [m.dimpleAt.x, m.dimpleAt.y, m.dimple.x, MOT.dimpleR],
+    cursor: [m.cursorAt[0], m.cursorAt[1], Math.max(0, m.near.x) * MOT.reflect, MOT.reflectSize],
+    cursorM: m.cursorM, page: [canvas.getBoundingClientRect().width, canvas.getBoundingClientRect().height],
     press: [m.pressAt[0], m.pressAt[1], m.press.x, MOT.pressR],
     rips: [0, 1, 2, 3].map((i) => (m.rips[i] ? [m.rips[i].x, m.rips[i].z, t - m.rips[i].t0, MOT.rip] : [0, 0, -1, 0])),
     ripK: [MOT.ripSpeed, MOT.ripWave, MOT.ripDecay],
@@ -1143,6 +1199,15 @@ function drive(kind = 'cursor', seconds = 8) {
   const wander = (from, dur, ax, ay) => { for (let t = 0; t < dur; t += 1 / 60) plan.push([from + t, 'move', 430 + ax * Math.sin(2 * Math.PI * t / 3.1), 200 + ay * Math.sin(2 * Math.PI * t / 2.3 + 1)]); };
   const glide = (at, dur, a, b) => { for (let t = 0; t <= dur; t += 1 / 60) { const f = 0.5 - 0.5 * Math.cos(Math.PI * t / dur); plan.push([at + t, 'move', a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f]); } return at + dur; };
   if (kind === 'cursor') wander(0, seconds, 470, 230);
+  if (kind === 'reflect') {     // the pointer drawing near from above the waist, along just off the outline, onto the glass, off below
+    // (slowly, as a hand would: the reflection rising to meet it)
+    let at = glide(0.3, 3.2, [470, 15], [470, 172]);
+    at = glide(at + 0.5, 1.8, [470, 170], [330, 140]);
+    at = glide(at + 0.4, 1.3, [330, 140], [430, 222]);
+    at = glide(at + 0.7, 1.6, [430, 222], [560, 320]);
+    at = glide(at + 0.4, 1.2, [560, 320], [600, 395]);
+    plan.push([at + 0.2, 'leave', 0, 0]);
+  }
   if (kind === 'stir') {        // let the ink gather, then stir it under the cover: a slow stroke out, back, a slow circle
     let at = glide(2.5, 1.6, [140, 252], [330, 268]);
     at = glide(at + 0.6, 1.4, [330, 268], [130, 238]);
@@ -1346,7 +1411,7 @@ function watchScale() {
   mq.addEventListener('change', () => {
     if (layoutCanvases()) {
       // the words, the pools, the glass and its click-through shape, all again at the new scale
-      paintWords(); paintPools(); G.draw(); mask = G.readMask(); placeBackdrop(); redraw();
+      paintWords(); paintPools(); G.draw(); setMask(G.readMask()); placeBackdrop(); redraw();
       state.rescaled = (state.rescaled || 0) + 1;
     }
     watchScale();
@@ -1379,7 +1444,7 @@ async function main() {
   // (the scale may have changed while all that loaded: the window is often made on one monitor and placed on another)
   layoutCanvases(); paintWords(); paintPools();
   G.draw();
-  mask = G.readMask();
+  setMask(G.readMask());
   watchScale();
   if (host && host.onMoved) host.onMoved((p) => sloshFeed(p.x, p.y));
   // the tray's Show / hide: hiding, the drop melts away first and then the window goes; shown again, it forms
