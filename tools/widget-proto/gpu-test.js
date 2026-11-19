@@ -23,7 +23,7 @@ const { execFile, execFileSync, spawn } = require('child_process');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const mean = (a) => (a.length ? a.reduce((s, v) => s + v, 0) / a.length : 0);
 const round = (v, n = 1) => Math.round(v * 10 ** n) / 10 ** n;
-const powershell = (script, cb) => execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], { encoding: 'utf8', maxBuffer: 1 << 26 }, cb);
+const powershell = (script, cb) => execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], { encoding: 'utf8', maxBuffer: 1 << 26, windowsHide: true }, cb);
 
 /** Graphics adapters by the low half of their id, as the GPU counters name them: { '0x0000d2a6': 'NVIDIA ...' }. */
 function adapterNames() {
@@ -51,7 +51,7 @@ public static class Dx {
 '@
 [Dx]::List()`;
   try {
-    const out = execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], { encoding: 'utf8' });
+    const out = execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], { encoding: 'utf8', windowsHide: true });
     return Object.fromEntries(out.split(/\r?\n/).filter((l) => l.includes('=')).map((l) => l.trim().split(/=(.*)/s).slice(0, 2)));
   } catch { return {}; }
 }
@@ -102,7 +102,7 @@ function wholeCard() {
   const rows = [];
   let child = null;
   try {
-    child = spawn('nvidia-smi', ['--query-gpu=utilization.gpu,power.draw', '--format=csv,noheader,nounits', '-l', '1']);
+    child = spawn('nvidia-smi', ['--query-gpu=utilization.gpu,power.draw', '--format=csv,noheader,nounits', '-l', '1'], { windowsHide: true });
     child.on('error', () => { child = null; });
     child.stdout.on('data', (d) => {
       for (const line of String(d).split(/\r?\n/)) {
@@ -146,7 +146,7 @@ $out = foreach ($b in $bands) {
   $b[0] + ' ' + $n + '/' + $total
 }
 $out -join ', '`;
-  try { return execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], { encoding: 'utf8' }).trim(); } catch (e) { return 'could not be read: ' + String(e.message).split('\n')[0]; }
+  try { return execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], { encoding: 'utf8', windowsHide: true }).trim(); } catch (e) { return 'could not be read: ' + String(e.message).split('\n')[0]; }
 }
 
 async function runGpuTest({ app, screen, createWidget, getWidget, pickDisplay, seconds = 12, refract = null }) {

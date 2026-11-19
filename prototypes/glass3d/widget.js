@@ -62,7 +62,7 @@ const LIGHT = MODE === 0
 // core hugging the outline (a lit edge, not a painted rim); ringMirror: the art mirrored round the ring (the marble)
 Object.assign(LIGHT, MODE === 0
   ? { bloom: 0, bloomThr: 1, bloomR: 1, bloomWarm: 0, keepRoll: LIGHT.deskKeep, sheen: 0, edgeCore: 0, ringMirror: 0, ink: 0, inkGlow: 0 }
-  : { bloom: 1.5, bloomThr: 0.5, bloomR: 1.5, bloomWarm: 1, keepRoll: 0.6, sheen: 0.1, edgeCore: 0.8, ringMirror: 0.3, ink: 1, inkGlow: 0.38 });
+  : { bloom: 1.5, bloomThr: 0.5, bloomR: 1.5, bloomWarm: 1, keepRoll: 0.6, sheen: 0.1, edgeCore: 0.8, ringMirror: 0.3, ink: 1, inkGlow: 0.6 });
 for (const k of Object.keys(LIGHT)) if (Q.has(k)) LIGHT[k] = Number(Q.get(k));
 
 const $ = (id) => document.getElementById(id);
@@ -108,8 +108,10 @@ function useCover(img, change = false) {
   G.setCover(img, change); G.setTint(tint, from);
   if (change) {
     inkState.dissolve.snap(0); inkState.dissolve.target = 1; G.dissolveNoise = !motion.reduced; inkState.burst = motion.reduced ? 0 : 1;
+    inkState.clearUntil = performance.now() + 4000;     // (the old colours clear within a few seconds, then the new cover leaks)
     if (!motion.reduced && mask && LIGHT.ink > 0) {
-      for (let i = 0; i < 14; i++) rimDrop(1.3, { old: true, angle: (i / 14) * Math.PI * 2 + rnd(-0.2, 0.2) });
+      // (let go all round, slowly: the old colours drift out and hang in the glass, as the leak does, rather than jet)
+      for (let i = 0; i < 14; i++) rimDrop(1, { old: true, angle: (i / 14) * Math.PI * 2 + rnd(-0.2, 0.2), slow: 0.35 });
       G.swirl(rnd(620, 860), rnd(430, 520), 1440, 95); G.swirl(rnd(1070, 1270), rnd(390, 500), -1440, 95);
       redraw();
     }
@@ -652,7 +654,7 @@ function musicUniforms() {
 // colour floods back out of the cover. Reduced motion: no ink; the cover and the colour crossfade. ?ink=0 turns it off.
 const inkState = {
   colour: new Spring({ k: 10, c: 6.3 }), dissolve: new Spring({ k: 9, c: 6 }),
-  burst: 0, flood: 0, t0: performance.now(), pausedAt: -1e9, wasPlaying: null, nextDrop: 0, lastWake: null,
+  burst: 0, flood: 0, t0: performance.now(), pausedAt: -1e9, wasPlaying: null, clearUntil: 0,
 };
 inkState.colour.snap(1); inkState.dissolve.snap(1);
 function tintNow() { return G ? G.tintNow() : tint; }
@@ -672,35 +674,59 @@ const COVER_C = [295, 421], COVER_HALF = 151;
  * rolls up into a mushroom, which is the curl of ink. Down and to the right by default, toward the lower band, never up
  * among the words; a track change lets go all round (the old cover's colours).
  */
-function rimDrop(kick = 0, { old = false, angle = null } = {}) {
+function rimDrop(kick = 0, { old = false, angle = null, slow = 1 } = {}) {
   const a = angle ?? rnd(0.35, 1.45);
   const dx = Math.cos(a), dy = Math.sin(a), m = Math.max(Math.abs(dx), Math.abs(dy));
   const x = COVER_C[0] + dx / m * (COVER_HALF + 10), y = COVER_C[1] + dy / m * (COVER_HALF + 10);
   if (!onGlassRef(x + dx * 30, y + dy * 30)) return;             // (it would jet straight into the wall)
   const k = Math.min(1, kick);
-  const speed = mixv(rnd(150, 260), rnd(400, 640), k);
+  const speed = mixv(rnd(150, 260), rnd(400, 640), k) * slow;
   G.drop(x, y, { radius: mixv(rnd(10, 14), rnd(15, 21), k), amount: mixv(0.32, 0.55, k), coverUv: [0.5 + dx / m * 0.4, 0.5 - dy / m * 0.4], old });
   G.push(x + dx * 8, y + dy * 8, dx * speed, dy * speed, mixv(32, 46, k));
 }
 /** What the music and the player do to the liquid this frame (the 2D widget's react()). */
 function inkReact(dt) {
-  const st = inkState, mu = music, t = (performance.now() - st.t0) / 1000;
-  // (the owner: the music should bounce the glass, not the ink: the ink keeps its own slow time, a drop jetting off
-  // the cover every few seconds, rolling into a mushroom and drifting; the beat leaves it alone)
-  mu.kicked = 0;
-  if (t >= st.nextDrop) {
-    rimDrop(rnd(0.3, 0.6));
-    st.nextDrop = t + rnd(2.2, 3.8);
+  // (the owner: the music should bounce the glass, not the ink; and then, 19 November: no drops jetting off the cover at
+  // an interval either. The ink is now a constant, slow leak from the cover while it plays, suspended as ink in oil
+  // (renderer.js LEAK_GLSL, FS_INK; INK below), and the beat leaves it alone.)
+  music.kicked = 0;
+  stirStep(dt);
+}
+// The leak while playing (?ink_leak= ink_out= ink_reach= ink_jet= ink_jetReach= ink_flow= ink_fade= ink_vort= ink_stir=):
+// how much pigment the rim lets go, how fast it drifts out from the rim (reference px a second) and over how far it
+// slows, the liquid let out where it leaks (px a second) and over how far, the slow circulation's strength, how long
+// pigment lasts (s), how much of the liquid's small curls are kept, how strongly the pointer stirs it.
+const INK = { leak: 4, out: 30, reach: 70, jet: 45, jetReach: 80, flow: 230, fade: 24, vort: 2.5, stir: 0.9 };
+for (const k of Object.keys(INK)) if (Q.has('ink_' + k)) INK[k] = Number(Q.get('ink_' + k));
+// The pointer stirs the ink as it moves over the glass (the owner: in the old player "the mouse would be able to interact
+// with it and swirl it around"): every frame it is on the glass and moving, the liquid under it is pushed along with
+// it (a spoon drawn through oil), so the pigment trails, curls round behind it and settles. Only on the glass.
+const stir = { at: null, prev: null, v: [0, 0] };
+function stirStep(dt) {
+  if (!stir.at || !G.inkOn || dt <= 0) { stir.prev = stir.at; stir.v = [0, 0]; return; }
+  if (stir.prev) {
+    const vx = (stir.at[0] - stir.prev[0]) / dt, vy = (stir.at[1] - stir.prev[1]) / dt;
+    const k = 1 - Math.exp(-dt / 0.05);
+    stir.v = [stir.v[0] + (vx - stir.v[0]) * k, stir.v[1] + (vy - stir.v[1]) * k];
+    const sp = Math.hypot(stir.v[0], stir.v[1]);
+    if (sp > 20) {
+      // (each frame a small share of the pointer's speed is given to the liquid under it, so it is drawn along over the
+      // few frames the pointer takes to pass; a flick does not fling it across the glass)
+      const c = Math.min(1, 900 / sp) * Math.min(dt, 0.05) * 6 * INK.stir;
+      G.push(stir.at[0], stir.at[1], stir.v[0] * c, stir.v[1] * c, 34);
+    }
   }
+  stir.prev = stir.at;
 }
 /** Step the ink and the colour; true while either is still moving. */
 function inkStep(dt) {
   const st = inkState, playing = player.playing, now = performance.now();
   if (playing !== st.wasPlaying) {
     if (st.wasPlaying !== null) {
-      if (playing) { st.flood = motion.reduced ? 0 : 0.5; if (!motion.reduced && mask) for (let i = 0; i < 4; i++) rimDrop(0.6); }
+      // (play: colour floods back out round the cover's edges, a seep, not jets)
+      if (playing) st.flood = motion.reduced ? 0 : 0.6;
       else st.pausedAt = now;
-    } else if (playing) { st.flood = motion.reduced ? 0 : 0.4; if (!motion.reduced && mask) for (let i = 0; i < 3; i++) rimDrop(0.5); }
+    } else if (playing) st.flood = motion.reduced ? 0 : 0.5;
     st.wasPlaying = playing;
   }
   st.colour.target = playing ? 1 : 0;
@@ -714,8 +740,9 @@ function inkStep(dt) {
   if (flowing) {
     G.inkOn = true;
     if (playing) inkReact(dt);
-    G.stepInk(dt, { fade: playing ? 11 : 1.1, seep: playing ? 0.3 : 0, burst: st.burst, flood: st.flood, time: (now - st.t0) / 1000,
-      flow: (playing ? 480 : 160) * 2.06, vort: 6, iterations: 16 });
+    G.stepInk(dt, { fade: !playing ? 1.1 : now < st.clearUntil ? 2 : INK.fade, seep: playing ? 1 : 0, burst: st.burst, flood: st.flood, time: (now - st.t0) / 1000,
+      flow: (playing ? INK.flow : 160) * 2.06, vort: INK.vort, iterations: 16,
+      leakK: [INK.leak, playing ? INK.out : 0, INK.reach], leakV: [playing ? INK.jet : 0, INK.jetReach] });
   } else if (G.inkOn) { G.inkOn = false; G.clearInk(); dirty = true; }
   const colouring = !st.colour.resting || !st.dissolve.resting;
   if (colouring || !was) { paintWords(); paintPools(); }
@@ -788,11 +815,7 @@ function motionMove(x, y, h) {
     const nx = Math.max(-1.2, Math.min(1.2, (x - r.width / 2) / (r.width / 2))), ny = Math.max(-1.2, Math.min(1.2, (y - r.height / 2) / (r.height / 2)));
     m.tilt.to(MOT.tilt * nx, -MOT.tilt * ny); m.lean.to(MOT.lean * nx, -MOT.lean * ny);
     const p = rootAt(x, y);
-    if (h.inside && G.inkOn) {         // a small wake behind the pointer as it travels over the liquid
-      const [u, v] = refOf(x, y), lw = inkState.lastWake;
-      if (lw && Math.hypot(u - lw[0], v - lw[1]) > 60) { G.push(u, v, (u - lw[0]) * 6, (v - lw[1]) * 6, 50); inkState.lastWake = [u, v]; }
-      else if (!lw) inkState.lastWake = [u, v];
-    } else inkState.lastWake = null;
+    stir.at = h.inside ? refOf(x, y) : null;     // (the pointer stirs the ink while it is on the glass: stirStep)
     if (h.inside) {
       if (!m.dimpleSeen || m.dimple.x < 1e-3) m.dimpleAt.snap(p[0], p[1]); else m.dimpleAt.to(p[0], p[1]);
       m.dimpleSeen = true;
@@ -803,7 +826,7 @@ function motionMove(x, y, h) {
 }
 function motionLeave() {
   const m = motion;
-  m.pointer = null; m.hoverBtn = -1; m.tilt.to(0, 0); m.lean.to(0, 0); m.dimple.target = 0;
+  m.pointer = null; m.hoverBtn = -1; m.tilt.to(0, 0); m.lean.to(0, 0); m.dimple.target = 0; stir.at = null;
   sinkTargets(); if (!m.reduced) redraw();
 }
 function motionDown(x, y, h) {
@@ -1120,6 +1143,12 @@ function drive(kind = 'cursor', seconds = 8) {
   const wander = (from, dur, ax, ay) => { for (let t = 0; t < dur; t += 1 / 60) plan.push([from + t, 'move', 430 + ax * Math.sin(2 * Math.PI * t / 3.1), 200 + ay * Math.sin(2 * Math.PI * t / 2.3 + 1)]); };
   const glide = (at, dur, a, b) => { for (let t = 0; t <= dur; t += 1 / 60) { const f = 0.5 - 0.5 * Math.cos(Math.PI * t / dur); plan.push([at + t, 'move', a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f]); } return at + dur; };
   if (kind === 'cursor') wander(0, seconds, 470, 230);
+  if (kind === 'stir') {        // let the ink gather, then stir it under the cover: a slow stroke out, back, a slow circle
+    let at = glide(2.5, 1.6, [140, 252], [330, 268]);
+    at = glide(at + 0.6, 1.4, [330, 268], [130, 238]);
+    for (let t = 0; t <= 2.4; t += 1 / 60) plan.push([at + 0.5 + t, 'move', 215 + 38 * Math.cos(2 * Math.PI * t / 1.2), 258 + 22 * Math.sin(2 * Math.PI * t / 1.2)]);
+    plan.push([at + 3.2, 'leave', 0, 0]);
+  }
   if (kind === 'dimple') {      // slowly over the glass: the cover's ring, the words' hollow, the sheet, the lower band
     let at = glide(0, 1.2, [120, 120], [160, 230]);
     at = glide(at, 1.6, [160, 230], [400, 175]); at = glide(at, 1.6, [400, 175], [690, 105]);

@@ -301,7 +301,7 @@ async function runMediaTest() {
   const src = (js) => source.webContents.executeJavaScript(js, true);
   // Which of Windows' sources is ours: the one that was not there before.
   const list = () => execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File',
-    path.join(__dirname, 'media-helper.ps1'), '-List'], { encoding: 'utf8' }).split(/\r?\n/).filter(Boolean);
+    path.join(__dirname, 'media-helper.ps1'), '-List'], { encoding: 'utf8', windowsHide: true }).split(/\r?\n/).filter(Boolean);
   const already = new Set(list());
   await loadSource(false);
   let ours = null;
@@ -678,7 +678,7 @@ function windowAt(point) {
     `$p = New-Object W+P; $p.x = ${Math.round(point.x)}; $p.y = ${Math.round(point.y)}`,
     '[W]::GetAncestor([W]::WindowFromPhysicalPoint($p), 2).ToInt64()',
   ]).join('\n');
-  return BigInt(execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], { encoding: 'utf8' }).trim());
+  return BigInt(execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], { encoding: 'utf8', windowsHide: true }).trim());
 }
 const handleOf = (win) => win.getNativeWindowHandle().readBigUInt64LE(0);
 

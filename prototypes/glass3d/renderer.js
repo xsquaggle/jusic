@@ -273,11 +273,37 @@ vec3 pigment(vec3 art) {
 }
 `;
 /**
+ * Where the cover leaks (the owner, 19 November: the old widget's ink was "like ink suspended in oil": it leaked out of
+ * the cover and stayed suspended, dispersing in the direction it had left the cover in; no drops jetting out at an
+ * interval). The rim: how far a point lies outside the cover's rounded box (reference px), the way out there, and how
+ * much the rim leaks there now: a few places at a time round its lower part and its sides (never its top, nor the right
+ * side's upper half, by the words), each leaking for some tens of seconds, then another. Needs uCov, uTime, fbm2.
+ */
+const LEAK_GLSL = `
+float coverRim(vec2 p, out vec2 n) {
+  vec2 c = (uCov.xy + uCov.zw) * .5, h = (uCov.zw - uCov.xy) * .5;
+  vec2 q = abs(p - c) - (h - 26.);
+  vec2 s = sign(p - c + 1e-4);
+  n = q.x > 0. && q.y > 0. ? normalize(q) * s : q.x > q.y ? vec2(s.x, 0.) : vec2(0., s.y);
+  return length(max(q, 0.)) + min(max(q.x, q.y), 0.) - 26.;
+}
+float leakAt(vec2 p) {
+  // (where round the rim: the angle about the cover's middle, y down: 0 right, pi/2 down, pi left; each leak some
+  // 10 to 20 px wide, drifting slowly along the rim as it comes and goes)
+  vec2 c = (uCov.xy + uCov.zw) * .5, h = (uCov.zw - uCov.xy) * .5;
+  float a = atan((p.y - c.y) / h.y, (p.x - c.x) / h.x);
+  float where = smoothstep(.2, .45, a) + smoothstep(-2.5, -2.75, a) * step(a, 0.);
+  float gate = fbm2(vec2(a * 9. + uTime * .02, uTime * .05 + 5.3));
+  return clamp(where, 0., 1.) * smoothstep(.56, .76, gate);
+}
+`;
+/**
  * The ink: pigment carried through the glass by slow currents, on a grid at half the canvas's pixels, kept inside the
  * silhouette. mode 2: the currents (the curl of a stream function: swirls, and a current running round the inside of
  * the outline, so along the lower band toward the tail); mode 0: carry something along them (forward or back);
- * mode 1: the corrected (MacCormack) step, then fading, the cover's lower edge weeping threads, a track change's old
- * cover letting go, and colour flooding back round the cover on play.
+ * mode 1: the corrected (MacCormack) step, then fading, the cover leaking (LEAK_GLSL: a few places round its rim at a
+ * time, the pigment drifting out the way it left and hanging there, as ink in oil), a track change's old cover letting
+ * go, and colour flooding back round the cover on play.
  */
 const FS_INK = HEAD + NOISE_GLSL + PIGMENT_GLSL + `
 in vec2 vUv;
@@ -296,9 +322,11 @@ uniform vec4 uMap;           // canvas uv -> reference px: left, top, width, hei
 uniform vec2 uVelK;          // (the solver's velocity is in reference px a second, y down)
 uniform vec4 uCov;           // the cover's box in reference px: u0, v0, u1, v1
 uniform vec4 uK;             // fade (s), seep, burst (the old cover letting go), flood (colour back round the cover)
+uniform vec3 uLeakK;         // the leak: how much, how fast pigment drifts out from the rim (ref px a second), how far
 out vec4 o;
 vec2 refAt(vec2 uv) { return vec2(uMap.x + uv.x * uMap.z, uMap.y + (1. - uv.y) * uMap.w); }
 float inside(vec2 uv) { return texture(uEdge, uv).r; }
+` + LEAK_GLSL + `
 float psi(vec2 p, vec2 uv) {
   float e = inside(uv);
   float n = fbm2(p * .0055 + vec2(uTime * .025, -uTime * .017)) - .5;
@@ -307,8 +335,16 @@ float psi(vec2 p, vec2 uv) {
   // left to right along the lower band, so pigment weeping from the cover is drawn out toward the tail)
   return 4200. * smoothstep(.55, .92, e) * (1.1 * n + .45 * n2) + 2600. * smoothstep(.5, .9, e);
 }
+// (what leaks out drifts on out the way it left the cover, slowing as it goes, then hangs there, suspended: the drift
+// spreads it as it slows, so it thins and disperses outward; the liquid's own slow currents and the pointer's stirring
+// carry it on from there)
+vec2 drift(vec2 p, vec2 uv) {
+  vec2 n; float d = coverRim(p, n);
+  return n * uLeakK.y * leakAt(p) * exp(-max(d, 0.) / uLeakK.z) * smoothstep(-4., 4., d) * smoothstep(.55, .75, inside(uv));
+}
 void main() {
-  vec2 vel = texture(uVel, vUv).xy * vec2(1. / uMap.z, -1. / uMap.w);     // uv a second
+  vec2 p0 = refAt(vUv);
+  vec2 vel = (texture(uVel, vUv).xy + drift(p0, vUv)) * vec2(1. / uMap.z, -1. / uMap.w);     // uv a second
   if (uMode == 0) { o = vec4(texture(uSrc, vUv - uDt * vel).rgb, 1.); return; }
   vec2 back = vUv - uDt * vel;
   vec3 dye = texture(uFwd, vUv).rgb + .5 * (texture(uDye, vUv).rgb - texture(uBwd, vUv).rgb);
@@ -321,11 +357,15 @@ void main() {
   vec2 p = refAt(vUv);
   vec2 cuv = clamp((p - uCov.xy) / (uCov.zw - uCov.xy), .03, .97); cuv.y = 1. - cuv.y;
   vec3 art = pigment(textureLod(uArt, cuv, 2.).rgb);
-  // between beats the cover weeps from its lower edge, in threads, into the lower band
-  float inX = smoothstep(uCov.x + 4., uCov.x + 30., p.x) * smoothstep(uCov.z - 4., uCov.z - 30., p.x);
-  float lowerEdge = inX * smoothstep(16., 0., abs(p.y - (uCov.w + 8.)));
-  float thread = pow(smoothstep(.42, .8, fbm2(vec2(p.x * .05, uTime * .12))), 2.);
-  dye += art * lowerEdge * (.06 + 3.2 * thread) * uK.y * uDt;
+  // (the owner, 19 November: no drops jetting out at an interval; the pigment slowly, constantly seeping out of the
+  // cover while the music plays, as the old player did, more of it, and suspended, as ink in oil.) All the time it
+  // plays the cover leaks at a few places round its rim (leakAt): a thin skin of its own colour just outside the
+  // rim there (the colour of the art at that edge), which the drift and the liquid carry outward
+  vec2 rn; float rd = coverRim(p, rn);
+  float skin = exp(-pow((rd - 5.) / 4.5, 2.));
+  float lk = leakAt(p);
+  vec3 artEdge = pigment(textureLod(uArt, clamp(cuv - vec2(rn.x, -rn.y) * .02, .02, .98), 3.).rgb);
+  dye += artEdge * skin * (.01 + 2.2 * lk) * uLeakK.x * uK.y * uDt;
   // a track change: the old cover turns to pigment where it lay, and is pushed out (mode 2)
   float inCov = step(uCov.x, p.x) * step(p.x, uCov.z) * step(uCov.y, p.y) * step(p.y, uCov.w);
   dye = mix(dye, pigment(textureLod(uArtOld, cuv, 1.5).rgb), uK.z * inCov * .08);
@@ -362,6 +402,9 @@ uniform sampler2D uVel;
 uniform float uDt;
 uniform float uTime;
 uniform float uFlow;       // the slow circulation's strength (more with the music)
+uniform vec4 uCov;         // the cover's box in reference px: u0, v0, u1, v1
+uniform vec2 uLeakV;       // where the cover leaks, the liquid is let out slowly that way: speed (ref px a second), its reach
+` + LEAK_GLSL + `
 float psi(vec2 p, vec2 uv) {
   float e = inside(uv);
   float n = fbm2(p * .0045 + vec2(uTime * .021, -uTime * .013)) - .5;
@@ -376,8 +419,15 @@ void main() {
   vec2 du = vec2(h / uMap.z, 0.), dv = vec2(0., h / uMap.w);
   vec2 cur = vec2(psi(p + vec2(0., h), vUv - dv) - psi(p - vec2(0., h), vUv + dv),
                   -(psi(p + vec2(h, 0.), vUv + du) - psi(p - vec2(h, 0.), vUv - du))) / (2. * h) * uFlow;
+  // where the cover leaks, the liquid there is let out slowly, the way it leaves the rim: a slow jet a few tens of px
+  // long. Into still liquid a jet rolls up at its head (the curl of ink let into oil) and stops: what it carries is
+  // left suspended there
+  vec2 rn; float rd = coverRim(p, rn);
+  float jet = leakAt(p) * smoothstep(-6., 4., rd) * exp(-max(rd, 0.) / uLeakV.y);
+  v += (rn * uLeakV.x - v) * (1. - exp(-uDt * 3. * jet));
   v += (cur - v) * (1. - exp(-uDt * .45));
-  v *= exp(-uDt * .16);
+  // (the oil: thicker than water, it lets go of its motion sooner)
+  v *= exp(-uDt * .3);
   v *= smoothstep(.45, .62, inside(vUv));
   o = vec4(clamp(v, -2500., 2500.), 0., 1.);
 }`;
@@ -698,18 +748,24 @@ void main() {
     if (r < .8) { trans *= mix(1., .55, uL2.y); deskT *= mix(1., .55, uL2.y); }
   }
   wellLight *= uL2.y * .35;
-  vec3 col = refl * F + (trans + deskT + lobe + spill + marble + ringArt) * (1. - F) + band + wellLight;
-  // the ink glowing in the glass, more where it is thick, little behind the words
+  vec3 inner = (trans + deskT + lobe + spill + marble + ringArt) * (1. - F);
+  // the ink: a dye suspended in the clear glass, under its surface. (The owner, 19 November: more of it and a richer
+  // colour, it looked watered down; but translucent, never opaque, the glass's highlights still over it.) So it acts on
+  // what is seen through the glass only, never on what the surface mirrors: it filters what passes (taking up to about
+  // two thirds of the other colours where it is dense, so the desktop still shows through it) and holds a little light
+  // of its own colour (the room's light scattered in it), so it reads over a dark desktop too. Its hue is the cover's,
+  // deepened (the pale and greyish parts of a cover gave a washed-out pink); little of it behind the words.
   if (uInkK.x > 0.) {
-    // the ink as dye in the glass: where it is dense the glass takes its pure, saturated colour (what passes through
-    // is filtered by it), and it glows a little, never so bright that the tone curve washes it toward white
     vec3 ink = texture(uInk, gl_FragCoord.xy / uRes).rgb;
-    float mx = max(ink.r, max(ink.g, ink.b));
-    vec3 hue = pow(ink / max(mx, 1e-3), vec3(1.35));
-    float dense = (1. - exp(-mx * 6.)) * (.55 + .45 * (1. - exp(-thick * 3.))) * (1. - .8 * wm) * (1. - F);
-    col = mix(col, col * hue * 1.15, dense * uInkK.x);
-    col += hue * dense * uInkK.y;
+    float mx = maxc(ink);
+    vec3 hue = ink / max(mx, 1e-3);
+    float hl = dot(hue, vec3(.2126, .7152, .0722));
+    hue = max(mix(vec3(hl), hue, 1.6), 0.); hue = pow(hue / max(maxc(hue), 1e-3), vec3(1.25));
+    float dense = (1. - exp(-mx * 2.6)) * (.65 + .35 * (1. - exp(-thick * 3.))) * (1. - .85 * wm);
+    inner *= mix(vec3(1.), hue, min(dense * uInkK.x, 1.) * .75);
+    inner += hue * dense * uInkK.y * (1. - F);
   }
+  vec3 col = refl * F + inner + band + wellLight;
   if (uMotionOn == 1 && uMusic.w > 0.) {
     // glints running along the hot highlights with the highs
     vec3 rF = refl * F;
@@ -1032,7 +1088,10 @@ export async function createGlass(canvas, { assets, ss = 2, studio = 'live', lig
     };
     const swapV = () => { R.vel = [R.vel[1], R.vel[0]]; };
     // the liquid
-    run(prog.flForce, R.vel[1], (u) => { tex(u.uVel, R.vel[0].tex); gl.uniform1f(u.uDt, dt); gl.uniform1f(u.uTime, k.time); gl.uniform1f(u.uFlow, k.flow); });
+    run(prog.flForce, R.vel[1], (u) => {
+      tex(u.uVel, R.vel[0].tex); gl.uniform1f(u.uDt, dt); gl.uniform1f(u.uTime, k.time); gl.uniform1f(u.uFlow, k.flow);
+      gl.uniform4f(u.uCov, 144, 270, 446, 572); gl.uniform2fv(u.uLeakV, k.leakV || [0, 40]);
+    });
     swapV();
     for (const im of R.fluid.impulses) {
       run(prog.flImpulse, R.vel[1], (u) => {
@@ -1066,6 +1125,7 @@ export async function createGlass(canvas, { assets, ss = 2, studio = 'live', lig
     const ink = (mode, out, set) => run(prog.ink, out, (u) => {
       gl.uniform1i(u.uMode, mode); gl.uniform1f(u.uDt, dt); gl.uniform1f(u.uTime, k.time);
       gl.uniform4f(u.uCov, 144, 270, 446, 572); gl.uniform4f(u.uK, k.fade, k.seep, k.burst, k.flood); gl.uniform3fv(u.uPal, R.tint);
+      gl.uniform3fv(u.uLeakK, k.leakK || [0, 0, 40]);
       tex(u.uArt, artTex); tex(u.uArtOld, artOldTex); tex(u.uVel, R.vel[0].tex);
       set(u);
     });

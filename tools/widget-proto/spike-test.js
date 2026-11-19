@@ -31,13 +31,13 @@ function gpuEngine(pid, seconds) {
 Get-Counter -Counter '\\GPU Engine(pid_${pid}_*engtype_3D)\\Utilization Percentage' -SampleInterval 1 -MaxSamples ${seconds} | ForEach-Object {
   ($_.CounterSamples | Measure-Object -Property CookedValue -Sum).Sum
 }`;
-  return new Promise((resolve) => execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], { encoding: 'utf8' },
+  return new Promise((resolve) => execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], { encoding: 'utf8', windowsHide: true },
     (err, out) => resolve(String(out || '').split(/\r?\n/).map(Number).filter(Number.isFinite))));
 }
 function wholeCard() {
   const rows = []; let child = null;
   try {
-    child = spawn('nvidia-smi', ['--query-gpu=utilization.gpu,power.draw', '--format=csv,noheader,nounits', '-l', '1']);
+    child = spawn('nvidia-smi', ['--query-gpu=utilization.gpu,power.draw', '--format=csv,noheader,nounits', '-l', '1'], { windowsHide: true });
     child.on('error', () => { child = null; });
     child.stdout.on('data', (d) => { for (const line of String(d).split(/\r?\n/)) { const [u, p] = line.split(',').map(Number); if (Number.isFinite(u) && Number.isFinite(p)) rows.push([u, p]); } });
   } catch { child = null; }
