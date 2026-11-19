@@ -47,7 +47,17 @@ uniform vec3 uRipK;        // speed (units a second), wavelength (units), decay 
 uniform vec4 uJig;         // the slow, wide wobble rolling out from a release: centre, age (s; < 0: none), strength
 // the music: the lobes swell with the bass; on the beat a wave runs along the ribbon, from the cover to the tail
 uniform vec3 uFlex;        // the glass bouncing with the music (units toward the camera): the bulb, the right lobe, the lower band
-uniform vec4 uJigB[6];     // the beats' rings of jelly rolling out from the cover: centre, age (s; < 0: none), strength
+uniform vec4 uJigB[6];     // strong bass hits: a soft swell rolling out from the cover: centre, age (s; < 0: none), strength
+uniform vec3 uSwellK;      // its speed (units a second), width (units), decay (s)
+// a single soft swell running out from r.xy (no trough: the glass bulges a little as it passes, then is still); its
+// slope goes to grad
+float swellRing(vec2 p, vec4 r, vec3 K, inout vec2 grad) {
+  vec2 d = p - r.xy; float rr = max(length(d), 1e-4);
+  float q = rr - K.x * r.z, w = K.y;
+  float amp = r.w * exp(-r.z / K.z) * smoothstep(0., .1, r.z), env = exp(-q * q / (w * w));
+  grad += amp * env * (-2. * q / (w * w)) * d / rr;
+  return amp * env;
+}
 uniform vec4 uBeat[6];     // beat waves: start x, age (s; < 0: none), strength, -
 uniform vec3 uBeatK;       // their speed, wavelength, decay
 uniform vec3 uJigK;        // its speed, wavelength, decay
@@ -90,7 +100,11 @@ float motionField(vec2 p, out vec2 grad, out float sh) {
     float e3 = exp(-.5 * dot(d3, d3) / 1.2) * uFlex.z;
     g -= e1 + e2 + e3; grad += e1 * d1 / 2.9 + e2 * d2 / 2.6 + e3 * d3 * vec2(.5, 1.3) / 1.2; sh += .8 * (e1 + e2 + e3);
   }
-  for (int i = 0; i < 6; i++) if (uJigB[i].z >= 0.) { float r = ring(p, uJigB[i], uJigK, grad); g += r; sh -= 2.2 * r; }
+  // (the owner: only strong bass hits, the glass bulging out ever so slightly, never moving all the time)
+  for (int i = 0; i < 6; i++) if (uJigB[i].z >= 0.) {
+    vec2 gs = vec2(0.); float s = swellRing(p, uJigB[i], uSwellK, gs);
+    g -= s; grad -= gs; sh += 3.5 * s;                 // toward the camera, and the outline out
+  }
   for (int i = 0; i < 6; i++) {
     vec4 b = uBeat[i];
     if (b.y < 0.) continue;
@@ -1127,6 +1141,7 @@ export async function createGlass(canvas, { assets, ss = 2, studio = 'live', lig
     gl.uniform4fv(u.uJig, M.jig); gl.uniform3fv(u.uJigK, M.jigK);
     gl.uniform3fv(u.uFlex, M.flex || [0, 0, 0]);
     gl.uniform4fv(u.uJigB, M.jigB ? new Float32Array(M.jigB.flat()) : NONE6);
+    gl.uniform3fv(u.uSwellK, M.swellK || [4, 0.45, 0.55]);
     gl.uniform4fv(u.uBeat, M.beats ? new Float32Array(M.beats.flat()) : NOBEAT6);
     gl.uniform3fv(u.uBeatK, M.beatK || [6, 0.6, 0.7]);
     gl.uniform4fv(u.uMusic, M.music || [0, 0, 0, 0]); gl.uniform1fv(u.uBands, M.bands || new Float32Array(16));

@@ -544,7 +544,13 @@ function inkFrame(now) {
 // each wobbling on its own; the beat's wave rolls slower and deeper; the glass sways a little on the beat)
 // (and then: "more the jelly glass itself bouncing, less the ink": three bumps kicked harder, a ring of jelly from the
 // cover on every beat; the ink no longer answers the beat)
-const MUS = { flex: 0.085, kick: 2.6, beat: 0.034, ring: 0.028, sway: 0.8, glint: 1, spec: 3.2, specSwing: 0.1, specWidth: 0.022, bpm: 112 };
+// (and then, 19 November: far too much, "it looks like it's just constantly moving"; the ripples should only ever so
+// slightly bulge out of the glass on strong bass hits. So the glass is still with the music: no bass swelling, no
+// bounce, no wave along the ribbon, no sway. A strong bass hit (the pulse rising through 'hit', at most one every 'gap'
+// seconds) sends one soft swell out from the cover that bulges the glass, its outline too, a few px as it passes and is
+// gone in about half a second. The glints and the spectrum in the fold are light, not motion: they stay.)
+const MUS = { flex: 0, kick: 0, beat: 0, ring: 0.012, sway: 0, hit: 0.8, gap: 0.9, swellSpeed: 4, swellWidth: 0.45, swellDecay: 0.55,
+  glint: 1, spec: 3.2, specSwing: 0.1, specWidth: 0.022, bpm: 112 };
 for (const k of Object.keys(MUS)) if (Q.has('mu_' + k)) MUS[k] = Number(Q.get('mu_' + k));
 const listener = (() => {
   // (from the 2D widget: 16 loudnesses on a decibel scale about 30 times a second, evened out so a quiet song moves
@@ -568,10 +574,12 @@ const listener = (() => {
     },
   };
 })();
-/** A made-up beat (the 2D widget's capture spectrum): the same every run. */
+/** A made-up beat (the 2D widget's capture spectrum): the same every run. (Every fourth kick is the strong one, as in
+ *  real music not every kick hits hard.) */
 function madeUpBeat(t, bpm) {
   const bands = new Float32Array(16);
-  const beat = (t * bpm / 60) % 1, kick = Math.exp(-beat * 7), off = Math.exp(-(((t * bpm / 60) + 0.5) % 1) * 9);
+  const n = Math.floor(t * bpm / 60), accent = n % 4 === 0 ? 1 : 0.55;
+  const beat = (t * bpm / 60) % 1, kick = Math.exp(-beat * 7) * accent, off = Math.exp(-(((t * bpm / 60) + 0.5) % 1) * 9);
   for (let i = 0; i < 16; i++) {
     const x = i / 15, wob = 0.5 + 0.5 * Math.sin(t * (1.3 + i * 0.37) + i * 1.7);
     bands[i] = Math.min(1, kick * Math.exp(-x * 5) * 0.95 + (0.22 + 0.3 * wob) * Math.exp(-((x - 0.42) ** 2) / 0.08)
@@ -601,21 +609,23 @@ function musicStep(dt) {
   for (let i = 0; i < 16; i++) m.bands[i] = a.bands[i];
   m.bass = (a.bands[0] + a.bands[1] + a.bands[2]) / 3;
   m.highs = (a.bands[11] + a.bands[12] + a.bands[13] + a.bands[14] + a.bands[15]) / 5;
-  // a beat: the pulse rising through a threshold, not too soon after the last
-  if (a.pulse > 0.55 && m.pulse <= 0.55 && t - m.lastBeat > 0.28 && MUS.beat > 0) {
-    m.lastBeat = t; m.beats.push({ x0: -5.4, t0: t, s: MUS.beat * (0.6 + 0.4 * a.pulse) }); if (m.beats.length > 6) m.beats.shift();
-    // the kick: both lobes jump and wobble back, the far one a moment later; the glass sways one way, then the other
+  // a strong bass hit: the pulse rising through a high threshold, not too soon after the last
+  if (a.pulse > MUS.hit && m.pulse <= MUS.hit && t - m.lastBeat > MUS.gap) {
+    m.lastBeat = t;
     const pw = 0.6 + 0.4 * a.pulse;
-    m.lobeL.kick(MUS.kick * pw); m.lobeR.kick(MUS.kick * 0.85 * pw); m.lobeB.kick(-MUS.kick * 0.7 * pw);   // (the band dips as the lobes jump)
-    m.rings.push({ t0: t, s: MUS.ring * pw }); if (m.rings.length > 6) m.rings.shift();
-    m.side = -m.side; m.sway.kick(MUS.sway * m.side, MUS.sway * 0.4);
+    if (MUS.ring > 0) { m.rings.push({ t0: t, s: MUS.ring * pw }); if (m.rings.length > 6) m.rings.shift(); }
+    // (the earlier, livelier reactions, all off by default: ?mu_beat= mu_kick= mu_sway= mu_flex=)
+    if (MUS.beat > 0) { m.beats.push({ x0: -5.4, t0: t, s: MUS.beat * pw }); if (m.beats.length > 6) m.beats.shift(); }
+    if (MUS.kick > 0) { m.lobeL.kick(MUS.kick * pw); m.lobeR.kick(MUS.kick * 0.85 * pw); m.lobeB.kick(-MUS.kick * 0.7 * pw); }
+    if (MUS.sway > 0) { m.side = -m.side; m.sway.kick(MUS.sway * m.side, MUS.sway * 0.4); }
     m.kicked = Math.min(1, a.pulse);
   }
   m.mid = (a.bands[4] + a.bands[5] + a.bands[6] + a.bands[7] + a.bands[8] + a.bands[9]) / 6;
-  // the bass pulls the lobes out (a spring with little damping, so they overshoot and wobble)
-  m.lobeL.target = m.bass; m.lobeR.target = m.bass * 0.85; m.lobeB.target = m.bass * 0.5;
+  // (with ?mu_flex=: the bass pulls the lobes out, a spring with little damping)
+  const fl = MUS.flex > 0 ? m.bass : 0;
+  m.lobeL.target = fl; m.lobeR.target = fl * 0.85; m.lobeB.target = fl * 0.5;
   m.lobeL.step(dt); m.lobeR.step(dt); m.lobeB.step(dt); m.sway.step(dt);
-  m.rings = m.rings.filter((r) => t - r.t0 < 4.5);
+  m.rings = m.rings.filter((r) => t - r.t0 < 2.5);
   m.pulse = a.pulse;
   m.beats = m.beats.filter((b) => t - b.t0 < 4.5);
   return true;
@@ -625,6 +635,7 @@ function musicUniforms() {
   return {
     flex: [MUS.flex * m.lobeL.x * on, MUS.flex * m.lobeR.x * on, MUS.flex * m.lobeB.x * on],
     jigB: [0, 1, 2, 3, 4, 5].map((i) => (m.rings[i] ? [-5.0, 0.3, t - m.rings[i].t0, m.rings[i].s * on] : [0, 0, -1, 0])),
+    swellK: [MUS.swellSpeed, MUS.swellWidth, MUS.swellDecay],
     sway: [m.sway.x * 0.05 * on, m.sway.y * 0.05 * on],
     beats: [0, 1, 2, 3, 4, 5].map((i) => (m.beats[i] ? [m.beats[i].x0, t - m.beats[i].t0, m.beats[i].s * on, 0] : [0, -1, 0, 0])),
     beatK: [4.5, 1.0, 1.0],
