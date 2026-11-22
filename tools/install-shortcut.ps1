@@ -1,10 +1,13 @@
 # Creates the jusic shortcuts. Re-run this if you move the folder or the icon changes.
 #   powershell -ExecutionPolicy Bypass -File tools\install-shortcut.ps1
 # Remove them again with:  -Uninstall
+# -Frosted makes (or with -Uninstall removes) a separate "Jusic frosted" desktop shortcut for the
+# desktop app in this folder, and leaves the jusic shortcuts alone.
 
 param(
     [switch]$Uninstall,
-    [switch]$NoStartMenu
+    [switch]$NoStartMenu,
+    [switch]$Frosted
 )
 
 $ErrorActionPreference = 'Stop'
@@ -15,6 +18,23 @@ $entry = Join-Path $root 'server.js'
 
 $desktop = [Environment]::GetFolderPath('Desktop')
 $startMenu = Join-Path ([Environment]::GetFolderPath('StartMenu')) 'Programs'
+
+if ($Frosted) {
+    # electron.exe is a windowed program, so there is no console to hide.
+    $electron = Join-Path $root 'node_modules\electron\dist\electron.exe'
+    $path = Join-Path $desktop 'Jusic frosted.lnk'
+    if ($Uninstall) { if (Test-Path $path) { Remove-Item $path -Force; Write-Host "removed $path" }; return }
+    if (-not (Test-Path $electron)) { throw 'Electron is not installed here. Run: npm install' }
+    $link = (New-Object -ComObject WScript.Shell).CreateShortcut($path)
+    $link.TargetPath = $electron
+    $link.Arguments = '"{0}"' -f $root
+    $link.WorkingDirectory = $root
+    $link.IconLocation = "$icon,0"
+    $link.Description = 'Jusic - frosted glass, desktop app'
+    $link.Save()
+    Write-Host "created $path"
+    return
+}
 
 $targets = @(Join-Path $desktop 'jusic.lnk')
 if (-not $NoStartMenu) { $targets += Join-Path $startMenu 'jusic.lnk' }

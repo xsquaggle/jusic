@@ -3,14 +3,17 @@
   "version": "1.0.0",
   "private": true,
   "description": "A local music player for your own files.",
-  "main": "server.js",
+  "main": "desktop/main.js",
   "scripts": {
     "start": "node server.js",
+    "desktop": "electron .",
     "app": "node server.js --app",
     "rescan": "node server.js --no-open",
+    "perf": "node tools/perf/run.js",
     "icons": "node tools/make-icons.js",
     "shortcut": "powershell -ExecutionPolicy Bypass -File tools/install-shortcut.ps1",
-    "unshortcut": "powershell -ExecutionPolicy Bypass -File tools/install-shortcut.ps1 -Uninstall"
+    "unshortcut": "powershell -ExecutionPolicy Bypass -File tools/install-shortcut.ps1 -Uninstall",
+    "shortcut:frosted": "powershell -ExecutionPolicy Bypass -File tools/install-shortcut.ps1 -Frosted"
   },
   "engines": {
     "node": ">=18"

@@ -101,7 +101,7 @@ function offerResume() {
 
 /** True when running in the desktop app window rather than a browser tab. */
 function isAppWindow() {
-  return window.matchMedia('(display-mode: standalone)').matches ||
+  return 'desktop' in window || window.matchMedia('(display-mode: standalone)').matches ||
     window.matchMedia('(display-mode: window-controls-overlay)').matches ||
     navigator.standalone === true;
 }

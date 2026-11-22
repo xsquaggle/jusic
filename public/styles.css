@@ -2114,3 +2114,8 @@ body.is-playing .np-art.is-tilting { transition: transform .14s linear, scale .1
   .scroller { scroll-behavior: auto; }
   .ambient-pulse, .np-art-wrap::before { display: none; }
 }
+
+/* -------------------------------------------------------- desktop shell --- */
+/* Only in the Electron window (a browser tab never gets .is-desktop): a plain strip to drag the
+   window by, which also keeps the page clear of Windows' caption buttons at its right end. */
+.is-desktop body::before { content: ''; flex: none; height: 30px; -webkit-app-region: drag; }
