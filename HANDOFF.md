@@ -7,7 +7,7 @@ The brief is `design/FABLE_PROMPT_FROSTED.md`; the plan is `design/FROSTED_PLAN.
 **Stage 0 is done. Stage 1 (the desktop shell) is built and checked by hand, but not yet measured. The owner sent "wrap up" on 22 November 2026; nothing is half-applied. Branch `frosted`, pushed.**
 
 Done:
-- **Stage 0.** Branch, the brief and references committed, old handoff archived, my copy of the owner's real data in the git-ignored `data/` (410 tracks). `tools/perf/` built. Today's app measured (one pass, table below). `design/FROSTED_PLAN.md` written, with five feature ideas waiting for the owner's yes or no (its section 5).
+- **Stage 0.** Branch, the brief and references committed, old handoff archived, my copy of the owner's real data in the git-ignored `data/` (410 tracks). `tools/perf/` built. Today's app measured (one pass, table below). `design/FROSTED_PLAN.md` written. **The owner approved all five feature ideas in its section 5 on 22 November 2026** (the seek line drawn as the song's loudness contour, sleep fade, drag a track onto the ribbon or a playlist, album-aware crossfade, a peek at the next track on the Next bowl). They are built in stage 7.
 - **Stage 1, built:** `desktop/main.js` and `desktop/preload.js` (187 lines together). Today's interface, unchanged apart from a 30 px drag strip, runs in a frameless Electron window with Windows' own caption buttons (`titleBarOverlay`).
 - **Stage 1, checked by hand** (how, in brackets):
   - `server.js` unchanged in a `utilityProcess`, on 5175, or 5176 when the daily app holds 5175 (page loaded from `http://127.0.0.1:5175/`, 376 rows).

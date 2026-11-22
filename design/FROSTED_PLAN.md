@@ -75,7 +75,9 @@ Net: roughly **+700 to +1,300 lines** against the +1,800 aim. Binary assets adde
 - **The room breathes with the music:** wisps drift while a song plays and hold still when it's paused.
 - **Calm bass:** only a strong hit sends a slight swell through the ribbon's lower roll, fading in half a second.
 
-## 5. Feature ideas (owner's call; none are built without a yes)
+## 5. Feature ideas (owner's call)
+
+**All five approved by the owner on 22 November 2026** ("All five"). They are built in stage 7, after the planned work, and each must stay inside the CPU ceiling and the code budget.
 
 | # | Idea | Cost |
 |---|---|---|
