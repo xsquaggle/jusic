@@ -12,19 +12,23 @@ export function ribbonShape(w, u) {
   const neck = 0.5 * u;                                        // how far joined forms flow into each other
   const waist = Math.max(0.2 * u, (w - 2.3 * u) / 2);
   return [
-    [0.62 * u, 0.52 * u, 0.60 * u, 0.47 * u, 0.42 * u, 0, neck],            // bulb
-    [1.1 * u + waist, 0.635 * u, waist + 0.45 * u, 0.285 * u, 0.285 * u, 0, neck],   // waist
-    [w - 0.86 * u, 0.555 * u, 0.705 * u, 0.415 * u, 0.37 * u, 0, neck],     // pod, its top the lip
-    [w - 0.2 * u, 0.66 * u, 0.2 * u, 0.16 * u, 0.16 * u, 0, neck],          // tail
-    [0.62 * u, 0.52 * u, 0.36 * u, 0.36 * u, 0.1 * u, 1, 0],                // the cover's pocket (a hole)
-    [w - 0.86 * u, 0.535 * u, 0.6 * u, 0.25 * u, 0.25 * u, 2, 0],           // the recess the bowls sit in
+    [0.64 * u, 0.52 * u, 0.62 * u, 0.49 * u, 0.44 * u, 0, neck],            // bulb
+    [1.1 * u + waist, 0.67 * u, waist + 0.5 * u, 0.215 * u, 0.215 * u, 0, neck],   // waist: thin, and low
+    [w - 0.9 * u, 0.585 * u, 0.72 * u, 0.385 * u, 0.385 * u, 0, neck],      // pod
+    [w - 0.66 * u, 0.37 * u, 0.3 * u, 0.3 * u, 0.3 * u, 0, neck],           // the lip, rising at upper right
+    [w - 0.15 * u, 0.72 * u, 0.15 * u, 0.1 * u, 0.1 * u, 0, 0.7 * neck],    // tail
+    [0.64 * u, 0.52 * u, 0.36 * u, 0.36 * u, 0.1 * u, 1, 0],                // the cover's pocket (a hole)
+    [w - 0.86 * u, 0.56 * u, 0.6 * u, 0.235 * u, 0.235 * u, 2, 0],          // the recess the bowls sit in
   ];
 }
 
-/** Where the seek line runs: low under the cover, sweeping up into the waist. x in [x0, x1]. */
+/**
+ * Where the seek line runs: from beside the cover, along the waist and on under the bowls,
+ * keeping the same distance above the ribbon's lower roll all the way. x in [x0, x1].
+ */
 export function seekPath(w, u) {
-  const x0 = 0.76 * u, x1 = w - 0.74 * u;
-  const y = (x) => { const t = Math.min(1, Math.max(0, (x - 0.95 * u) / (0.95 * u))); return (0.928 - 0.083 * t * t * (3 - 2 * t)) * u; };
+  const x0 = 1.22 * u, x1 = w - 0.64 * u;
+  const y = (x) => { const t = Math.min(1, Math.max(0, (x - (w - 1.85 * u)) / (0.65 * u))); return (0.757 + 0.078 * t * t * (3 - 2 * t)) * u; };
   return { x0, x1, y };
 }
 

@@ -4,6 +4,7 @@
  * Jusic and writes every 1-second sample to design/perf/<date>-<label>.json.
  *
  *   node tools/perf/run.js --label baseline-edge [--app edge] [--screen other|main] [--sizes default,max] [--runs 2] [--only S1,S9]
+ *   node tools/perf/run.js --app electron --ui spike --page spike.html ...     another page of the app, with its own profile
  *   node tools/perf/run.js --table design/perf/a.json [design/perf/b.json]     prints the table(s)
  *
  * The number is the share of the whole machine: CPU time used by every process under the app's
@@ -49,6 +50,14 @@ const UI = {
       await page.clickOn('.rail-tab[data-tab="now"]');
     },
     library: async (page) => page.clickOn('.nav-item[data-view="all"]'),
+  },
+  // The stage 2 material spike (--ui spike --page spike.html): the glass with a pretend transport.
+  spike: {
+    ready: `!!(window.spike && 'playing' in window.spike)`,
+    playing: `spike.playing`,
+    seekTo: (fromEnd) => `spike.seekTo(${fromEnd})`,
+    row: '.row', scroller: '#rows', sidebar: '#sidebar', play: '.bowl--play', next: '.bowl--next',
+    focus: async () => {}, library: async () => {},
   },
 };
 
@@ -286,6 +295,9 @@ async function run() {
   const app = await LAUNCH[arg('app', 'edge')]();
   process.on('exit', app.stop);                                   // never leave the test server behind
   const page = await connect(DEBUG_PORT, (t) => t.url.startsWith(app.address));
+  const ui = UI[arg('ui', 'old')];
+  const home = app.address + (arg('page') ? '/' + arg('page') : '');
+  if (arg('page')) await page.send('Page.navigate', { url: home });
   const sampler = startSampler(app.roots);
   const report = { label, app: arg('app', 'edge'), exe: app.exe, date: new Date().toISOString(), cpus: CPUS, results: [],
     conditions: { devtools: 'attached on 127.0.0.1:' + DEBUG_PORT, audio: '--mute-audio (the audio path runs; the speakers are silent)',
@@ -293,7 +305,7 @@ async function run() {
       focus: 'the window was never the active one (the keyboard focus stayed with the owner)',
       stacking: BEHIND ? `under the owner's windows${OCCLUSION ? '' : ", with Chromium's occlusion check off so the page rendered as if in view"}` : 'in view' } };
   const c = {
-    page, ui: app.ui, address: app.address, notes: [],
+    page, ui, address: home, notes: [],
     note: (text) => c.notes.push(text),
     /** Runs a window op. The promise settles when it ends; its .up settles when the op says its measured part has begun. */
     win: (op, ...more) => {
@@ -303,7 +315,7 @@ async function run() {
       return ended;
     },
     restore: async () => { await c.win('place'); if (c.size === 'max') await c.win('max'); },
-    waitReady: async () => { for (let i = 0; !(await page.eval(app.ui.ready).catch(() => false)); i++) { if (i > 150) throw new Error('the app never became ready'); await sleep(200); } },
+    waitReady: async () => { for (let i = 0; !(await page.eval(ui.ready).catch(() => false)); i++) { if (i > 150) throw new Error('the app never became ready'); await sleep(200); } },
   };
   try {
     await c.win('place', '-Back', app.front);                       // on the right screen, and the focus handed back

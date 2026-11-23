@@ -1,0 +1,111 @@
+{
+ "label": "spike-2",
+ "app": "electron",
+ "exe": "electron.exe",
+ "date": "2026-11-23T00:38:59.976Z",
+ "cpus": 16,
+ "results": [
+  {
+   "id": "S2",
+   "name": "Playing, library, one track change",
+   "size": "default",
+   "run": 1,
+   "seconds": 120,
+   "samples": [ 0.1, 0, 0.19, 0.1, 0, 0.48, 0, 0, 0, 0, 0, 0, 0.19, 0.2, 0.39, 0, 0, 0, 0, 0.19, 0.1, 0, 0.19, 0.29, 0, 0.39, 0, 0.48, 0, 0.29, 0, 0, 0, 0, 0, 0.19, 0.1, 0.1, 0, 0, 0, 0.49, 0.49, 0, 0, 0.1, 0.39, 0, 0.1, 0.1, 0.1, 0, 0.1, 0.1, 0.1, 0.2, 0, 0.1, 1.07, 0.1, 0, 0, 0.1, 0, 0, 0, 0, 0, 0.29, 0, 0, 0.1, 0.1, 0, 0, 0, 0.29, 0, 0, 0, 0, 0, 0.1, 0, 0.29, 0.1, 0, 0.1, 0.1, 0.2, 0.19, 0.19, 0.1, 0.19, 0, 0, 0, 0.19, 0, 0.48, 0, 0.1, 0.19, 0.2, 0.1, 0, 0, 0.19, 0, 0, 0.1, 0, 0.1, 0, 0, 0.2, 0.29, 0, 0, 0
+   ],
+   "mean": 0.1,
+   "p95": 0.48,
+   "max": 1.07,
+   "top": "electron gpu-process 68%",
+   "gpuMean": 0.06,
+   "gpuMax": 0.78,
+   "memMB": 387,
+   "machine": 20.59,
+   "notes": ""
+  },
+  {
+   "id": "S6",
+   "name": "Resizing while playing",
+   "size": "default",
+   "run": 1,
+   "seconds": 40,
+   "samples": [ 2.62, 3.35, 4.38, 4.09, 3.79, 3.11, 5.52, 0.78, 4.85, 3.88, 2.34, 5.51, 2.83, 4.31, 1.35, 5.51, 4.21, 4.38, 2.46, 1.07, 0.29, 0.59, 0.68, 0.39, 0.39, 0.2, 0.2, 0.29, 0.3, 0.39, 0.29, 0.78, 0.69, 0.58, 0.39, 0, 0.2, 0.19, 0.49
+   ],
+   "mean": 1.99,
+   "p95": 5.51,
+   "max": 5.52,
+   "top": "electron gpu-process 54%",
+   "gpuMean": 1.04,
+   "gpuMax": 2.03,
+   "memMB": 590,
+   "machine": 22.42,
+   "notes": ""
+  },
+  {
+   "id": "S9",
+   "name": "Ten track changes, one a second",
+   "size": "default",
+   "run": 1,
+   "seconds": 15,
+   "samples": [ 1.83, 0.69, 0.78, 1.16, 0.49, 1.66, 1.28, 1.94, 0.2, 0, 0.19, 0.1, 0.19, 0.39, 0
+   ],
+   "mean": 0.73,
+   "p95": 1.94,
+   "max": 1.94,
+   "top": "electron gpu-process 67%",
+   "gpuMean": 0.65,
+   "gpuMax": 1.37,
+   "memMB": 502,
+   "machine": 21.32,
+   "notes": ""
+  },
+  {
+   "id": "S2",
+   "name": "Playing, library, one track change",
+   "size": "max",
+   "run": 1,
+   "seconds": 120,
+   "samples": [ 0, 0, 0, 0.1, 0, 0.19, 0, 0.29, 0, 0.2, 0.1, 0, 0.19, 0, 0.39, 0, 0.19, 0, 0.39, 0, 0.19, 0.1, 0, 0.3, 0.19, 0, 0, 0.1, 0, 0.29, 0, 0.1, 0, 0.29, 0, 0.49, 0.1, 0.2, 0.1, 0, 0.1, 0, 0.1, 0, 0, 0, 0, 0.48, 0, 0, 0.1, 0, 0, 0, 0, 0.2, 0.2, 0.3, 0.58, 0.78, 0.19, 0, 0.19, 0, 0, 0, 0.19, 0, 0.1, 0.1, 0, 0.19, 0, 0, 0.19, 0, 0, 0.1, 0, 0.19, 0.2, 0.39, 0.1, 0.58, 0.2, 0.39, 0, 0.39, 0, 0, 0, 0, 0.39, 0, 0, 0.39, 0.1, 0, 0, 0.1, 0, 0, 0, 0.19, 0, 0, 0, 0.19, 0.1, 0.1, 0, 0.19, 0.2, 0.1, 0.29, 0, 0, 0.19, 0.2, 0.1
+   ],
+   "mean": 0.12,
+   "p95": 0.39,
+   "max": 0.78,
+   "top": "electron gpu-process 66%",
+   "gpuMean": 0.06,
+   "gpuMax": 0.89,
+   "memMB": 457,
+   "machine": 20.46,
+   "notes": ""
+  },
+  {
+   "id": "S9",
+   "name": "Ten track changes, one a second",
+   "size": "max",
+   "run": 1,
+   "seconds": 15,
+   "samples": [ 0.59, 1.67, 0.29, 0.78, 0.69, 1.93, 0.59, 1.08, 0.97, 0, 0.2, 0.19, 0, 0.1
+   ],
+   "mean": 0.65,
+   "p95": 1.93,
+   "max": 1.93,
+   "top": "electron gpu-process 55%",
+   "gpuMean": 0.87,
+   "gpuMax": 1.3,
+   "memMB": 532,
+   "machine": 18.47,
+   "notes": ""
+  }
+ ],
+ "conditions": {
+  "devtools": "attached on 127.0.0.1:9333",
+  "audio": "--mute-audio (the audio path runs; the speakers are silent)",
+  "screen": "the second monitor (the owner was using the main one)",
+  "focus": "the window was never the active one (the keyboard focus stayed with the owner)",
+  "stacking": "under the owner's windows, with Chromium's occlusion check off so the page rendered as if in view",
+  "machineBefore": "27.61% of the machine busy with other things",
+  "gpuBefore": "9.32% summed over every process's 3D engines",
+  "default": "1364 x 892 CSS px (window 1380 x 900), scale 1, screen 1920 x 1080",
+  "refresh": "339 Hz (frames a second the page is offered)",
+  "max": "1920 x 1032 CSS px (window 1920 x 1032), scale 1, screen 1920 x 1080"
+ }
+}

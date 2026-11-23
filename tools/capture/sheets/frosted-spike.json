@@ -1,0 +1,26 @@
+{
+  "out": "design/captures/frosted/sheet-spike-library.png",
+  "width": 1600,
+  "title": "Stage 2 material spike: reference | ours, at half size (demo library; ours is the real page, baked by the kiln)",
+  "notes": [
+    "ok: one material everywhere: smoky body, hot top line, coral roll along bottom edges, light rising low in the glass",
+    "ok: the colour follows the cover: rose from Silver Current, violet from Cold Winters, silver for covers with little colour",
+    "ok: text is upright DOM text in Montserrat; spacing and alignment are exact (the references wobble)",
+    "part: the ribbon is about 20% shorter than the reference's, on purpose, so more rows show; its bulb, low waist, rising lip, pod and tail are all there",
+    "part: the seek line runs beside the cover and under the bowls, above the lower roll, rather than dipping under the cover (it reads better off the bright roll)",
+    "part: the room's wisps are calmer than the reference's swirls",
+    "no: the reference's big rounded window slab: a real Windows 11 window has 8 px corners, so the rim hugs those",
+    "no: the sidebar's edge doesn't yet flow into the ribbon's bulb as one piece; it melts away behind it instead",
+    "no: caption buttons are Windows' own (they don't show in a page capture)"
+  ],
+  "rows": [
+    [
+      { "label": "reference: frosted-library.webp", "src": "design/references/frosted/frosted-library.webp" },
+      { "label": "ours: spike.html, rose", "src": "design/captures/frosted/spike-rose.png" }
+    ],
+    [
+      { "label": "reference: frosted-library-blue.webp", "src": "design/references/frosted/frosted-library-blue.webp" },
+      { "label": "ours: spike.html, blue", "src": "design/captures/frosted/spike-blue.png" }
+    ]
+  ]
+}

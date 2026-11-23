@@ -11,7 +11,7 @@
 }
 
 :root {
-  --ribbon-h: clamp(176px, 25vh, 250px);
+  --ribbon-h: clamp(190px, 27vh, 280px);
   --side-w: 286px;
   --text: #fff;
   --soft: rgb(255 255 255 / .72);
@@ -47,9 +47,6 @@ button { cursor: pointer; }
   width: calc(100% + 2 * var(--bleed)); height: calc(100% + 2 * var(--bleed));
 }
 .glass-hot { opacity: 0; transition: opacity .16s ease-out; }
-/* Panels that run down behind the ribbon melt away before their lower edge would show. */
-.melts > .glass-bake { mask-image: linear-gradient(#000 calc(100% - 1.15 * var(--ribbon-h)), transparent calc(100% - .55 * var(--ribbon-h))); }
-@keyframes glass-in { from { opacity: 0; } }
 
 /* ----------------------------------------------------------------- room --- */
 .room { position: fixed; inset: 0; contain: strict; }
@@ -112,16 +109,16 @@ h1 { font-size: 55px; font-weight: 750; letter-spacing: -.02em; line-height: 1.1
 
 /* --------------------------------------------------------------- ribbon --- */
 .ribbon { --u: var(--ribbon-h); position: fixed; left: 76px; right: 70px; bottom: 14px; height: var(--u); contain: layout; }
-.cover { position: absolute; z-index: -2; left: calc(.25 * var(--u)); top: calc(.15 * var(--u)); width: calc(.74 * var(--u)); height: calc(.74 * var(--u)); border-radius: calc(.11 * var(--u)); object-fit: cover; }
-.now { position: absolute; left: calc(1.17 * var(--u)); right: calc(1.7 * var(--u)); top: calc(.37 * var(--u)); }
+.cover { position: absolute; z-index: -2; left: calc(.27 * var(--u)); top: calc(.15 * var(--u)); width: calc(.74 * var(--u)); height: calc(.74 * var(--u)); border-radius: calc(.11 * var(--u)); object-fit: cover; }
+.now { position: absolute; left: calc(1.22 * var(--u)); right: calc(1.75 * var(--u)); top: calc(.44 * var(--u)); }
 .now-title { font-size: calc(.128 * var(--u)); font-weight: 700; letter-spacing: -.01em; line-height: 1.15; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .now-artist { font-size: calc(.092 * var(--u)); font-weight: 450; color: var(--soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .line { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 .time { position: absolute; font-size: calc(.072 * var(--u)); translate: 0 -50%; }
-.time--cur { left: calc(.5 * var(--u)); top: calc(.936 * var(--u)); width: calc(.2 * var(--u)); text-align: right; }
-.time--dur { right: calc(.5 * var(--u)); top: calc(.845 * var(--u)); }
+.time--cur { left: calc(.98 * var(--u)); top: calc(.757 * var(--u)); width: calc(.2 * var(--u)); text-align: right; }
+.time--dur { right: calc(.27 * var(--u)); top: calc(.835 * var(--u)); }
 .vol-ic { position: absolute; right: calc(1.0 * var(--u)); top: calc(.225 * var(--u)); translate: 0 -50%; width: calc(.1 * var(--u)); height: calc(.1 * var(--u)); }
-.ribbon .bowl { position: absolute; top: calc(.535 * var(--u)); translate: 50% -50%; }
+.ribbon .bowl { position: absolute; top: calc(.56 * var(--u)); translate: 50% -50%; }
 .ribbon .bowl:active { transform: scale(.95) translateY(1.5px); }
 .bowl--prev { --d: calc(.3 * var(--u)); right: calc(1.27 * var(--u)); }
 .bowl--play { --d: calc(.4 * var(--u)); right: calc(.86 * var(--u)); }

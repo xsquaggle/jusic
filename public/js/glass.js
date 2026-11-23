@@ -9,6 +9,7 @@ import { bake, MODE } from './kiln.js';
 
 const SETTLE = 150;      // ms after the last size change before a re-bake
 const FADE = 900;        // ms for a new palette to fade in over the old
+const STEP = 33;         // ms between fade steps: timed, not a CSS animation, which would redraw at the display's 360 Hz
 const surfaces = new Map();   // element -> surface
 let palette = { a: [255, 112, 102], b: [255, 166, 140], c: [96, 40, 48] };   // rose, until a cover says otherwise
 
@@ -22,11 +23,13 @@ const px = () => window.devicePixelRatio || 1;
  * @param {?function(number, number): number[][]} look.shape  the kiln's shape list for a width and
  *   height, in the element's own CSS pixels; by default one rounded box filling the element
  * @param {number} look.glow   extra light inside (a lit pill, the playing row)
+ * @param {?function(): number[]} look.melt  for a panel that runs down behind the ribbon: [from, to]
+ *   CSS pixels above its bottom edge, between which it melts away so that edge never shows
  * @param {boolean} look.hot   also bake the heated state (bowls: shown on hover and press by CSS)
  * @param {boolean} look.pour  new colours seep through this surface instead of fading in
  */
-export function glass(el, { mode = MODE.glass, shape = null, radius = 24, rim = 16, body = 0.62, glow = 0, bleed = 28, hot = false, pour = false } = {}) {
-  const s = { el, mode, shape, radius, rim, body, glow, bleed, hot, pour, seed: Math.random() * 40, w: 0, h: 0, canvas: null, hotCanvas: null, timer: 0, token: 0 };
+export function glass(el, { mode = MODE.glass, shape = null, radius = 24, rim = 16, body = 0.62, glow = 0, bleed = 28, hot = false, pour = false, melt = null } = {}) {
+  const s = { el, mode, shape, radius, rim, body, glow, bleed, hot, pour, melt, seed: Math.random() * 40, w: 0, h: 0, canvas: null, hotCanvas: null, timer: 0, token: 0 };
   el.classList.add('glass');
   el.style.setProperty('--bleed', bleed + 'px');
   surfaces.set(el, s);
@@ -51,7 +54,7 @@ function render(s, extra) {
   const b = s.bleed;
   const shapes = (s.shape ? s.shape(s.w, s.h) : [[s.w / 2, s.h / 2, s.w / 2, s.h / 2, s.radius]])
     .map((q) => [q[0] + b, q[1] + b, ...q.slice(2)]);
-  return bake({ w: s.w + 2 * b, h: s.h + 2 * b, px: px(), mode: s.mode, shapes, palette, rim: s.rim, body: s.body, heat: s.glow, seed: s.seed, ...extra });
+  return bake({ w: s.w + 2 * b, h: s.h + 2 * b, px: px(), mode: s.mode, shapes, palette, rim: s.rim, body: s.body, heat: s.glow, seed: s.seed, melt: s.melt && s.melt().map((v) => v + b), ...extra });
 }
 
 function canvasFor(bitmap, className) {
@@ -67,9 +70,25 @@ function put(s, bitmap, fadeDelay = -1) {
   const old = s.canvas;
   s.canvas = canvasFor(bitmap, 'glass-bake');
   if (!old) { s.el.prepend(s.canvas); return; }
-  s.canvas.style.animation = `glass-in ${FADE}ms ${fadeDelay}ms ease both`;
-  s.canvas.addEventListener('animationend', () => old.remove(), { once: true });
+  s.canvas.style.opacity = 0;
   old.after(s.canvas);
+  fading.add({ canvas: s.canvas, old, from: performance.now() + fadeDelay });
+  fadeTimer ||= setInterval(stepFades, STEP);
+}
+
+const fading = new Set();     // new layers on their way in
+let fadeTimer = 0;
+function stepFades() {
+  const now = performance.now();
+  for (const f of fading) {
+    const t = (now - f.from) / FADE;
+    if (t < 0) continue;
+    if (t < 1) { f.canvas.style.opacity = (t * t * (3 - 2 * t)).toFixed(3); continue; }
+    f.canvas.style.opacity = '';
+    f.old.remove();
+    fading.delete(f);
+  }
+  if (!fading.size) { clearInterval(fadeTimer); fadeTimer = 0; }
 }
 
 function draw(s, fadeDelay = -1) {

@@ -1,0 +1,37 @@
+{
+ "label": "spike-s8",
+ "app": "electron",
+ "exe": "electron.exe",
+ "date": "2026-11-23T00:36:39.018Z",
+ "cpus": 16,
+ "results": [
+  {
+   "id": "S8",
+   "name": "Fully covered, playing",
+   "size": "default",
+   "run": 1,
+   "seconds": 60,
+   "samples": [ 0, 0, 0, 0.2, 0, 0, 0, 0, 0, 0, 0.49, 0.19, 0.1, 0, 0.29, 0.29, 0, 0, 0, 0, 0.1, 0, 0, 0, 0, 0, 0, 0, 0, 0.1, 0, 0, 0.3, 0, 0, 0, 0.1, 0, 0.19, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+   ],
+   "mean": 0.04,
+   "p95": 0.29,
+   "max": 0.49,
+   "top": "electron main 60%",
+   "gpuMean": 0,
+   "gpuMax": 0.01,
+   "memMB": 432,
+   "machine": 26.55,
+   "notes": ""
+  }
+ ],
+ "conditions": {
+  "devtools": "attached on 127.0.0.1:9333",
+  "audio": "--mute-audio (the audio path runs; the speakers are silent)",
+  "screen": "the second monitor (the owner was using the main one)",
+  "focus": "the window was never the active one (the keyboard focus stayed with the owner)",
+  "stacking": "under the owner's windows",
+  "machineBefore": "35.83% of the machine busy with other things",
+  "gpuBefore": "11.7% summed over every process's 3D engines",
+  "default": "1364 x 892 CSS px (window 1380 x 900), scale 1, screen 1920 x 1080"
+ }
+}

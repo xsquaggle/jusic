@@ -21,6 +21,7 @@ uniform vec3 uA, uB, uC;       // the cover's primary, secondary and deep colour
 uniform vec3 uA2, uB2, uC2;    // the next cover's, while its colour pours in
 uniform vec3 uPour;            // where the dye starts (x, y) and how far it has reached (0: no pour)
 uniform vec4 uLook;            // rim radius, body opacity, heat (bowls) or drift (room), seed
+uniform vec2 uMelt;            // a surface that melts away downward: where it starts and ends, px from the bottom
 out vec4 o;
 
 float hash(vec2 p) { p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
@@ -70,6 +71,7 @@ vec4 glass(vec2 p) {
 
   float low = smoothstep(-R * 3.2, 0., scene(p + vec2(0., R * 1.5)).x);         // nearing a lower edge
   float fine = clamp(R / (18. * uPx), .45, 1.3);                                // thicker glass, stronger edge light
+  float thick = smoothstep(20., 34., R / uPx);                                  // the ribbon: glass you could hold
   float uneven = .5 + fbm(vec2(p.x * .006, p.y * .009) / uPx + uLook.w * 2.);   // light along an edge is never even
   float high = smoothstep(-R * 5., 0., scene(p - vec2(0., R * 2.5)).x);         // under an upper shoulder
   float veins = pow(fbm(vec2(p.x * .0035, p.y * .011) / uPx + uLook.w), 2.);    // light caught inside the glass
@@ -78,15 +80,20 @@ vec4 glass(vec2 p) {
   // 1 light carried inside, rising toward lower edges   2 one broad satin sheen on upper shoulders
   // 3 a crisp hot line on top edges, darker glass inside it   4 a brighter, warmer roll along the bottom
   float sheen = pow(max(dot(N, normalize(vec3(-.42, -.78, .46))), 0.), 4.) * (1. - t * .4);
-  float hot = up * exp(-sq((inside - 1.3 * uPx) / (.9 * uPx)));
+  float hot = up * exp(-sq((inside - 1.3 * uPx) / (mix(.9, 1.5, thick) * uPx)));
   float dark = up * smoothstep(1.5 * uPx, 4. * uPx, inside) * (1. - smoothstep(4. * uPx, R, inside));
   float roll = down * (1. - smoothstep(0., R * .8, inside));
-  float core = down * exp(-sq((inside - 2.2 * uPx) / (1.6 * uPx)));
-  vec3 c = (C * .4 + vec3(.062, .05, .054)) * (.6 + .26 * z)                    // lifted rose-grey, never black
-    + tint * (low * .36 + veins * .15 * (.35 + low)) * (1. + uLook.z) + tint * uLook.z * .2   // uLook.z: a lit pill's extra glow
-    + tint * roll * .8 * fine + vec3(1., .94, .9) * core * .8 * fine * fine * uneven
-    + vec3(1., .9, .84) * hot * .72 * fine * uneven
-    + vec3(1.) * sheen * (.08 + .2 * high) * fine
+  float core = down * exp(-sq((inside - mix(2.2, 4.2, thick) * uPx) / (mix(1.6, 2.5, thick) * uPx)));
+  float inner = exp(-sq((inside - R) / (1.6 * uPx)));                           // where the roll meets the flat: the glass's thickness
+  float f = fbm(vec2(p.x * .0016, p.y * .0065) / uPx + uLook.w * 3.);
+  float caustic = pow(1. - abs(2. * f - 1.), 5.) * low * smoothstep(20., 30., R / uPx);   // a few soft threads of light low in thick glass
+  vec3 c = (C * .46 + vec3(.082, .066, .07)) * (.6 + .26 * z) * mix(1., .78, thick * (1. - low))   // lifted rose-grey, never black
+    + tint * (low * .33 + veins * .15 * (.35 + low)) * (1. + uLook.z) + tint * uLook.z * .2   // uLook.z: a lit pill's extra glow
+    + tint * roll * (.8 + .2 * thick) * fine + vec3(1., .94, .9) * core * .8 * fine * fine * uneven
+    + vec3(1., .9, .84) * hot * .72 * fine * (1. + .5 * thick) * uneven
+    + vec3(1.) * sheen * (.08 + .2 * high) * fine * (1. + thick)
+    + mix(tint, vec3(1.), .2) * caustic * .13
+    + (vec3(1., .93, .9) * up * .09 + tint * down * .3) * inner * fine
     + mix(tint, vec3(1.), .5) * lead * .5
     - dark * .2;
   float a = mix(uLook.y, .97, max((1. - smoothstep(0., R * .6, inside)) * .7, roll));
@@ -108,7 +115,7 @@ vec4 glass(vec2 p) {
     outside = vec4(0., 0., 0., .5 * exp(-w / (7. * uPx)) + .65 * exp(-sq(w / (1.1 * uPx))));
   } else {
     float od = max(d, 0.);
-    float bloom = down * exp(-od / (9. * uPx)) * .5 + exp(-od / (22. * uPx)) * .08;
+    float bloom = (down * exp(-od / (9. * uPx)) * .5 + exp(-od / (22. * uPx)) * .08) * (1. + thick);
     float shadow = .3 * exp(-max(scene(p - vec2(0., 7. * uPx)).x, 0.) / (12. * uPx));
     outside = vec4(tint * bloom, clamp(bloom * .7 + shadow, 0., 1.));
   }
@@ -130,7 +137,7 @@ vec4 bowl(vec2 p) {
   float inner = l / (1. - rimW);                                                // 0 centre .. 1 foot of the rim
   float well = 1. - smoothstep(.9, 1.02, inner);
   vec3 c = (C * .3 + vec3(.06, .05, .055)) * (.5 + .5 * ring)                   // the rim
-    + tint * ring * (.07 + .95 * down * down) * (1. + heat * .8)
+    + tint * ring * (.17 + .9 * down * down) * (1. + heat * .8)
     + vec3(1.) * ring * pow(max(dot(g, normalize(vec2(-.62, -.78))), 0.), 6.) * .5
     + vec3(1., .92, .86) * up * exp(-sq((-d - 1.2 * uPx) / (.9 * uPx))) * .3
     + vec3(1., .94, .9) * down * down * exp(-sq((-d - 2. * uPx) / (1.4 * uPx))) * (.4 + .5 * heat);
@@ -153,16 +160,16 @@ vec4 room(vec2 p) {
   vec2 warp = vec2(fbm(u * 1.2 + vec2(tm * .020, 0.) + seed), fbm(u * 1.2 + vec2(5.2, tm * .016) + seed));
   float w1 = smoothstep(.3, .8, fbm(u * vec2(.9, 2.) + warp * 1.9));                 // broad veils
   float f = fbm(u * vec2(1.6, .9) + warp.yx * 2.6 + 9.);
-  float w2 = pow(1. - abs(2. * f - 1.), 7.) * smoothstep(.2, .7, w1 + .25);          // thin filaments riding them
-  vec3 c = C * .2 + vec3(.022, .014, .016) + A * w1 * .13 + mix(A, B, .5) * w2 * .5 + mix(A, vec3(1.), .4) * lead * .12;
+  float w2 = pow(1. - abs(2. * f - 1.), 3.5) * smoothstep(.2, .7, w1 + .25);         // soft currents of light riding them
+  vec3 c = C * .2 + vec3(.022, .014, .016) + A * w1 * .13 + mix(A, B, .5) * w2 * .26 + mix(A, vec3(1.), .4) * lead * .12;
   c *= mix(1.1, .6, smoothstep(.1, 1.15, length((p - uSize * vec2(.5, .66)) / uSize.y)));
   // The window's rim: a hot line on the edge and light gathering inside it, most along the bottom.
   vec4 edge = vec4(p.x, uSize.x - p.x, p.y, uSize.y - p.y) / uPx;                    // left, right, top, bottom
   float along = fbm(vec2(u.x * 3., seed * 3.)), up = fbm(vec2(u.y * 3., seed * 5.));  // the rim is never even
   vec3 tint = mix(A, B, .5 + .5 * sin(u.x * 2.2 + seed));
-  c += tint * (exp(-edge.w / 34.) * .5 * (.5 + along) + exp(-edge.z / 22.) * .13 * (.5 + along) + (exp(-edge.x / 22.) + exp(-edge.y / 22.)) * .15 * (.5 + up));
+  c += tint * (exp(-edge.w / 34.) * .5 * (.5 + along) + exp(-edge.z / 24.) * .24 * (.5 + along) + (exp(-edge.x / 24.) + exp(-edge.y / 24.)) * .26 * (.5 + up));
   float inside = -box(p, vec4(uSize * .5, uSize * .5), 8. * uPx);
-  c += vec3(1., .9, .85) * exp(-sq((inside - uPx) / (.8 * uPx))) * mix(.28, .62, smoothstep(.3, 1., p.y / uSize.y)) * (.6 + .8 * along);
+  c += vec3(1., .9, .85) * exp(-sq((inside - uPx) / (.8 * uPx))) * mix(.42, .72, smoothstep(.3, 1., p.y / uSize.y)) * (.6 + .8 * along);
   return vec4(c, 1.);
 }
 
@@ -170,6 +177,7 @@ void main() {
   vec2 p = vec2(gl_FragCoord.x, uSize.y - gl_FragCoord.y);
   o = uMode == 1 ? room(p) : uMode == 2 ? bowl(p) : glass(p);
   o.rgb += (hash(p + uLook.w) - .5) / 255.;                                     // dither: dark gradients never band
+  if (uMelt.x > 0.) o *= 1. - smoothstep(uSize.y - uMelt.x, uSize.y - uMelt.y, p.y);
 }`;
 
 let gl = null;
@@ -191,7 +199,7 @@ function start() {
   if (!gl.getProgramParameter(program, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(program));
   gl.useProgram(program);
   uniforms = {};
-  for (const name of ['uSize', 'uPx', 'uMode', 'uCount', 'uBox', 'uOpt', 'uA', 'uB', 'uC', 'uA2', 'uB2', 'uC2', 'uPour', 'uLook']) {
+  for (const name of ['uSize', 'uPx', 'uMode', 'uCount', 'uBox', 'uOpt', 'uA', 'uB', 'uC', 'uA2', 'uB2', 'uC2', 'uPour', 'uLook', 'uMelt']) {
     uniforms[name] = gl.getUniformLocation(program, name);
   }
 }
@@ -208,8 +216,9 @@ export const MODE = { glass: 0, room: 1, bowl: 2 };
  * @param {number[][]} spec.shapes  [cx, cy, halfW, halfH, radius, kind, blend] in CSS pixels
  * @param {{a:number[], b:number[], c:number[]}} spec.palette  sRGB 0..255
  * @param {?object} spec.next       the palette pouring in, with spec.pour = [x, y, reach]
+ * @param {?number[]} spec.melt     [from, to] CSS pixels above the bottom: the surface fades out between them
  */
-export function bake({ w, h, px = 1, mode = MODE.glass, shapes = [], palette, next = null, pour = null, rim = 16, body = 0.62, heat = 0, seed = 0 }) {
+export function bake({ w, h, px = 1, mode = MODE.glass, shapes = [], palette, next = null, pour = null, rim = 16, body = 0.62, heat = 0, seed = 0, melt = null }) {
   if (!gl) start();
   const width = Math.max(1, Math.round(w * px));
   const height = Math.max(1, Math.round(h * px));
@@ -232,6 +241,7 @@ export function bake({ w, h, px = 1, mode = MODE.glass, shapes = [], palette, ne
   gl.uniform3fv(uniforms.uA2, unit(to.a)); gl.uniform3fv(uniforms.uB2, unit(to.b)); gl.uniform3fv(uniforms.uC2, unit(to.c));
   gl.uniform3f(uniforms.uPour, pour ? pour[0] * px : 0, pour ? pour[1] * px : 0, pour ? pour[2] * px : 0);
   gl.uniform4f(uniforms.uLook, rim * px, body, heat, seed);
+  gl.uniform2f(uniforms.uMelt, melt ? melt[0] * px : 0, melt ? melt[1] * px : 0);
   gl.drawArrays(gl.TRIANGLES, 0, 3);
   return gl.canvas.transferToImageBitmap();
 }

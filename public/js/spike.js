@@ -44,16 +44,17 @@ $('#rows').innerHTML = list.map((t, i) => `
 
 const ribbon = $('#ribbon');
 glass($('#room'), { mode: MODE.room, bleed: 0 });
-glass($('#sidebar'), { radius: 30, rim: 18, body: 0.5 });
-glass($('#list'), { radius: 28, rim: 16, body: 0.42 });
+const melt = () => [1.15 * ribbon.offsetHeight, 0.55 * ribbon.offsetHeight];   // panels melt away behind the ribbon
+glass($('#sidebar'), { radius: 30, rim: 18, body: 0.6, melt });
+glass($('#list'), { radius: 28, rim: 16, body: 0.42, melt });
 glass($('#search'), { radius: 23, rim: 11, body: 0.5, bleed: 16 });
 glass($('#sort'), { radius: 23, rim: 11, body: 0.5, bleed: 16 });
 glass($('#nav-active'), { radius: 22, rim: 10, body: 0.6, glow: 0.9, bleed: 16 });
-glass(ribbon, { shape: ribbonShape, rim: 30, body: 0.66, bleed: 40, pour: true });
+glass(ribbon, { shape: ribbonShape, rim: 34, body: 0.7, bleed: 44, pour: true });
 for (const bowl of document.querySelectorAll('.bowl')) glass(bowl, { mode: MODE.bowl, hot: true, bleed: 18 });
 const currentRow = () => $('.row.is-current');
 let rowGlass = null;
-const markRow = () => { rowGlass = glass(currentRow(), { radius: 22, rim: 9, body: 0.5, glow: 0.7, bleed: 14 }); };
+const markRow = () => { rowGlass = glass(currentRow(), { radius: 22, rim: 7, body: 0.5, glow: 0.8, bleed: 14 }); };
 markRow();
 
 /* ------------------------------------------------------ what's playing --- */
@@ -75,7 +76,8 @@ function lines() {
   ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(head, y, 5, 0, 7); ctx.fill();
   ctx.shadowBlur = 0;
 }
-new ResizeObserver(lines).observe(ribbon);
+let settle = 0;                     // the line stretches with the ribbon and is redrawn once the size settles
+new ResizeObserver(() => { clearTimeout(settle); settle = setTimeout(lines, 150); }).observe(ribbon);
 
 const cover = $('#cover');
 async function show(i, pour) {
