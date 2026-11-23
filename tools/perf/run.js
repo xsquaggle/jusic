@@ -348,12 +348,15 @@ async function run() {
     }
   } finally {
     sampler.stop();
-    await page.send('Browser.close').catch(() => {});
-    app.stop();
+    // The report first: Electron closes without replying to Browser.close, and waiting on that
+    // reply with nothing else pending once ended the run before anything was written.
+    setTimeout(() => { app.stop(); process.exit(0); }, 4000).unref();
     fs.mkdirSync(path.join(ROOT, 'design/perf'), { recursive: true });
     const file = path.join(ROOT, 'design/perf', `${report.date.slice(0, 10)}-${label}.json`);
     fs.writeFileSync(file, JSON.stringify(report, null, 1).replace(/\n\s+(-?[\d.]+,?)(?=\n)/g, ' $1'));
     console.log('\nwrote ' + path.relative(ROOT, file) + '\n\n' + table(report));
+    await Promise.race([page.send('Browser.close').catch(() => {}), sleep(1500)]);
+    app.stop();
   }
 }
 

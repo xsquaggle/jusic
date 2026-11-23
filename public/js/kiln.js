@@ -29,6 +29,7 @@ float noise(vec2 p) {
   return mix(mix(hash(i), hash(i + vec2(1, 0)), f.x), mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), f.x), f.y);
 }
 float fbm(vec2 p) { float v = 0., a = .5; for (int i = 0; i < 4; i++) { v += a * noise(p); p = p * 2.03 + 17.; a *= .5; } return v; }
+float sq(float x) { return x * x; }
 float box(vec2 p, vec4 b, float r) { vec2 q = abs(p - b.xy) - b.zw + r; return length(max(q, 0.)) + min(max(q.x, q.y), 0.) - r; }
 // A smooth minimum: where two forms meet they flow together, which is what makes glass look poured.
 float smin(float a, float b, float k) { float h = max(k - abs(a - b), 0.) / max(k, 1e-4); return min(a, b) - h * h * k * .25; }
@@ -51,9 +52,9 @@ void palette(vec2 p, float rim, out vec3 A, out vec3 B, out vec3 C, out float le
   A = uA; B = uB; C = uC; lead = 0.;
   if (uPour.z <= 0.) return;
   float reach = length(p - uPour.xy) - rim * 110. * uPx + (fbm(p * .012 / uPx + uLook.w) - .5) * 90. * uPx;
-  float k = smoothstep(uPour.z, uPour.z - 90. * uPx, reach);
+  float k = 1. - smoothstep(uPour.z - 90. * uPx, uPour.z, reach);
   A = mix(uA, uA2, k); B = mix(uB, uB2, k); C = mix(uC, uC2, k);
-  lead = exp(-pow((reach - uPour.z + 30. * uPx) / (34. * uPx), 2.));
+  lead = exp(-sq((reach - uPour.z + 30. * uPx) / (34. * uPx)));
 }
 
 vec4 glass(vec2 p) {
@@ -67,7 +68,9 @@ vec4 glass(vec2 p) {
   vec3 A, B, C; float lead;
   palette(p, 1. - t, A, B, C, lead);
 
-  float low = smoothstep(-R * 5., 0., scene(p + vec2(0., R * 2.5)).x);          // nearing a lower edge
+  float low = smoothstep(-R * 3.2, 0., scene(p + vec2(0., R * 1.5)).x);         // nearing a lower edge
+  float fine = clamp(R / (18. * uPx), .45, 1.3);                                // thicker glass, stronger edge light
+  float uneven = .5 + fbm(vec2(p.x * .006, p.y * .009) / uPx + uLook.w * 2.);   // light along an edge is never even
   float high = smoothstep(-R * 5., 0., scene(p - vec2(0., R * 2.5)).x);         // under an upper shoulder
   float veins = pow(fbm(vec2(p.x * .0035, p.y * .011) / uPx + uLook.w), 2.);    // light caught inside the glass
   vec3 tint = mix(A, B, clamp(.5 + .45 * sin(p.x * .0016 / uPx + uLook.w * 6.) + (veins - .25) * .6, 0., 1.));
@@ -75,17 +78,17 @@ vec4 glass(vec2 p) {
   // 1 light carried inside, rising toward lower edges   2 one broad satin sheen on upper shoulders
   // 3 a crisp hot line on top edges, darker glass inside it   4 a brighter, warmer roll along the bottom
   float sheen = pow(max(dot(N, normalize(vec3(-.42, -.78, .46))), 0.), 4.) * (1. - t * .4);
-  float hot = up * exp(-pow((inside - 1.3 * uPx) / (.9 * uPx), 2.));
+  float hot = up * exp(-sq((inside - 1.3 * uPx) / (.9 * uPx)));
   float dark = up * smoothstep(1.5 * uPx, 4. * uPx, inside) * (1. - smoothstep(4. * uPx, R, inside));
   float roll = down * (1. - smoothstep(0., R * .8, inside));
-  float core = down * exp(-pow((inside - 2.2 * uPx) / (1.6 * uPx), 2.));
-  vec3 c = (C * .5 + vec3(.085, .07, .075)) * (.62 + .2 * z)                    // lifted rose-grey, never black
-    + tint * (low * .42 + veins * .22 * (.4 + low))
-    + tint * roll * .9 + vec3(1., .94, .9) * core * .95
-    + vec3(1., .9, .84) * hot * .9
-    + vec3(1.) * sheen * (.10 + .14 * high)
+  float core = down * exp(-sq((inside - 2.2 * uPx) / (1.6 * uPx)));
+  vec3 c = (C * .4 + vec3(.062, .05, .054)) * (.6 + .26 * z)                    // lifted rose-grey, never black
+    + tint * (low * .36 + veins * .15 * (.35 + low)) * (1. + uLook.z) + tint * uLook.z * .2   // uLook.z: a lit pill's extra glow
+    + tint * roll * .8 * fine + vec3(1., .94, .9) * core * .8 * fine * fine * uneven
+    + vec3(1., .9, .84) * hot * .72 * fine * uneven
+    + vec3(1.) * sheen * (.08 + .2 * high) * fine
     + mix(tint, vec3(1.), .5) * lead * .5
-    - dark * .16;
+    - dark * .2;
   float a = mix(uLook.y, .97, max((1. - smoothstep(0., R * .6, inside)) * .7, roll));
 
   if (s.z < 0.) {                                                               // a recess: thinner, darker glass
@@ -93,7 +96,7 @@ vec4 glass(vec2 p) {
     float above = scene(p - vec2(0., 5. * uPx)).z, below = scene(p + vec2(0., 5. * uPx)).z;
     c = mix(c, c * .42 + C * .06, deep * .85);
     c -= .12 * deep * smoothstep(-5. * uPx, 0., above);                         // its upper wall in shadow
-    c += tint * .5 * deep * smoothstep(-5. * uPx, 0., below) + vec3(1., .93, .88) * .5 * exp(-pow((-s.z - 1.2 * uPx) / uPx, 2.)) * smoothstep(-6. * uPx, 0., below);
+    c += tint * .5 * deep * smoothstep(-5. * uPx, 0., below) + vec3(1., .93, .88) * .5 * exp(-sq((-s.z - 1.2 * uPx) / uPx)) * smoothstep(-6. * uPx, 0., below);
     a = mix(a, max(a, .9), deep);
   }
 
@@ -102,9 +105,10 @@ vec4 glass(vec2 p) {
   vec4 outside;
   if (s.y < 0.) {
     float w = -s.y;
-    outside = vec4(0., 0., 0., .5 * exp(-w / (7. * uPx)) + .65 * exp(-pow(w / (1.1 * uPx), 2.)));
+    outside = vec4(0., 0., 0., .5 * exp(-w / (7. * uPx)) + .65 * exp(-sq(w / (1.1 * uPx))));
   } else {
-    float bloom = down * exp(-d / (9. * uPx)) * .5 + exp(-d / (22. * uPx)) * .08;
+    float od = max(d, 0.);
+    float bloom = down * exp(-od / (9. * uPx)) * .5 + exp(-od / (22. * uPx)) * .08;
     float shadow = .3 * exp(-max(scene(p - vec2(0., 7. * uPx)).x, 0.) / (12. * uPx));
     outside = vec4(tint * bloom, clamp(bloom * .7 + shadow, 0., 1.));
   }
@@ -124,12 +128,12 @@ vec4 bowl(vec2 p) {
   vec3 tint = mix(A, B, .5 + .5 * g.x * .6);
   float tt = clamp((1. - l) / rimW, 0., 1.), ring = sin(tt * 3.14159);          // the rim's roll
   float inner = l / (1. - rimW);                                                // 0 centre .. 1 foot of the rim
-  float well = smoothstep(1.02, .9, inner);
+  float well = 1. - smoothstep(.9, 1.02, inner);
   vec3 c = (C * .3 + vec3(.06, .05, .055)) * (.5 + .5 * ring)                   // the rim
-    + tint * ring * (.2 + .95 * down) * (1. + heat * .7)
-    + vec3(1.) * ring * pow(max(dot(g, normalize(vec2(-.62, -.78))), 0.), 5.) * .75
-    + vec3(1., .92, .86) * up * exp(-pow((-d - 1.2 * uPx) / (.9 * uPx), 2.)) * .7
-    + vec3(1., .94, .9) * down * exp(-pow((-d - 2. * uPx) / (1.4 * uPx), 2.)) * (.6 + .4 * heat);
+    + tint * ring * (.07 + .95 * down * down) * (1. + heat * .8)
+    + vec3(1.) * ring * pow(max(dot(g, normalize(vec2(-.62, -.78))), 0.), 6.) * .5
+    + vec3(1., .92, .86) * up * exp(-sq((-d - 1.2 * uPx) / (.9 * uPx))) * .3
+    + vec3(1., .94, .9) * down * down * exp(-sq((-d - 2. * uPx) / (1.4 * uPx))) * (.4 + .5 * heat);
   vec3 dish = (C * .16 + vec3(.022, .016, .018)) * mix(.5, 1., smoothstep(-.9, .3, q.y))   // the rim shades the top of the dish
     + tint * smoothstep(-.1, 1., q.y) * smoothstep(.35, 1., inner) * (.32 + .55 * heat)
     + tint * heat * .1;
@@ -146,19 +150,19 @@ vec4 room(vec2 p) {
   palette(p, 0., A, B, C, lead);
   vec2 u = p / uSize.y;
   float tm = uLook.z, seed = uLook.w;
-  vec2 warp = vec2(fbm(u * 1.3 + vec2(tm * .020, 0.) + seed), fbm(u * 1.3 + vec2(5.2, tm * .016) + seed));
-  float w1 = pow(smoothstep(.34, .86, fbm(u * vec2(1.1, 2.2) + warp * 1.7)), 1.5);
-  float w2 = pow(smoothstep(.44, .9, fbm(u * vec2(2.3, 1.2) + warp.yx * 2. + 9.)), 2.);
-  vec3 c = C * .2 + vec3(.03, .021, .023) + A * w1 * .2 + B * w2 * .1 + mix(A, vec3(1.), .4) * lead * .12;
-  c *= mix(.7, 1.06, smoothstep(1.2, .15, length((p - uSize * vec2(.5, .64)) / uSize.y)));
-  vec4 win = vec4(uSize * .5, uSize * .5);
-  float r = 8. * uPx, inside = -box(p, win, r);
-  vec2 g = normalize(vec2(box(p + vec2(1, 0), win, r) - box(p - vec2(1, 0), win, r), box(p + vec2(0, 1), win, r) - box(p - vec2(0, 1), win, r)) + 1e-5);
-  float down = smoothstep(-.2, 1., g.y), up = smoothstep(-.2, 1., -g.y);
-  float streak = .55 + .9 * fbm(vec2(dot(p, vec2(g.y, -g.x)) * .004 / uPx, seed * 3.));   // the rim is never even
+  vec2 warp = vec2(fbm(u * 1.2 + vec2(tm * .020, 0.) + seed), fbm(u * 1.2 + vec2(5.2, tm * .016) + seed));
+  float w1 = smoothstep(.3, .8, fbm(u * vec2(.9, 2.) + warp * 1.9));                 // broad veils
+  float f = fbm(u * vec2(1.6, .9) + warp.yx * 2.6 + 9.);
+  float w2 = pow(1. - abs(2. * f - 1.), 7.) * smoothstep(.2, .7, w1 + .25);          // thin filaments riding them
+  vec3 c = C * .2 + vec3(.022, .014, .016) + A * w1 * .13 + mix(A, B, .5) * w2 * .5 + mix(A, vec3(1.), .4) * lead * .12;
+  c *= mix(1.1, .6, smoothstep(.1, 1.15, length((p - uSize * vec2(.5, .66)) / uSize.y)));
+  // The window's rim: a hot line on the edge and light gathering inside it, most along the bottom.
+  vec4 edge = vec4(p.x, uSize.x - p.x, p.y, uSize.y - p.y) / uPx;                    // left, right, top, bottom
+  float along = fbm(vec2(u.x * 3., seed * 3.)), up = fbm(vec2(u.y * 3., seed * 5.));  // the rim is never even
   vec3 tint = mix(A, B, .5 + .5 * sin(u.x * 2.2 + seed));
-  c += tint * exp(-inside / (30. * uPx)) * (.08 + .34 * down + .07 * up) * streak;
-  c += vec3(1., .9, .85) * exp(-pow((inside - uPx) / (.8 * uPx), 2.)) * (.3 + .3 * down) * streak;
+  c += tint * (exp(-edge.w / 34.) * .5 * (.5 + along) + exp(-edge.z / 22.) * .13 * (.5 + along) + (exp(-edge.x / 22.) + exp(-edge.y / 22.)) * .15 * (.5 + up));
+  float inside = -box(p, vec4(uSize * .5, uSize * .5), 8. * uPx);
+  c += vec3(1., .9, .85) * exp(-sq((inside - uPx) / (.8 * uPx))) * mix(.28, .62, smoothstep(.3, 1., p.y / uSize.y)) * (.6 + .8 * along);
   return vec4(c, 1.);
 }
 

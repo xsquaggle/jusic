@@ -4,7 +4,7 @@ The brief is `design/FABLE_PROMPT_FROSTED.md`; the plan is `design/FROSTED_PLAN.
 
 ## Current status
 
-**Stage 0 is done. Stage 1 (the desktop shell) is built and checked by hand, but not yet measured. The owner sent "wrap up" on 22 November 2026; nothing is half-applied. Branch `frosted`, pushed.**
+**Stage 1 is measured. Stage 2 (the material spike) is on screen and being tuned; it has not been measured yet. Branch `frosted`, pushed.**
 
 Done:
 - **Stage 0.** Branch, the brief and references committed, old handoff archived, my copy of the owner's real data in the git-ignored `data/` (410 tracks). `tools/perf/` built. Today's app measured (one pass, table below). `design/FROSTED_PLAN.md` written. **The owner approved all five feature ideas in its section 5 on 22 November 2026** (the seek line drawn as the song's loudness contour, sleep fade, drag a track onto the ribbon or a playlist, album-aware crossfade, a peek at the next track on the Next bowl). They are built in stage 7.
@@ -19,16 +19,20 @@ Done:
   - A second launch exits at once and one main process remains. Its "focus the open window" line was skipped in the test, because test runs never take the focus.
   - The Quit button shows in the desktop window.
 
-Not done in stage 1:
-- **Measure the shell** against the baseline: `node tools/perf/run.js --app electron --label shell-old-ui --sizes default --runs 1`, then `--occlusion on --only S8`. This is the number for "what Electron itself costs".
-- **The test shortcut.** `npm run shortcut:frosted` is written (it makes "Jusic frosted" on the desktop and never touches the `jusic` shortcuts) but has not been run, so launching from a shortcut with no console window is unverified.
+Stage 1, measured: today's interface in the Electron shell (table under "Numbers"). Drawing every frame costs about a third more in Electron than in Edge; drawing nothing costs the same or less; memory roughly halves.
+
+Stage 1, still open:
+- **The test shortcut.** `npm run shortcut:frosted` is written but has not been run (a real double-click launch takes the focus, and the owner was mid-game).
 - The thumbnail buttons and taskbar progress exist in `desktop/main.js` but nothing in the page calls them yet (stage 3).
-- `npm start` in a browser tab was not re-run after the small page edits (the Edge baseline used the same page before them).
-- `README.md` not updated.
+- `npm start` in a browser tab was not re-run after the small page edits. `README.md` not updated.
 
-Written ahead, **untested**: `public/js/kiln.js` (233 lines, about 150 of GLSL), the shader that bakes the glass for the stage 2 spike. Nothing imports it yet and it has never been run, so treat it as a draft: the first job of stage 2 is to get one bake on screen and look at it.
+**Stage 2 so far:**
+- `public/js/kiln.js` (the shader: glass, bowls, the room, the pour) **works**. `public/js/glass.js` makes an element glass (bake on size or palette change, fade or pour between palettes). `public/js/ribbon.js` holds the ribbon's shape and the seek line. `public/js/palette.js` is the silver-fallback palette copied from the prototype. `public/frosted.css` is the new stylesheet (it replaces `styles.css` in stage 4).
+- `public/spike.html` + `public/js/spike.js`: the library reference's layout in that glass. It shows the demo library when a capture tool injects one, otherwise a few real tracks. Click the cover (or the Next bowl) to pour the next cover's colours through the glass; the Play bowl starts a pretend transport (seek line 5 times a second) so "playing" can be measured without audio.
+- `tools/demo/`: the demo library (the references' seven tracks) and its covers, cut from the reference images by `make-covers.js`. `tools/capture/shot.js` takes a picture of any page at an exact size and scale, with the demo library injected (`--demo`).
+- Rose and blue pictures exist in `design/captures/raw/` (`spike-rose.png`, `spike-blue.png`) and were sent to the owner.
 
-**Exact next step:** run the two shell measurements above, add their table here beside the baseline, run `npm run shortcut:frosted` and launch from it once. Then stage 2: a `?spike=1` page that imports `kiln.js` and shows the room, one panel, three bowls, the pocket and the ribbon in the rose palette, then the blue one.
+**Exact next step:** give `tools/perf/run.js` a `spike` page profile (ready: `window.spike`; play: `.bowl--play`; next: `.bowl--next`; row: `.row`; `spike.seekTo(n)`) and a `--page spike.html` option, then measure S1, S2, S4, S6, S7, S9 on the spike. Lay out reference | ours sheets at half size into `design/captures/frosted/` (rose against `frosted-library.webp`, blue against `frosted-library-blue.webp`), list the differences, send the sheets and numbers to the owner, and **wait for his answer before stage 4**. Meanwhile do stage 3.
 
 ## Numbers
 
