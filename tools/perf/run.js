@@ -210,6 +210,19 @@ async function setPlaying(c, want) {
 }
 const pointerOut = (c) => c.page.mouse('mouseMoved', -40, -40);
 
+/** Wheel through the whole library in 20 seconds, then sweep the pointer over rows and the sidebar for 10. */
+async function wheelAndSweep({ page, ui }) {
+  const [sx, sy] = await page.at(ui.scroller);
+  const distance = await page.eval(`(() => { const s = document.querySelector(${q(ui.scroller)}); return s.scrollHeight - s.clientHeight; })()`);
+  await steady(20, 60, (i, n) => page.wheel(sx, sy, distance / n));
+  await page.eval(`document.querySelector(${q(ui.scroller)}).scrollTop = 0`);
+  await sleep(300);
+  const [rx, ry] = await page.at(ui.row, 0.4);
+  const [bx] = await page.at(ui.sidebar, 0.5, 0.5);
+  const low = (await page.eval('innerHeight')) - 150;
+  await page.sweep([[rx, ry], [rx, low], [bx, low], [bx, 110], [rx, ry], [rx, low]], 10);
+}
+
 const SCENARIOS = {
   S1: { name: 'Idle, paused', seconds: 60, prep: async (c) => { await c.ui.library(c.page); await setPlaying(c, false); await pointerOut(c); } },
   S2: { name: 'Playing, library, one track change', seconds: 120,
@@ -222,15 +235,7 @@ const SCENARIOS = {
   S5: { name: 'Interacting while playing', seconds: 60,
     prep: async (c) => { await c.ui.library(c.page); await setPlaying(c, true); await c.page.eval(c.ui.seekTo(170)); },
     run: async ({ page, ui }) => {
-      const [sx, sy] = await page.at(ui.scroller);
-      const distance = await page.eval(`(() => { const s = document.querySelector(${q(ui.scroller)}); return s.scrollHeight - s.clientHeight; })()`);
-      await steady(20, 60, (i, n) => page.wheel(sx, sy, distance / n));                      // the whole library
-      await page.eval(`document.querySelector(${q(ui.scroller)}).scrollTop = 0`);
-      await sleep(300);
-      const [rx, ry] = await page.at(ui.row, 0.4);
-      const [bx] = await page.at(ui.sidebar, 0.5, 0.5);
-      const low = (await page.eval('innerHeight')) - 150;
-      await page.sweep([[rx, ry], [rx, low], [bx, low], [bx, 110], [rx, ry], [rx, low]], 10);  // rows and the sidebar
+      await wheelAndSweep({ page, ui });
       for (let i = 0; i < 10; i++) {                                                          // the track menu
         const [x, y] = await page.at(ui.row, 0.3 + (i % 3) * 0.1);
         await page.click(x, y, 'right'); await sleep(350);
@@ -256,6 +261,10 @@ const SCENARIOS = {
       for (let i = 0; i < 10; i++) { await page.clickOn(`${ui.nav}[data-view="${ui.views[i % ui.views.length]}"]`); await sleep(550); }
       await ui.library(page);
     } },
+  // S5's scrolling and pointer sweep alone, for a page that has no menus, equaliser or search yet.
+  S5S: { name: 'Scrolling the whole library, pointer across rows', seconds: 32,
+    prep: async (c) => { await setPlaying(c, true); await c.page.eval(c.ui.seekTo(170)); },
+    run: wheelAndSweep },
   S6: { name: 'Resizing while playing', seconds: 40,
     prep: async (c) => { await setPlaying(c, true); await c.page.eval(c.ui.seekTo(120)); },
     op: ['resize', '-Seconds', 20, '-Count', 10] },

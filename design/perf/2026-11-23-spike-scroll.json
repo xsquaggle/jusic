@@ -1,0 +1,56 @@
+{
+ "label": "spike-scroll",
+ "app": "electron",
+ "exe": "electron.exe",
+ "date": "2026-11-23T01:10:28.043Z",
+ "cpus": 16,
+ "results": [
+  {
+   "id": "S5S",
+   "name": "Scrolling the whole library, pointer across rows",
+   "size": "default",
+   "run": 1,
+   "seconds": 32,
+   "samples": [ 2.23, 2.91, 2.26, 3.15, 3.87, 0.49, 3.49, 0.88, 3.3, 1.86, 3.05, 5.11, 1.37, 3.93, 3.58, 3.53, 1.58, 4.44, 1.57, 1.18, 1.96, 0.48, 0.29, 0.2, 0.1, 0.39, 0.87, 0.4, 0.19, 0.1, 0.39, 0.1
+   ],
+   "mean": 1.85,
+   "p95": 4.44,
+   "max": 5.11,
+   "top": "electron gpu-process 58%",
+   "gpuMean": 0.63,
+   "gpuMax": 1.09,
+   "memMB": 442,
+   "machine": 32.51,
+   "notes": ""
+  },
+  {
+   "id": "S5S",
+   "name": "Scrolling the whole library, pointer across rows",
+   "size": "default",
+   "run": 2,
+   "seconds": 32,
+   "samples": [ 3.19, 1.27, 0.49, 3.67, 4.51, 2.55, 0.39, 4.49, 5.02, 2.16, 0.3, 5.89, 2.05, 1.08, 2.43, 1.67, 1.18, 4.17, 4.43, 4.05, 0.1, 0.48, 0.1, 0, 0, 1.17, 1.26, 1.68, 0.29, 0, 0.2
+   ],
+   "mean": 1.94,
+   "p95": 5.02,
+   "max": 5.89,
+   "top": "electron gpu-process 53%",
+   "gpuMean": 0.62,
+   "gpuMax": 1.04,
+   "memMB": 431,
+   "machine": 30.21,
+   "notes": ""
+  }
+ ],
+ "conditions": {
+  "devtools": "attached on 127.0.0.1:9333",
+  "audio": "--mute-audio (the audio path runs; the speakers are silent)",
+  "screen": "the second monitor (the owner was using the main one)",
+  "focus": "the window was never the active one (the keyboard focus stayed with the owner)",
+  "stacking": "under the owner's windows, with Chromium's occlusion check off so the page rendered as if in view",
+  "machineBefore": "24.32% of the machine busy with other things",
+  "gpuBefore": "2.39% summed over every process's 3D engines",
+  "default": "1364 x 892 CSS px (window 1380 x 900), scale 1, screen 1920 x 1080",
+  "refresh": "364 Hz (frames a second the page is offered)"
+ }
+}

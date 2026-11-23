@@ -96,7 +96,10 @@ h1 { font-size: 55px; font-weight: 750; letter-spacing: -.02em; line-height: 1.1
 /* Nothing scrolls under glass: rows fade out before the ribbon. */
 .rows { flex: 1; min-height: 0; overflow: hidden auto; scrollbar-width: none; padding-bottom: calc(var(--ribbon-h) * 1.02);
   mask-image: linear-gradient(#000 calc(100% - var(--ribbon-h) * 1.16), transparent calc(100% - var(--ribbon-h) * .94)); }
-.row { height: 47px; border-radius: 22px; font-size: 15.5px; color: var(--soft); }
+.vlist { position: relative; }
+.row, .row-bar { position: absolute; left: 0; right: 0; top: 0; height: 47px; border-radius: 22px; }
+.row { font-size: 15.5px; color: var(--soft); cursor: pointer; }
+.row:hover { color: var(--text); background: rgb(255 255 255 / .035); }
 .row > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .row .title { color: var(--text); font-weight: 650; font-size: 16px; }
 .row img { width: 46px; height: 40px; border-radius: 7px; object-fit: cover; display: block; }

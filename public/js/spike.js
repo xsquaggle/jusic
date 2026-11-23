@@ -8,6 +8,7 @@
 import { glass, setPalette, currentPalette, MODE } from './glass.js';
 import { ribbonShape, seekPath, drawLine } from './ribbon.js';
 import { paletteFromImage } from './palette.js';
+import { virtualList } from './vlist.js';
 
 const $ = (sel) => document.querySelector(sel);
 const fmt = (s) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}`;
@@ -19,26 +20,49 @@ async function tracks() {
     return new URLSearchParams(location.search).has('blue') ? [t[6], ...t.slice(1, 6)] : t.slice(0, 6);
   }
   const [{ tracks: all }, state] = await Promise.all([fetch('/api/library').then((r) => r.json()), fetch('/api/state').then((r) => r.json())]);
-  const withArt = all.filter((t) => t.art && !t.isCopy);
-  const first = withArt.find((t) => t.id === state.resume?.id) || withArt[0];
-  const seen = new Set([first.art]);
-  const rest = withArt.filter((t) => !seen.has(t.art) && seen.add(t.art)).slice(0, 8);   // one per cover, for variety
-  return [first, ...rest].map((t) => ({
+  // The whole real library, starting from whatever was playing last.
+  const mine = all.filter((t) => t.art && !t.isCopy);
+  const at = Math.max(0, mine.findIndex((t) => t.id === state.resume?.id));
+  return [...mine.slice(at), ...mine.slice(0, at)].map((t) => ({
     title: t.title, artist: t.artist || 'Unknown artist', album: t.album || t.session || '', era: t.year ? `${Math.floor(t.year / 10)}0s` : '',
-    time: fmt(t.duration || 0), cover: '/api/art/' + encodeURIComponent(t.art),
+    time: fmt(t.duration || 0), cover: '/api/art/' + encodeURIComponent(t.art), thumb: '/api/thumb/' + encodeURIComponent(t.art),
   }));
 }
 
 const list = await tracks();
 let playing = 0;
 
+// The list: a few dozen recycled rows however long the library is, and one glass bar that sits
+// behind whichever row is playing.
 $('#count').textContent = `${list.length} tracks`;
-$('#rows').innerHTML = list.map((t, i) => `
-  <div class="row${i === 0 ? ' is-current' : ''}" data-i="${i}">
-    <svg class="ic bars"><use href="#i-bars"/></svg><img src="${t.cover}" alt="" loading="lazy">
-    <span class="title">${t.title}</span><span>${t.artist}</span><span>${t.album}</span>
-    <span class="chip" style="--era:${ERA_COLORS[t.era] || '#a66'}">${t.era || 'unknown'}</span><span class="num">${t.time}</span>
-  </div>`).join('');
+const ROW = 47;
+const rows = virtualList($('#rows'), {
+  rowHeight: ROW,
+  create() {
+    const row = document.createElement('div');
+    row.className = 'row';
+    row.innerHTML = '<svg class="ic bars"><use href="#i-bars"/></svg><img alt="" decoding="async"><span class="title"></span><span></span><span></span><span class="chip"></span><span class="num"></span>';
+    row.addEventListener('click', () => show(Number(row.dataset.i), true));
+    return row;
+  },
+  fill(row, i) {
+    const t = list[i];
+    const [, img, title, artist, album, chip, time] = row.children;
+    row.dataset.i = i;
+    row.classList.toggle('is-current', i === playing);
+    if (img.getAttribute('src') !== (t.thumb || t.cover)) img.src = t.thumb || t.cover;
+    title.textContent = t.title; artist.textContent = t.artist; album.textContent = t.album;
+    chip.textContent = t.era || 'unknown'; chip.style.setProperty('--era', ERA_COLORS[t.era] || '#a66');
+    time.textContent = t.time;
+  },
+});
+// Every thumbnail stays decoded for as long as the page lives (a few megabytes), so rows that
+// scroll into view show their cover at once and scrolling never waits on a decode.
+const thumbs = [...new Set(list.map((t) => t.thumb || t.cover))].map((url) => Object.assign(new Image(), { src: url }));
+const bar = document.createElement('div');
+bar.className = 'row-bar';
+rows.content.prepend(bar);
+rows.setCount(list.length);
 
 /* --------------------------------------------------------------- the glass --- */
 
@@ -52,10 +76,7 @@ glass($('#sort'), { radius: 23, rim: 11, body: 0.5, bleed: 16 });
 glass($('#nav-active'), { radius: 22, rim: 10, body: 0.6, glow: 0.9, bleed: 16 });
 glass(ribbon, { shape: ribbonShape, rim: 34, body: 0.7, bleed: 44, pour: true });
 for (const bowl of document.querySelectorAll('.bowl')) glass(bowl, { mode: MODE.bowl, hot: true, bleed: 18 });
-const currentRow = () => $('.row.is-current');
-let rowGlass = null;
-const markRow = () => { rowGlass = glass(currentRow(), { radius: 22, rim: 7, body: 0.5, glow: 0.8, bleed: 14 }); };
-markRow();
+glass(bar, { radius: 22, rim: 7, body: 0.5, glow: 0.8, bleed: 14 });
 
 /* ------------------------------------------------------ what's playing --- */
 
@@ -82,6 +103,8 @@ new ResizeObserver(() => { clearTimeout(settle); settle = setTimeout(lines, 150)
 const cover = $('#cover');
 async function show(i, pour) {
   const t = list[playing = (i + list.length) % list.length];
+  bar.style.transform = `translateY(${rows.top(playing)}px)`;
+  rows.refresh();
   $('#now-title').textContent = t.title;
   $('#now-artist').textContent = t.artist;
   $('#now-dur').textContent = t.time;
