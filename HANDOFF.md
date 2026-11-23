@@ -124,7 +124,7 @@ My reading: this sits inside his standing motion rule (the glass stays still whi
 
 ## Budgets so far
 
-- Runtime code against `main`: about **+1,470 / -60 lines**, with the old interface still in place (the shell 187, kiln 249, glass 150, ribbon 71, palette 120, loop 58, vlist 54, `frosted.css` 134, the spike page 260, engine and settings about +190, server +45). The spike page goes when stage 4 lands, and stage 4 replaces `styles.css` (2,116 lines) and removes `fx.js` and the old layout code. Allowance: +2,500, aim +1,800.
+- Runtime code against `main`: **+1,516 / -40 lines**, with the old interface still in place (the shell 187, kiln 249, glass 150, ribbon 71, palette 120, loop 58, vlist 54, `frosted.css` 134, the spike page 260, engine and settings about +190, server +45). The spike page goes when stage 4 lands, and stage 4 replaces `styles.css` (2,116 lines) and removes `fx.js` and the old layout code. Allowance: +2,500, aim +1,800.
 - GLSL: about 170 lines (allowance about 400).
-- Tools: about 830 lines (`tools/perf/` 700, `tools/capture/shot.js` 56, `tools/demo/make-covers.js` 43, `tools/media-overlay.ps1` 24). Slightly over the aim of 800; the old Mercury capture scripts in `tools/capture/` (about 760 lines) are not counted and can go once nothing needs them.
+- Tools: 809 lines (`tools/perf/` 686, `tools/capture/shot.js` 56, `tools/demo/make-covers.js` 43, `tools/media-overlay.ps1` 24). Slightly over the aim of 800; the old Mercury capture scripts in `tools/capture/` (about 760 lines) are not counted and can go once nothing needs them.
 - Binary assets added to `public/`: none. (The demo covers, 55 KB, live in `tools/demo/`.)
