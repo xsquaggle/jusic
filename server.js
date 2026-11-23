@@ -121,6 +121,33 @@ function queueColorsSave() {
   }, 1500);
 }
 
+/* -------------------------------------------------------------- loudness --- */
+
+/**
+ * How loud each track is, as the player measured it while the track played (the music files are
+ * never written to). It is what "Even out volume" works from. Safe to delete: tracks are simply
+ * measured again as they play.
+ */
+const LOUDNESS_FILE = path.join(DATA_DIR, 'loudness.json');
+let loudness = {};
+let loudnessTimer = null;
+
+async function loadLoudness() {
+  try {
+    loudness = JSON.parse(await fsp.readFile(LOUDNESS_FILE, 'utf8'));
+  } catch { /* nothing measured yet */ }
+}
+
+function saveLoudnessNow() {
+  try {
+    const tmp = LOUDNESS_FILE + '.tmp';
+    fs.writeFileSync(tmp, JSON.stringify(loudness));
+    fs.renameSync(tmp, LOUDNESS_FILE);
+  } catch (err) {
+    console.error('could not save loudness:', err.message);
+  }
+}
+
 const ART_NAME = /^[a-f0-9]{6,32}\.(jpg|jpeg|png|gif|webp|bmp)$/i;
 
 function thumbPath(artName) {
@@ -206,6 +233,7 @@ function shutdown() {
   // Flush anything still sitting in a debounce before the process goes away.
   if (stateTimer) { clearTimeout(stateTimer); stateTimer = null; saveStateNow(); }
   if (colorsTimer) { clearTimeout(colorsTimer); colorsTimer = null; saveColorsNow(); }
+  if (loudnessTimer) { clearTimeout(loudnessTimer); loudnessTimer = null; saveLoudnessNow(); }
   // Event streams would otherwise hold the server open indefinitely.
   for (const client of liveClients) {
     try { client.end(); } catch { /* already gone */ }
@@ -388,6 +416,24 @@ async function handleApi(req, res, url) {
   if (route === 'quit' && req.method === 'POST') {
     sendJson(res, 200, { ok: true });
     setTimeout(shutdown, 60);
+    return;
+  }
+
+  if (route === 'loudness' && req.method === 'GET') {
+    sendJson(res, 200, loudness);
+    return;
+  }
+
+  if (route === 'loudness' && req.method === 'PUT') {
+    try {
+      const { id, rms, peak, secs } = JSON.parse(await readBody(req, 4096));
+      if (!/^[a-f0-9]{6,32}$/.test(id) || ![rms, peak, secs].every(Number.isFinite)) throw new Error('expected { id, rms, peak, secs }');
+      loudness[id] = { rms, peak, secs };
+      loudnessTimer ||= setTimeout(() => { loudnessTimer = null; saveLoudnessNow(); }, 1500);
+      sendJson(res, 200, { ok: true });
+    } catch (err) {
+      sendJson(res, 400, { error: err.message });
+    }
     return;
   }
 
@@ -577,6 +623,7 @@ async function main() {
   fs.mkdirSync(THUMB_DIR, { recursive: true });
   await loadState();
   await loadColors();
+  await loadLoudness();
   await library.init();
 
   server.listen(config.port, config.host, async () => {

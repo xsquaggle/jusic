@@ -6,7 +6,7 @@ import { initArt, warmThumbnails, thumbUrl } from './art.js';
 import {
   player, current, onPlayer, playList, toggle, next, prev,
   seek, nudge, setVolume, toggleMute, reshuffle, clearQueue, addToQueue, cue,
-  updateMediaSession,
+  updateMediaSession, initLoudness,
 } from './player.js';
 import { startVisualizer } from './viz.js';
 import { initOutput } from './output.js';
@@ -32,6 +32,8 @@ async function boot() {
   }
 
   computeEras();
+  initLoudness();
+  document.documentElement.classList.toggle('reduce-motion', Boolean(store.settings.reduceMotion));
   await initArt();
   await computeEraColors();
   applySettings();
@@ -328,7 +330,23 @@ function wire() {
     if (what === 'playing' && 'mediaSession' in navigator) {
       navigator.mediaSession.playbackState = player.audio.paused ? 'paused' : 'playing';
     }
+    if (what === 'time' || what === 'playing' || what === 'track') tellTaskbar();
   });
+  // The desktop window's taskbar button: previous / play-pause / next under its thumbnail.
+  window.desktop?.onTransport((what) => ({ prev, next: () => next(false), toggle })[what]?.());
+}
+
+/** The taskbar button shows the song's progress. Sent only when the picture would change (each 1%). */
+let taskbarSent = '';
+function tellTaskbar() {
+  if (!window.desktop) return;
+  const audio = player.audio;
+  const progress = current() && Number.isFinite(audio.duration) && audio.duration ? Math.round((audio.currentTime / audio.duration) * 100) / 100 : -1;
+  const state = { playing: !audio.paused, progress };
+  const key = JSON.stringify(state);
+  if (key === taskbarSent) return;
+  taskbarSent = key;
+  window.desktop.transport(state);
 }
 
 /** The playbar button lights up only while the equaliser is doing something. */

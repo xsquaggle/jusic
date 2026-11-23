@@ -1,6 +1,8 @@
 /** Settings dialog: where the sound comes out, and how it is shaped. */
 
 import { h, icon, toast } from './util.js';
+import { store, setSetting } from './store.js';
+import { refreshLevel } from './player.js';
 import { eqSection } from './eqpanel.js';
 import { openModal, closeModal } from './ui.js';
 import {
@@ -18,11 +20,46 @@ function pop(node) {
   node.classList.add('is-pop');
 }
 
+/** A row with a switch: a name, a line about it, and anything extra (a slider) beside the switch. */
+function switchRow(title, about, on, onChange, extra = null) {
+  const button = h('button.switch', { role: 'switch', 'aria-label': title, 'aria-checked': String(on), class: on ? 'is-on' : '' }, h('i'));
+  button.addEventListener('click', () => {
+    const next = button.getAttribute('aria-checked') !== 'true';
+    button.setAttribute('aria-checked', String(next));
+    button.classList.toggle('is-on', next);
+    onChange(next);
+  });
+  return h('div.setting-head', { style: { gridTemplateColumns: '1fr auto auto', alignItems: 'center', marginBottom: '10px' } },
+    h('div', null, h('b', null, title), h('p', null, about)), extra, button);
+}
+
+/** How tracks follow each other, how loud they are, and whether the glass moves. */
+function playbackSection() {
+  const s = store.settings;
+  const length = h('input', { type: 'range', min: 1, max: 12, step: 1, value: s.crossfade || s.crossfadeLength || 4, 'aria-label': 'Crossfade length in seconds', style: { width: '110px' } });
+  const readout = h('span.num', { style: { width: '32px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' } });
+  const paint = () => { readout.textContent = length.value + ' s'; };
+  length.addEventListener('input', () => {
+    paint();
+    setSetting('crossfadeLength', Number(length.value));           // remembered while crossfade is off, too
+    if (store.settings.crossfade) setSetting('crossfade', Number(length.value));
+  });
+  paint();
+  return h('section.setting', null,
+    switchRow('Crossfade', 'Each track fades in under the end of the one before it.', Boolean(s.crossfade),
+      (on) => setSetting('crossfade', on ? Number(length.value) : 0), h('div', { style: { display: 'flex', gap: '8px', alignItems: 'center' } }, length, readout)),
+    switchRow('Even out volume', 'Quiet tracks are brought up and loud ones down. Each track is measured the first time it plays; your files are never changed.', Boolean(s.normalize),
+      (on) => { setSetting('normalize', on); refreshLevel(); }),
+    switchRow('Reduce motion', 'Keeps the glass still: no swells, drifts or springs. Windows\' own setting is always respected as well.', Boolean(s.reduceMotion),
+      (on) => { setSetting('reduceMotion', on); document.documentElement.classList.toggle('reduce-motion', on); }),
+  );
+}
+
 /** @param {{focus?: 'output'|'eq'}} options Which section to open at. */
 export async function openSettings({ focus = 'output' } = {}) {
   const outputBody = h('div');
   const equalizer = eqSection();
-  const body = h('div.settings-body', null, outputBody, equalizer);
+  const body = h('div.settings-body', null, outputBody, playbackSection(), equalizer);
   let blocked = false;
 
   openModal(
