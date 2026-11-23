@@ -1,0 +1,74 @@
+{
+ "label": "spike-4",
+ "app": "electron",
+ "exe": "electron.exe",
+ "date": "2026-11-23T01:16:57.983Z",
+ "cpus": 16,
+ "results": [
+  {
+   "id": "S1",
+   "name": "Idle, paused",
+   "size": "default",
+   "run": 1,
+   "seconds": 60,
+   "samples": [ 0, 0, 0.1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.1, 0, 0.1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+   ],
+   "mean": 0.01,
+   "p95": 0.1,
+   "max": 0.2,
+   "top": "electron gpu-process 60%",
+   "gpuMean": 0,
+   "gpuMax": 0,
+   "memMB": 385,
+   "machine": 25.98,
+   "notes": ""
+  },
+  {
+   "id": "S2",
+   "name": "Playing, library, one track change",
+   "size": "default",
+   "run": 1,
+   "seconds": 120,
+   "samples": [ 0, 0.68, 0, 0.2, 0, 0.1, 0.29, 0, 0.1, 0.1, 0, 0, 0.1, 0.19, 0.2, 0.1, 0, 0.39, 0.2, 0, 0.39, 0.2, 0, 0.1, 0.49, 0, 0.29, 0, 0, 0, 0, 0, 0.59, 0, 0, 0, 0.29, 0.1, 0.1, 0.2, 0, 0, 0.1, 0.39, 0, 0.1, 0, 0, 0, 0.19, 0, 0.1, 0.19, 0, 0, 0.1, 0.2, 0.29, 1.47, 0.69, 0.29, 0, 0.2, 0, 0, 0.29, 0, 0, 0.19, 0.1, 0, 0, 0.29, 0, 0, 0.3, 0.1, 0, 0.29, 0.2, 0.19, 0.19, 0, 0, 0.29, 0.19, 0.29, 0, 0, 0.3, 0, 0.39, 0, 0, 0, 0.2, 0, 0.29, 0, 0.29, 0.1, 0.39, 0, 0, 0, 0, 0.19, 0.1, 0, 0.1, 0.1, 0, 0, 0, 0.2, 0, 0.1, 0, 0.1
+   ],
+   "mean": 0.13,
+   "p95": 0.39,
+   "max": 1.47,
+   "top": "electron gpu-process 63%",
+   "gpuMean": 0.07,
+   "gpuMax": 0.98,
+   "memMB": 414,
+   "machine": 22.94,
+   "notes": ""
+  },
+  {
+   "id": "S9",
+   "name": "Ten track changes, one a second",
+   "size": "default",
+   "run": 1,
+   "seconds": 15,
+   "samples": [ 0.79, 0.97, 0.69, 0.59, 0.68, 0.89, 0.97, 2.55, 1.37, 0.48, 0.2, 0, 0, 0.59
+   ],
+   "mean": 0.77,
+   "p95": 2.55,
+   "max": 2.55,
+   "top": "electron gpu-process 51%",
+   "gpuMean": 0.8,
+   "gpuMax": 1.19,
+   "memMB": 546,
+   "machine": 25.31,
+   "notes": ""
+  }
+ ],
+ "conditions": {
+  "devtools": "attached on 127.0.0.1:9333",
+  "audio": "--mute-audio (the audio path runs; the speakers are silent)",
+  "screen": "the second monitor (the owner was using the main one)",
+  "focus": "the window was never the active one (the keyboard focus stayed with the owner)",
+  "stacking": "under the owner's windows, with Chromium's occlusion check off so the page rendered as if in view",
+  "machineBefore": "40.55% of the machine busy with other things",
+  "gpuBefore": "2.81% summed over every process's 3D engines",
+  "default": "1364 x 892 CSS px (window 1380 x 900), scale 1, screen 1920 x 1080",
+  "refresh": "365 Hz (frames a second the page is offered)"
+ }
+}

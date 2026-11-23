@@ -53,6 +53,7 @@ export function paletteFromImage(image) {
   const buckets = Array.from({ length: BUCKETS }, () => ({ weight: 0, r: 0, g: 0, b: 0 }));
   const all = { weight: 0, r: 0, g: 0, b: 0 };
   let colourful = 0;     // pixels with a colour of their own (the audit's measure)
+  let vivid = 0;         // how saturated those pixels are, summed
   const dark = { weight: 0, r: 0, g: 0, b: 0 };
 
   for (let i = 0; i < data.length; i += 4) {
@@ -60,7 +61,7 @@ export function paletteFromImage(image) {
     if (data[i + 3] < 128) continue;
     const [hue, s, l] = rgbToHsl(r, g, b);
     all.weight += 1; all.r += r; all.g += g; all.b += b;
-    if (s > 0.2 && l > 0.12 && l < 0.93) colourful++;
+    if (s > 0.2 && l > 0.12 && l < 0.93) { colourful++; vivid += s; }
     if (l > 0.04 && l < 0.3) {
       const w = 0.2 + s;
       dark.weight += w; dark.r += r * w; dark.g += g * w; dark.b += b * w;
@@ -106,7 +107,9 @@ export function paletteFromImage(image) {
   // Fully silver below 5% of colourful pixels, fully the cover's own above 15%, between them a blend.
   const share = all.weight ? colourful / all.weight : 0;
   const k = clamp((share - 0.05) / 0.1, 0, 1);
-  const kk = k * k * (3 - 2 * k);
+  // A small accent that is truly vivid is the cover's own colour, not an invented one: it keeps up to 40% of its hue.
+  const accent = clamp(share / 0.02, 0, 1) * clamp((vivid / (colourful || 1) - 0.45) / 0.3, 0, 1) * 0.4;
+  const kk = Math.max(k * k * (3 - 2 * k), accent);
   const toSilver = (rgb) => {
     const l = rgbToHsl(...rgb)[2];
     const silver = hslToRgb(0.6, 0.06, l);

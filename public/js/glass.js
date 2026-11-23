@@ -6,10 +6,10 @@
  * those moments nothing runs: the page is finished bitmaps and text.
  */
 import { bake, MODE } from './kiln.js';
+import { run } from './loop.js';
 
 const SETTLE = 150;      // ms after the last size change before a re-bake
 const FADE = 900;        // ms for a new palette to fade in over the old
-const STEP = 33;         // ms between fade steps: timed, not a CSS animation, which would redraw at the display's 360 Hz
 const surfaces = new Map();   // element -> surface
 let palette = { a: [255, 112, 102], b: [255, 166, 140], c: [96, 40, 48] };   // rose, until a cover says otherwise
 
@@ -73,13 +73,11 @@ function put(s, bitmap, fadeDelay = -1) {
   s.canvas.style.opacity = 0;
   old.after(s.canvas);
   fading.add({ canvas: s.canvas, old, from: performance.now() + fadeDelay });
-  fadeTimer ||= setInterval(stepFades, STEP);
+  run('glass-fade', 30, stepFades);     // stepped by the clock: a CSS animation would redraw at the display's 360 Hz
 }
 
 const fading = new Set();     // new layers on their way in
-let fadeTimer = 0;
-function stepFades() {
-  const now = performance.now();
+function stepFades(now) {
   for (const f of fading) {
     const t = (now - f.from) / FADE;
     if (t < 0) continue;
@@ -88,7 +86,7 @@ function stepFades() {
     f.old.remove();
     fading.delete(f);
   }
-  if (!fading.size) { clearInterval(fadeTimer); fadeTimer = 0; }
+  return fading.size > 0;
 }
 
 function draw(s, fadeDelay = -1) {
@@ -110,13 +108,12 @@ function pourInto(s, old, from) {
   const reach = Math.hypot(s.w, s.h) + 260;
   const token = ++s.token;
   const started = performance.now();
-  (function step() {
-    if (token !== s.token) return;                         // a newer bake took over
-    const t = Math.min(1, (performance.now() - started) / 1150);
-    if (t === 1) { draw(s); return; }
+  run('pour:' + s.seed, 25, (now) => {
+    if (token !== s.token) return false;                   // a newer bake took over
+    const t = Math.min(1, (now - started) / 1150);
+    if (t === 1) { draw(s); return false; }
     put(s, render(s, { palette: old, next: palette, pour: [...origin, (1 - (1 - t) ** 2.2) * reach] }));
-    setTimeout(step, 40);
-  })();
+  });
 }
 
 /**

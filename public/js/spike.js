@@ -9,6 +9,7 @@ import { glass, setPalette, currentPalette, MODE } from './glass.js';
 import { ribbonShape, seekPath, drawLine } from './ribbon.js';
 import { paletteFromImage } from './palette.js';
 import { virtualList } from './vlist.js';
+import { run, stop } from './loop.js';
 
 const $ = (sel) => document.querySelector(sel);
 const fmt = (s) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}`;
@@ -124,7 +125,6 @@ async function show(i, pour) {
 // A pretend transport: the seek line moves 5 times a second, the time once a second, and the next
 // cover pours in when the song ends. This is everything the playing library view has to draw.
 const clock = $('.time--cur');
-let timer = 0;
 function tick() {
   position += 0.2;
   if (position >= LENGTH) { position = 0; show(playing + 1, true); }
@@ -133,9 +133,8 @@ function tick() {
   if (clock.textContent !== text) clock.textContent = text;
 }
 function toggle() {
-  clearInterval(timer);
-  timer = spike.playing ? 0 : setInterval(tick, 200);
   spike.playing = !spike.playing;
+  if (spike.playing) run('transport', 5, tick); else stop('transport');
   $('.bowl--play use').setAttribute('href', spike.playing ? '#i-pause' : '#i-play');
 }
 cover.addEventListener('click', () => show(playing + 1, true));
